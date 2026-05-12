@@ -13,12 +13,15 @@
 
 로컬 개발 시 의존성 설치: `npm install`
 
+로컬에서 화면 미리보기: `npm run dev` → `dist/`를 정적 서버(`serve`)로 띄웁니다 (`http://localhost:5173/`). Vue 소스가 없을 때는 Vite 단독으로는 진입 HTML이 없어 동작하지 않습니다.
+
 ---
 
 ## 변경 이력
 
 ### 2026-05-12
 
+- `npm run dev` / `npm run preview`: `dist/` 정적 서빙(`serve`)으로 변경 — 설비·레이아웃 등 해시 라우트 정상 표시
 - 저장소 루트 구조 정리 및 재현 가능한 의존성 관리
   - `.gitignore` 추가 (`node_modules/`, Vite 캐시, 로그, `.env` 등)
   - `package.json` 추가 (Vue 3.5.x, Vite 5.4.x, `@vitejs/plugin-vue`, `lucide-vue-next`)

@@ -9,11 +9,13 @@
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "5.2.4",
+    "serve": "^14.2.6",
     "vite": "5.4.21"
   },
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "dev": "serve dist -l 5173",
+    "preview": "serve dist -l 4173",
+    "vite": "vite",
+    "build": "vite build"
   }
 }
