@@ -1,0 +1,34 @@
+
+> facility-control-login-ui@0.1.0 dev
+> vite --host 127.0.0.1 --host 127.0.0.1
+
+
+  [32m[1mVITE[22m v5.4.21[39m  [2mready in [0m[1m393[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://127.0.0.1:[1m5173[22m/[39m
+[2mAM 10:21:10[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/FactoryLayoutPage.vue[22m
+[2mAM 10:21:42[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/style.css[22m
+[2mAM 10:21:52[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/style.css[22m
+[2mAM 10:28:45[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/EquipmentDetailPage.vue[22m
+[2mAM 10:29:41[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/EquipmentDetailPage.vue[22m
+[2mAM 10:29:51[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/EquipmentDetailPage.vue[22m
+[2mAM 10:30:45[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/style.css[22m
+[2mAM 10:31:01[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/style.css[22m
+[2mPM 2:55:52[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/App.vue[22m
+[2mPM 2:56:00[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/DashboardPage.vue[22m
+[2mPM 2:56:05[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/FactoryLayoutPage.vue[22m
+[2mPM 2:56:13[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/EquipmentDetailPage.vue[22m
+[2mPM 2:56:19[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/AlarmPage.vue[22m
+[2mPM 2:56:25[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/UserManagementPage.vue[22m
+[2mPM 2:56:30[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/CommunityPage.vue[22m
+[2mPM 2:57:41[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/style.css[22m
+[2mPM 2:57:48[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/style.css[22m
+[2mPM 3:00:45[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/SwmpTestPage.vue[22m
+[2mPM 3:00:51[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/SwmpTestPage.vue[22m
+[2mPM 3:02:34[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/SwmpTestPage.vue[22m
+[2mPM 3:02:50[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/style.css[22m
+[2mPM 3:02:59[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/style.css[22m
+[2mPM 3:15:20[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/SwmpTestPage.vue[22m
+[2mPM 3:47:43[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/SwmpTestPage.vue[22m
+[2mPM 3:54:50[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/SwmpTestPage.vue[22m
+[2mPM 3:55:10[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/style.css[22m
