@@ -1,0 +1,11 @@
+node_modules/
+.vite/
+
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*
+
+.env
+.env.*
+!.env.example
