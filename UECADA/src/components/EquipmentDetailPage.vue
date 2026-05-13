@@ -12,7 +12,6 @@ import {
   MapPinned,
   MessageSquare,
   Play,
-  ShieldCheck,
   Square,
   Users,
   Wrench,
@@ -21,11 +20,10 @@ import {
 
 const navItems = [
   { label: '대시보드', icon: LayoutDashboard, href: '#/dashboard' },
-  { label: '공장 레이아웃', icon: MapPinned, href: '#/layout' },
-  { label: '설비 관리', icon: Wrench, href: '#/equipment', active: true },
+  { label: '레이아웃', icon: MapPinned, href: '#/layout' },
+  { label: '설비 제어', icon: Wrench, href: '#/equipment', active: true },
   { label: '알람 및 이력', icon: Bell, href: '#/alarms' },
-  { label: '사용자 관리', icon: Users, href: '#/users' },
-  { label: '권한 설정', icon: ShieldCheck, href: '#/users' },
+  { label: '사용자·권한', icon: Users, href: '#/users' },
   { label: '커뮤니티', icon: MessageSquare, href: '#/community' },
   { label: 'SWMP 테스트', icon: Wrench, href: '#/swmp-test' },
 ]

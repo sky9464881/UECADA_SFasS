@@ -10,7 +10,6 @@ import {
   LogOut,
   MapPinned,
   MessageSquare,
-  ShieldCheck,
   TrendingUp,
   Users,
   Wrench,
@@ -18,67 +17,53 @@ import {
 
 const navItems = [
   { label: '대시보드', icon: LayoutDashboard, href: '#/dashboard' },
-  { label: '공장 레이아웃', icon: MapPinned, href: '#/layout' },
+  { label: '레이아웃', icon: MapPinned, href: '#/layout' },
   { label: '라인 상세', icon: BarChart3, href: '#/lines', active: true },
-  { label: '설비 관리', icon: Wrench, href: '#/equipment' },
+  { label: '설비 제어', icon: Wrench, href: '#/equipment' },
   { label: '알람 및 이력', icon: Bell, href: '#/alarms' },
-  { label: '사용자 관리', icon: Users, href: '#/users' },
-  { label: '권한 설정', icon: ShieldCheck, href: '#/users' },
+  { label: '사용자·권한', icon: Users, href: '#/users' },
   { label: '커뮤니티', icon: MessageSquare, href: '#/community' },
 ]
 
 const lines = [
   {
-    name: 'Line A 주조',
+    name: '라인 1',
     oee: 91,
-    equipment: 24,
-    status: { run: 92, stop: 4, wait: 4, stopEnd: 96 },
+    equipment: 9,
+    status: { run: 94, stop: 3, wait: 3, stopEnd: 97 },
     balance: 88,
-    stations: [86, 92, 88, 91, 83, 89],
-    upmh: 1240,
-    uph: 520,
-    productivity: 96,
-    upmhPercent: 89,
-    uphPercent: 87,
+    stations: [90, 92, 88, 91, 86, 89],
+    upmh: 420,
+    uph: 60,
+    productivity: 94,
+    upmhPercent: 88,
+    uphPercent: 85,
   },
   {
-    name: 'Line B 가공',
+    name: '라인 2',
     oee: 84,
-    equipment: 38,
-    status: { run: 82, stop: 6, wait: 12, stopEnd: 88 },
+    equipment: 9,
+    status: { run: 82, stop: 8, wait: 10, stopEnd: 90 },
     balance: 81,
-    stations: [78, 82, 89, 80, 76, 83],
-    upmh: 1080,
-    uph: 475,
+    stations: [78, 82, 86, 80, 76, 83],
+    upmh: 395,
+    uph: 60,
     productivity: 86,
-    upmhPercent: 77,
-    uphPercent: 79,
+    upmhPercent: 78,
+    uphPercent: 80,
   },
   {
-    name: 'Line C 조립',
+    name: '라인 3',
     oee: 88,
-    equipment: 42,
-    status: { run: 86, stop: 5, wait: 9, stopEnd: 91 },
+    equipment: 9,
+    status: { run: 90, stop: 5, wait: 5, stopEnd: 95 },
     balance: 86,
-    stations: [87, 84, 90, 88, 82, 85],
-    upmh: 1160,
-    uph: 498,
-    productivity: 92,
-    upmhPercent: 83,
-    uphPercent: 83,
-  },
-  {
-    name: 'Line D 검사',
-    oee: 79,
-    equipment: 24,
-    status: { run: 76, stop: 12, wait: 12, stopEnd: 88 },
-    balance: 76,
-    stations: [71, 75, 79, 73, 82, 77],
-    upmh: 940,
-    uph: 431,
-    productivity: 78,
-    upmhPercent: 67,
-    uphPercent: 72,
+    stations: [88, 90, 85, 87, 84, 86],
+    upmh: 402,
+    uph: 60,
+    productivity: 90,
+    upmhPercent: 81,
+    uphPercent: 82,
   },
 ]
 </script>
@@ -126,7 +111,7 @@ const lines = [
           </span>
           <a class="ghost-button" href="#/layout">
             <MapPinned :size="16" />
-            <span>공장 레이아웃</span>
+            <span>레이아웃</span>
           </a>
           <a class="icon-link" href="#/login">
             <LogOut :size="16" />
