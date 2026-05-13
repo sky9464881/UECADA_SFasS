@@ -17,9 +17,9 @@ import {
 
 const navItems = [
   { label: '대시보드', icon: LayoutDashboard, href: '#/dashboard' },
-  { label: '공장 레이아웃', icon: MapPinned, href: '#/layout' },
+  { label: '레이아웃', icon: MapPinned, href: '#/layout' },
   { label: '라인 상세', icon: BarChart3, href: '#/lines', active: true },
-  { label: '설비 관리', icon: Wrench, href: '#/equipment' },
+  { label: '설비 제어', icon: Wrench, href: '#/equipment' },
   { label: '알람 및 이력', icon: Bell, href: '#/alarms' },
   { label: '사용자·권한', icon: Users, href: '#/users' },
   { label: '커뮤니티', icon: MessageSquare, href: '#/community' },
@@ -111,7 +111,7 @@ const lines = [
           </span>
           <a class="ghost-button" href="#/layout">
             <MapPinned :size="16" />
-            <span>공장 레이아웃</span>
+            <span>레이아웃</span>
           </a>
           <a class="icon-link" href="#/login">
             <LogOut :size="16" />

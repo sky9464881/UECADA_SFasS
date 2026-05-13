@@ -15,8 +15,8 @@ import {
 
 const navItems = [
   { label: '대시보드', icon: LayoutDashboard, href: '#/dashboard' },
-  { label: '공장 레이아웃', icon: MapPinned, href: '#/layout' },
-  { label: '설비 관리', icon: Wrench, href: '#/equipment' },
+  { label: '레이아웃', icon: MapPinned, href: '#/layout' },
+  { label: '설비 제어', icon: Wrench, href: '#/equipment' },
   { label: '알람 및 이력', icon: Bell, href: '#/alarms', active: true },
   { label: '사용자·권한', icon: Users, href: '#/users' },
   { label: '커뮤니티', icon: MessageSquare, href: '#/community' },
