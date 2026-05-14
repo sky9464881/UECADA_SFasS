@@ -16,10 +16,12 @@ class SensorBufferRegistryTest {
     }
 
     @Test
-    void resolvesConfiguredCapacitiesForDasSensorBuffers() {
+    void resolvesConfiguredCapacitiesForDasEquipmentSensorBuffers() {
         assertThat(registry.getOrCreate("LINE01.CAST01:sensor_vibration").capacity()).isEqualTo(600);
         assertThat(registry.getOrCreate("LINE01.CAST01:sensor_current").capacity()).isEqualTo(600);
         assertThat(registry.getOrCreate("LINE01.CAST01:sensor_voltage").capacity()).isEqualTo(600);
         assertThat(registry.getOrCreate("LINE01.CAST01:sensor_temperature").capacity()).isEqualTo(600);
+        assertThat(registry.getOrCreate("LINE02.CNC03:sensor_vibration").capacity()).isEqualTo(600);
+        assertThat(registry.getOrCreate("LINE03.TEST02:sensor_temperature").capacity()).isEqualTo(600);
     }
 }

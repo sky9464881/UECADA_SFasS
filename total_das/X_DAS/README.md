@@ -55,6 +55,8 @@ http://localhost:1890
 docker compose logs -f x-das-node-red
 ```
 
+실시간 구독량이 많아 Node-RED debug sidebar가 메시지를 계속 보관하면 메모리를 크게 씁니다. 운영/연동 확인 시에는 X_DAS flow의 debug 노드를 꺼두고, Compose 기본값처럼 `NODE_OPTIONS=--max-old-space-size=4096`을 사용합니다.
+
 중지:
 
 ```powershell

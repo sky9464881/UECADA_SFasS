@@ -88,6 +88,9 @@ to `CNC02`, `CNC03`, `ASSY02`, and `TEST02`.
 ## Common Sensor Mapping
 
 The same four sensor fields are attached to every equipment payload.
+These are equipment-scoped DAS values. There are no backend `ENV:*`,
+`vibration_x`, `vibration_y`, or `vibration_z` buffer keys in the current
+specification.
 
 | Backend Node ID | Type | Sensor DAS source tag |
 |---|---|---|
@@ -103,4 +106,3 @@ Example:
 ns=2;s=LINE01.CAST01.SensorVibration
 ns=2;s=LINE01.CAST01.Payload
 ```
-

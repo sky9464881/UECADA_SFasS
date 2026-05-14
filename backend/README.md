@@ -151,7 +151,7 @@ ns=2;s=LINE03.CNC01.SpindleLoad        -> LINE03.CNC01:spindle_load
 ns=2;s=LINE01.CAST01.SensorVibration   -> LINE01.CAST01:sensor_vibration, CAST01:sensor_vibration
 ```
 
-Sensor DAS에서 X_DAS로 합쳐진 공통값은 설비별로 아래 suffix에 저장됩니다.
+Sensor DAS에서 X_DAS로 합쳐진 공통값은 설비별로 아래 suffix에 저장됩니다. `ENV:*`, `vibration_x`, `vibration_y`, `vibration_z` 형태의 별도 환경/축별 key는 현재 명세에서 사용하지 않습니다.
 
 ```text
 :sensor_vibration
@@ -160,6 +160,8 @@ Sensor DAS에서 X_DAS로 합쳐진 공통값은 설비별로 아래 suffix에 �
 :sensor_temperature
 ```
 
+`sensor_vibration`은 DAS의 설비별 `vibration_rms` scalar입니다. AI 모델에 들어가는 32,000 sample raw vibration window는 MQTT `das/common/{line}/{equipment}/vibration/window` 경로로 별도 수신되어 FastAPI `/analyze`로 전달됩니다.
+
 조회:
 
 ```bash
@@ -167,6 +169,8 @@ curl http://localhost:8080/api/sensors
 curl "http://localhost:8080/api/sensors/LINE01.CAST01:temperature?last=10"
 curl "http://localhost:8080/api/sensors/LINE01.CAST01:sensor_vibration?last=10"
 ```
+
+상세 버퍼 명세는 `docs/das-backend-buffer-spec.md`를 기준으로 관리합니다.
 
 ## Run With Docker Compose
 
