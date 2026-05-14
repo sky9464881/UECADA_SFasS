@@ -1,0 +1,27 @@
+server:
+  port: 8080
+
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/smart_factory?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    username: smart_factory
+    password: smart_factory
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: Asia/Seoul
+
+phm:
+  mqtt:
+    host: localhost
+    port: 1883
+    vibration-topic: factory/motor/1/vibration/window
+    qos: 1
+  ai-api:
+    base-url: http://localhost:8001
+  storage:
+    raw-window-dir: ../data/raw_windows

@@ -1,0 +1,5 @@
+spring:
+  application:
+    name: smart-factory-phm-backend
+  profiles:
+    active: local
