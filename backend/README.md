@@ -5,9 +5,8 @@ Spring Boot 백엔드 위치입니다.
 역할:
 
 - MQTT vibration window 구독
-- 원본 window 메타데이터 저장
-- FastAPI 분석 요청
-- 분석 결과와 알람 이력 저장
+- FastAPI 분석/저장 요청
+- 분석 결과, 알람 이력, 10분 raw window는 FastAPI가 DB에 저장
 - Vue 대시보드용 REST API 제공
 
 패키지는 기능 기준으로 나눕니다.
@@ -58,7 +57,8 @@ curl http://localhost:8080/api/vibration/latest
 MQTT 메시지를 받은 뒤에는 FastAPI `/analyze`도 호출합니다. FastAPI가 켜져 있으면 아래 로그가 추가로 출력됩니다.
 
 ```text
-FastAPI response: equipmentId=MOTOR_001, windowIndex=0, rms=0.12242235, peakFrequency=19.53125, peakToPeak=0.77802311, crestFactor=3.31153025, kurtosis=3.20201772, prediction=bearing, confidence=0.87, modelVersion=spectrogram-pca-rf-v1, modelInputStrategy=stft_spectrogram_64x64_from_raw, modelStatus=loaded, anomalyScore=0.389, alarmLevel=normal
+FastAPI persisted vibration pipeline: vibrationWindowId=42, analysisResultId=123, rawWindowSaved=true, alarmCreated=false
+FastAPI response: equipmentId=MOTOR_001, windowIndex=0, rms=0.12242235, peakFrequency=19.53125, peakToPeak=0.77802311, crestFactor=3.31153025, kurtosis=3.20201772, prediction=bearing, confidence=0.87, modelVersion=spectrogram-pca-rf-v2, modelInputStrategy=stft_spectrogram_64x64_maxnorm_from_raw, modelStatus=loaded, anomalyScore=0.389, alarmLevel=normal
 ```
 
 total_DAS의 실제 DAS vibration window를 바로 분석하려면 backend를 DAS Mosquitto 네트워크에 붙이고 topic을 함께 구독합니다.

@@ -11,4 +11,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY das_simulator ./das_simulator
 COPY run_simulator.py .
 
-CMD ["python", "run_simulator.py", "--mqtt-host", "mosquitto", "--mqtt-port", "1883", "--health-state", "AUTO"]
+CMD ["python", "run_simulator.py", "--mqtt-host", "mosquitto", "--mqtt-port", "1883", "--health-state", "NORMAL"]

@@ -16,9 +16,10 @@ The Node-RED editor is exposed on <http://localhost:1888>. The OPC UA endpoint
 is `opc.tcp://localhost:53880/UA/DAS/` from the host and
 `opc.tcp://das-node-red:53880/UA/DAS/` from X_DAS.
 
-If `BearingType_DeepGrooveBall` is not present, the simulator falls back to a
+The simulator resolves `BearingType_DeepGrooveBall` from `data/raw_mat` when it
+is available, and Docker Compose mounts that dataset into the simulator
+container. If the dataset is not present, the simulator falls back to a
 deterministic synthetic vibration waveform so the Docker stack can still run.
-When the real `.mat` dataset is restored, it is used automatically.
 
 Python simulator for the common sensor/DAQ side before data is sent to Node-RED DAS.
 
@@ -44,7 +45,8 @@ Python simulator for the common sensor/DAQ side before data is sent to Node-RED 
   - current
   - voltage
   - equipment temperature
-- The vibration window uses healthy bearing data from `BearingType_DeepGrooveBall/**/*_H_*.mat`.
+- The vibration source selects true normal bearing files from `BearingType_DeepGrooveBall/**/H_H_*.mat`.
+- `NORMAL` health windows rotate through multiple clean 600 RPM normal templates so the current v2 AI model returns `prediction=normal` without repeating one identical waveform.
 - The vibration RMS is scaled to the equipment state range: `NORMAL`, `WARNING`, or `DANGER`.
 - Default vibration model input:
   - `sampling_rate`: `16000` Hz
@@ -238,8 +240,8 @@ Top-level `sample` is the 1 Hz scalar sample envelope. The vibration sensor has 
         "stride": 16000,
         "model_input": {
           "input_key": "values.vibration_raw",
-          "model_version": "spectrogram-pca-rf-v1",
-          "preprocessing_version": "raw-stft-64x64-v1"
+          "model_version": "spectrogram-pca-rf-v2",
+          "preprocessing_version": "raw-stft-64x64-maxnorm-v2"
         }
       },
       "values": {

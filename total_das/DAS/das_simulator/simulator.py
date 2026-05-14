@@ -19,10 +19,10 @@ from .vibration import VibrationGenerator
 
 STATE_KEYS = {"OFF", "STANDBY", "NORMAL", "WARNING", "DANGER"}
 VIBRATION_MODEL_INPUT = {
-    "model_version": "spectrogram-pca-rf-v1",
+    "model_version": "spectrogram-pca-rf-v2",
     "runtime_input": "raw vibration window only",
     "input_key": "values.vibration_raw",
-    "preprocessing_version": "raw-stft-64x64-v1",
+    "preprocessing_version": "raw-stft-64x64-maxnorm-v2",
     "spectrogram_shape": [64, 64],
     "flattened_shape": [4096],
     "stft_params": {
@@ -34,6 +34,8 @@ VIBRATION_MODEL_INPUT = {
         "mode": "magnitude",
     },
     "log_transform": False,
+    "per_window_max_normalization": True,
+    "per_window_max_normalization_eps": 1e-8,
     "resize": {
         "method": "scipy.ndimage.zoom",
         "order": 1,

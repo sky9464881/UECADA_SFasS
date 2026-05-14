@@ -13,6 +13,7 @@ public class AnalyzeRequest {
     private Integer windowSize;
     private Integer windowIndex;
     private List<Double> values;
+    private Boolean persist;
 
     public static AnalyzeRequest from(VibrationWindowMessage message) {
         AnalyzeRequest request = new AnalyzeRequest();
@@ -23,6 +24,7 @@ public class AnalyzeRequest {
         request.setWindowSize(message.getWindowSize());
         request.setWindowIndex(message.getWindowIndex());
         request.setValues(message.getValues());
+        request.setPersist(true);
         return request;
     }
 
@@ -80,5 +82,13 @@ public class AnalyzeRequest {
 
     public void setValues(List<Double> values) {
         this.values = values;
+    }
+
+    public Boolean getPersist() {
+        return persist;
+    }
+
+    public void setPersist(Boolean persist) {
+        this.persist = persist;
     }
 }

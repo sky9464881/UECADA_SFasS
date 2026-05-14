@@ -44,12 +44,17 @@ Request:
 
 ```json
 {
+  "analysisResultId": 123,
+  "vibrationWindowId": 45,
+  "rawWindowSaved": true,
+  "alarmCreated": false,
   "equipmentId": "MOTOR_001",
   "timestamp": "2026-05-06T12:00:00.000Z",
   "samplingRate": 16000,
   "rpm": 1200,
   "windowSize": 32000,
   "windowIndex": 0,
+  "persist": true,
   "values": [-0.13646967, -0.1220464, "..."]
 }
 ```
@@ -81,11 +86,11 @@ Response:
   "alarmLevel": "normal",
   "prediction": "bearing",
   "confidence": 0.87,
-  "modelVersion": "spectrogram-pca-rf-v1",
+  "modelVersion": "spectrogram-pca-rf-v2",
   "modelInputType": "spectrogram",
   "modelInputSize": 32000,
   "modelExpectedInputSize": 4096,
-  "modelInputStrategy": "stft_spectrogram_64x64_from_raw",
+  "modelInputStrategy": "stft_spectrogram_64x64_maxnorm_from_raw",
   "modelStatus": "loaded"
 }
 ```

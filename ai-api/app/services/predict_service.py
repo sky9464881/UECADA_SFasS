@@ -51,6 +51,11 @@ class FaultModelService:
             "scaling": settings.fault_model_stft_scaling,
             "mode": settings.fault_model_stft_mode,
         }
+        self.spectrogram_preprocess: dict[str, Any] = {
+            "log_transform": settings.fault_model_spectrogram_log_transform,
+            "per_window_max_normalization": settings.fault_model_spectrogram_max_normalization,
+            "per_window_max_normalization_eps": settings.fault_model_spectrogram_max_normalization_eps,
+        }
         self.model: Any | None = None
         self.expected_input_size: int | None = None
         self.status = "missing"
@@ -106,18 +111,20 @@ class FaultModelService:
             logger.warning("Fault model load warning: %s", warning.message)
 
         self._apply_loaded_artifact(loaded)
-        self.expected_input_size = _extract_expected_input_size(self.model)
+        artifact_expected_input_size = self.expected_input_size
+        self.expected_input_size = _extract_expected_input_size(self.model) or artifact_expected_input_size
         if self.expected_input_size is None and self.input_type == "spectrogram":
             self.expected_input_size = self.spectrogram_shape[0] * self.spectrogram_shape[1]
         self.status = "loaded"
         logger.info(
-            "Fault model loaded path=%s version=%s type=%s inputType=%s spectrogramShape=%s expectedInputSize=%s",
+            "Fault model loaded path=%s version=%s type=%s inputType=%s spectrogramShape=%s expectedInputSize=%s spectrogramPreprocess=%s",
             self.model_path,
             self.model_version,
             type(self.model).__name__,
             self.input_type,
             self.spectrogram_shape,
             self.expected_input_size,
+            self.spectrogram_preprocess,
         )
 
     def _apply_loaded_artifact(self, loaded: Any) -> None:
@@ -133,25 +140,34 @@ class FaultModelService:
             artifact_version = artifact_value("model_version")
             if artifact_version:
                 self.model_version = str(artifact_version)
-            artifact_input_type = artifact_value("input_type")
+            artifact_input_type = artifact_value("input_type") or artifact_value("model_input_type")
             if artifact_input_type:
-                self.input_type = str(artifact_input_type)
+                self.input_type = _normalize_input_type(artifact_input_type)
             artifact_spectrogram_size = artifact_value("spectrogram_size")
-            if artifact_spectrogram_size:
+            if artifact_spectrogram_size is not None:
                 size = int(artifact_spectrogram_size)
                 self.spectrogram_shape = (size, size)
             artifact_spectrogram_shape = artifact_value("spectrogram_shape")
-            if artifact_spectrogram_shape:
+            if artifact_spectrogram_shape is not None:
                 self.spectrogram_shape = _parse_shape(artifact_spectrogram_shape)
             self.training_sampling_rate = _optional_int(artifact_value("sampling_rate"))
             self.training_window_size = _optional_int(artifact_value("window_size"))
             self.training_window_seconds = _optional_float(artifact_value("window_seconds"))
             class_names = artifact_value("class_names")
-            if class_names:
+            if class_names is not None:
                 self.class_names = [str(name) for name in class_names]
             artifact_stft_params = artifact_value("stft_params")
             if isinstance(artifact_stft_params, dict):
                 self.stft_params = _merge_stft_params(self.stft_params, artifact_stft_params)
+            artifact_spectrogram_preprocess = artifact_value("post_spectrogram_preprocess")
+            if isinstance(artifact_spectrogram_preprocess, dict):
+                self.spectrogram_preprocess = _merge_spectrogram_preprocess(
+                    self.spectrogram_preprocess,
+                    artifact_spectrogram_preprocess,
+                )
+            artifact_feature_shape = artifact_value("feature_shape")
+            if artifact_feature_shape is not None:
+                self.expected_input_size = _parse_feature_size(artifact_feature_shape)
             return
 
         self.model = loaded
@@ -168,13 +184,31 @@ class FaultModelService:
 
         if self.input_type == "spectrogram":
             if spectrogram:
-                vector = _spectrogram_to_vector(np.asarray(spectrogram, dtype=float), self.spectrogram_shape)
+                vector = _spectrogram_to_vector(
+                    np.asarray(spectrogram, dtype=float),
+                    self.spectrogram_shape,
+                    self.spectrogram_preprocess,
+                )
                 rows, cols = self.spectrogram_shape
-                return vector.reshape(1, -1), f"payload_spectrogram_{rows}x{cols}"
+                return vector.reshape(1, -1), _spectrogram_strategy(
+                    source="payload",
+                    target_shape=(rows, cols),
+                    preprocess=self.spectrogram_preprocess,
+                )
 
-            vector = _signal_to_spectrogram_vector(samples, sampling_rate, self.spectrogram_shape, self.stft_params)
+            vector = _signal_to_spectrogram_vector(
+                samples,
+                sampling_rate,
+                self.spectrogram_shape,
+                self.stft_params,
+                self.spectrogram_preprocess,
+            )
             rows, cols = self.spectrogram_shape
-            return vector.reshape(1, -1), f"stft_spectrogram_{rows}x{cols}_from_raw"
+            return vector.reshape(1, -1), _spectrogram_strategy(
+                source="stft",
+                target_shape=(rows, cols),
+                preprocess=self.spectrogram_preprocess,
+            )
 
         target_size = self.expected_input_size or samples.size
         if samples.size == target_size:
@@ -217,6 +251,26 @@ def _extract_expected_input_size(model: Any) -> int | None:
     return None
 
 
+def _normalize_input_type(value: Any) -> str:
+    normalized = str(value).strip().lower().replace("-", "_")
+    if "spectrogram" in normalized:
+        return "spectrogram"
+    if normalized in {"raw", "raw_signal", "raw_vibration", "raw_vibration_window"}:
+        return "raw"
+    return normalized
+
+
+def _parse_feature_size(value: Any) -> int | None:
+    if isinstance(value, int):
+        return value if value > 0 else None
+    if isinstance(value, (list, tuple)) and value:
+        size = 1
+        for dimension in value:
+            size *= int(dimension)
+        return size if size > 0 else None
+    return None
+
+
 def _resample_signal(signal: np.ndarray, target_size: int) -> np.ndarray:
     if target_size <= 0:
         raise ValueError("target_size must be positive")
@@ -233,6 +287,7 @@ def _signal_to_spectrogram_vector(
     sampling_rate: int,
     target_shape: tuple[int, int],
     stft_params: dict[str, Any],
+    spectrogram_preprocess: dict[str, Any],
 ) -> np.ndarray:
     requested_nperseg = int(stft_params.get("nperseg", 256))
     nperseg = min(requested_nperseg, samples.size)
@@ -254,10 +309,14 @@ def _signal_to_spectrogram_vector(
         scaling=stft_params.get("scaling", "spectrum"),
         mode=stft_params.get("mode", "magnitude"),
     )
-    return _spectrogram_to_vector(spectrogram, target_shape)
+    return _spectrogram_to_vector(spectrogram, target_shape, spectrogram_preprocess)
 
 
-def _spectrogram_to_vector(spectrogram: np.ndarray, target_shape: tuple[int, int]) -> np.ndarray:
+def _spectrogram_to_vector(
+    spectrogram: np.ndarray,
+    target_shape: tuple[int, int],
+    spectrogram_preprocess: dict[str, Any],
+) -> np.ndarray:
     matrix = np.asarray(spectrogram, dtype=float)
     if matrix.ndim != 2:
         raise ValueError("spectrogram must be a 2D array")
@@ -265,12 +324,43 @@ def _spectrogram_to_vector(spectrogram: np.ndarray, target_shape: tuple[int, int
         raise ValueError("spectrogram must not be empty")
 
     matrix = np.nan_to_num(matrix, nan=0.0, posinf=0.0, neginf=0.0)
+    matrix = _preprocess_spectrogram(matrix, spectrogram_preprocess)
     target_rows, target_cols = target_shape
     if target_rows <= 0 or target_cols <= 0:
         raise ValueError("spectrogram target shape must be positive")
     zoom = (target_rows / matrix.shape[0], target_cols / matrix.shape[1])
     resized = ndimage.zoom(matrix, zoom, order=1)
     return resized.reshape(-1)
+
+
+def _preprocess_spectrogram(matrix: np.ndarray, preprocess: dict[str, Any]) -> np.ndarray:
+    result = matrix
+    if bool(preprocess.get("log_transform", False)):
+        result = np.log1p(np.maximum(result, 0.0))
+
+    if bool(preprocess.get("per_window_max_normalization", False)):
+        eps = float(preprocess.get("per_window_max_normalization_eps", 1e-8))
+        result = result / (float(np.max(result)) + eps)
+
+    return result
+
+
+def _spectrogram_strategy(
+    source: str,
+    target_shape: tuple[int, int],
+    preprocess: dict[str, Any],
+) -> str:
+    rows, cols = target_shape
+    steps = []
+    if bool(preprocess.get("log_transform", False)):
+        steps.append("log1p")
+    if bool(preprocess.get("per_window_max_normalization", False)):
+        steps.append("maxnorm")
+
+    suffix = f"_{'_'.join(steps)}" if steps else ""
+    if source == "stft":
+        return f"stft_spectrogram_{rows}x{cols}{suffix}_from_raw"
+    return f"{source}_spectrogram_{rows}x{cols}{suffix}"
 
 
 def _parse_shape(value: Any) -> tuple[int, int]:
@@ -302,6 +392,22 @@ def _merge_stft_params(defaults: dict[str, Any], overrides: dict[str, Any]) -> d
     for key, value in overrides.items():
         if key in allowed_keys and value is not None:
             merged[key] = value
+    return merged
+
+
+def _merge_spectrogram_preprocess(defaults: dict[str, Any], overrides: dict[str, Any]) -> dict[str, Any]:
+    merged = dict(defaults)
+    key_aliases = {
+        "log_transform": "log_transform",
+        "per_window_max_normalization": "per_window_max_normalization",
+        "max_normalization": "per_window_max_normalization",
+        "per_window_max_normalization_eps": "per_window_max_normalization_eps",
+        "max_normalization_eps": "per_window_max_normalization_eps",
+    }
+    for key, value in overrides.items():
+        target_key = key_aliases.get(key)
+        if target_key and value is not None:
+            merged[target_key] = value
     return merged
 
 

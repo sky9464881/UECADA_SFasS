@@ -17,11 +17,17 @@ public class AiAnalysisClient {
     }
 
     public AnalyzeResponse analyze(VibrationWindowMessage message) {
+        return analyze(message, true);
+    }
+
+    public AnalyzeResponse analyze(VibrationWindowMessage message, boolean persist) {
+        AnalyzeRequest request = AnalyzeRequest.from(message);
+        request.setPersist(persist);
         return aiApiRestClient.post()
                 .uri("/analyze")
                 .contentType(MediaType.APPLICATION_JSON)
                 .accept(MediaType.APPLICATION_JSON)
-                .body(AnalyzeRequest.from(message))
+                .body(request)
                 .retrieve()
                 .body(AnalyzeResponse.class);
     }

@@ -6,6 +6,9 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 public class AnalyzeResponse {
 
     private Long analysisResultId;
+    private Long vibrationWindowId;
+    private Boolean rawWindowSaved;
+    private Boolean alarmCreated;
     private String equipmentId;
     private String timestamp;
     private Integer samplingRate;
@@ -31,6 +34,30 @@ public class AnalyzeResponse {
 
     public void setAnalysisResultId(Long analysisResultId) {
         this.analysisResultId = analysisResultId;
+    }
+
+    public Long getVibrationWindowId() {
+        return vibrationWindowId;
+    }
+
+    public void setVibrationWindowId(Long vibrationWindowId) {
+        this.vibrationWindowId = vibrationWindowId;
+    }
+
+    public Boolean getRawWindowSaved() {
+        return rawWindowSaved;
+    }
+
+    public void setRawWindowSaved(Boolean rawWindowSaved) {
+        this.rawWindowSaved = rawWindowSaved;
+    }
+
+    public Boolean getAlarmCreated() {
+        return alarmCreated;
+    }
+
+    public void setAlarmCreated(Boolean alarmCreated) {
+        this.alarmCreated = alarmCreated;
     }
 
     public String getEquipmentId() {

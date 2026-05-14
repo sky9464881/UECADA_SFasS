@@ -24,7 +24,7 @@ phm:
   mqtt:
     host: mosquitto
     port: 1883
-    vibration-topic: ${MQTT_VIBRATION_TOPIC:factory/motor/1/vibration/window}
+    vibration-topic: ${MQTT_VIBRATION_TOPIC:factory/motor/1/vibration/window,das/common/+/+/vibration/window}
     qos: ${MQTT_QOS:1}
   ai-api:
     base-url: http://ai-api:8001

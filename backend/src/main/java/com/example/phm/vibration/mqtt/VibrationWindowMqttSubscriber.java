@@ -70,15 +70,15 @@ public class VibrationWindowMqttSubscriber {
                 );
             }
 
-            VibrationIngestionResult ingestionResult = ingestionService.ingest(vibrationWindow, payload);
+            VibrationIngestionResult ingestionResult = ingestionService.ingest(vibrationWindow);
             AnalyzeResponse analysis = ingestionResult.analysis();
             AnalysisFeatures features = analysis.getFeatures();
             log.info(
-                    "Persisted vibration pipeline: vibrationWindowId={}, analysisResultId={}, alarmCreated={}, rawFilePath={}",
-                    ingestionResult.vibrationWindow() != null ? ingestionResult.vibrationWindow().getId() : null,
-                    ingestionResult.analysisResult().getId(),
-                    ingestionResult.alarmCreated(),
-                    ingestionResult.rawFilePath()
+                    "FastAPI persisted vibration pipeline: vibrationWindowId={}, analysisResultId={}, rawWindowSaved={}, alarmCreated={}",
+                    ingestionResult.vibrationWindowId(),
+                    ingestionResult.analysisResultId(),
+                    ingestionResult.rawWindowSaved(),
+                    ingestionResult.alarmCreated()
             );
             log.info(
                     "FastAPI response: equipmentId={}, windowIndex={}, rms={}, peakFrequency={}, peakToPeak={}, crestFactor={}, kurtosis={}, prediction={}, confidence={}, modelVersion={}, modelInputStrategy={}, modelStatus={}, anomalyScore={}, alarmLevel={}",
@@ -109,7 +109,7 @@ public class VibrationWindowMqttSubscriber {
         } catch (RestClientException exception) {
             log.warn("Failed to call FastAPI /analyze: {}", exception.getMessage(), exception);
         } catch (RuntimeException exception) {
-            log.warn("Failed to persist vibration MQTT message: {}", exception.getMessage(), exception);
+            log.warn("Failed to process vibration MQTT message: {}", exception.getMessage(), exception);
         }
     }
 

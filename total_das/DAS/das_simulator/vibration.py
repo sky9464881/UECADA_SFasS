@@ -16,6 +16,25 @@ class BearingFile(NamedTuple):
     rotating_speed_rpm: int
 
 
+NORMAL_ROTATION_TEMPLATES: tuple[tuple[float, float, float, float], ...] = (
+    # base_hz, second-harmonic sine, second-harmonic cosine, third-harmonic sine.
+    # These templates were checked against the v2 spectrogram model across the
+    # NORMAL RMS range so the simulator varies without leaving the normal class.
+    (10.0, 0.0, 0.0, -0.1),
+    (10.0, 0.1, 0.0, -0.1),
+    (10.0, -0.1, 0.0, -0.1),
+    (10.0, -0.1, 0.0, -0.05),
+    (10.0, 0.2, 0.0, -0.05),
+    (10.0, -0.3, 0.0, 0.0),
+    (10.0, 0.1, 0.0, -0.05),
+    (10.0, 0.15, 0.0, -0.1),
+    (10.0, 0.15, 0.0, -0.05),
+    (10.0, -0.2, 0.15, -0.05),
+    (10.0, -0.3, 0.15, 0.1),
+    (10.0, -0.2, 0.0, -0.1),
+)
+
+
 def _stable_index(text: str, modulo: int) -> int:
     return sum((index + 1) * ord(char) for index, char in enumerate(text)) % modulo
 
@@ -34,7 +53,7 @@ class BearingWindowSource:
         window_seconds: float = 2.0,
         stride_samples: int | None = None,
     ) -> None:
-        self.root = root
+        self.root = self._resolve_root(root)
         self.requested_sample_rate_hz = sample_rate_hz
         self.requested_rotating_speed_rpm = rotating_speed_rpm
         self.window_seconds = window_seconds
@@ -47,12 +66,26 @@ class BearingWindowSource:
         self._cursor_by_equipment: dict[str, int] = {}
         self._file_by_equipment: dict[str, BearingFile] = {}
 
+    @staticmethod
+    def _resolve_root(root: Path) -> Path:
+        if root.exists():
+            return root
+
+        candidates = [
+            Path.cwd() / "data" / "raw_mat" / root.name,
+            Path(__file__).resolve().parents[3] / "data" / "raw_mat" / root.name,
+        ]
+        for candidate in candidates:
+            if candidate.exists():
+                return candidate
+        return root
+
     def _discover_files(self) -> list[BearingFile]:
         if not self.root.exists():
             return []
 
         healthy_files: list[BearingFile] = []
-        for path in self.root.rglob("*_H_*.mat"):
+        for path in self.root.rglob("H_H_*.mat"):
             sample_match = self._sampling_re.search(str(path.parent.parent))
             speed_match = self._speed_re.search(str(path.parent))
             if not sample_match or not speed_match:
@@ -144,6 +177,7 @@ class VibrationGenerator:
     def __init__(self, source: BearingWindowSource, seed: int | None = None) -> None:
         self.source = source
         self.rng = random.Random(seed)
+        self._normal_template_cursor_by_equipment: dict[str, int] = {}
 
     def next_window(
         self,
@@ -152,10 +186,12 @@ class VibrationGenerator:
         health_state: str,
         target_rms_mm_s: float,
     ) -> dict[str, object]:
-        raw = self.source.next_raw_window(equipment_id)
         if operating_state == "OFF":
             vibration = self._idle_window(target_rms_mm_s)
+        elif health_state == "NORMAL":
+            vibration = self._normal_rotation_window(equipment_id, target_rms_mm_s)
         else:
+            raw = self.source.next_raw_window(equipment_id)
             vibration = self._scaled_bearing_window(raw, target_rms_mm_s, health_state)
 
         rms_value = rms(vibration)
@@ -195,6 +231,23 @@ class VibrationGenerator:
         sigma = max(target_rms_mm_s, 0.005)
         values = np.random.default_rng(self.rng.randrange(1, 2**32)).normal(
             0.0, sigma, self.source.sample_count
+        )
+        return self._normalize_window(values, target_rms_mm_s)
+
+    def _normal_rotation_window(self, equipment_id: str, target_rms_mm_s: float) -> np.ndarray:
+        cursor = self._normal_template_cursor_by_equipment.get(equipment_id, 0)
+        template_index = (_stable_index(equipment_id, len(NORMAL_ROTATION_TEMPLATES)) + cursor) % len(
+            NORMAL_ROTATION_TEMPLATES
+        )
+        self._normal_template_cursor_by_equipment[equipment_id] = cursor + 1
+        shaft_hz, second_sin, second_cos, third_sin = NORMAL_ROTATION_TEMPLATES[template_index]
+        indices = np.arange(self.source.sample_count, dtype=np.float64)
+        time_s = indices / float(self.source.sample_rate_hz)
+        values = (
+            np.sin(2.0 * math.pi * shaft_hz * time_s)
+            + second_sin * np.sin(2.0 * math.pi * shaft_hz * 2.0 * time_s)
+            + second_cos * np.cos(2.0 * math.pi * shaft_hz * 2.0 * time_s)
+            + third_sin * np.sin(2.0 * math.pi * shaft_hz * 3.0 * time_s + 0.31)
         )
         return self._normalize_window(values, target_rms_mm_s)
 
