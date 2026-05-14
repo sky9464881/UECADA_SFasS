@@ -45,7 +45,7 @@ public class MqttConfig {
         MqttPahoMessageDrivenChannelAdapter adapter = new MqttPahoMessageDrivenChannelAdapter(
                 clientId,
                 mqttClientFactory,
-                properties.vibrationTopic()
+                properties.vibrationTopics()
         );
         adapter.setConverter(new DefaultPahoMessageConverter());
         adapter.setQos(properties.qos());

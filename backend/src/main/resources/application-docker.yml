@@ -30,3 +30,11 @@ phm:
     base-url: http://ai-api:8001
   storage:
     raw-window-dir: /app/data/raw_windows
+  opcua:
+    x-das:
+      enabled: ${PHM_OPCUA_XDAS_ENABLED:true}
+      endpoint-url: ${PHM_OPCUA_XDAS_ENDPOINT_URL:opc.tcp://x-das-node-red:54880/UA/X_DAS/}
+      publishing-interval-ms: ${PHM_OPCUA_XDAS_PUBLISHING_INTERVAL_MS:1000}
+      queue-size: ${PHM_OPCUA_XDAS_QUEUE_SIZE:10}
+      reconnect-delay-ms: ${PHM_OPCUA_XDAS_RECONNECT_DELAY_MS:5000}
+      include-line01-alias-buffers: ${PHM_OPCUA_XDAS_INCLUDE_LINE01_ALIAS_BUFFERS:true}

@@ -1,0 +1,490 @@
+[
+  {
+    "id": "c5edea287009490d",
+    "type": "tab",
+    "label": "Host Viewer (DAS subscribe)",
+    "disabled": false,
+    "info": "도커가 띄운 라인 DAS OPC UA Server 들을 호스트 Node-RED 가 subscribe.\n단순 조회용 — debug 사이드바에서 라인별 payload 객체를 확인."
+  },
+  {
+    "id": "5a301b040b4f43bf",
+    "type": "comment",
+    "z": "c5edea287009490d",
+    "name": "Host Viewer — DAS OPC UA subscribe",
+    "info": "host: 127.0.0.1\n라인: LINE-01, LINE-02, LINE-03\n각 라인은 ns=2;s=<LINE>.payload 한 노드 구독으로 라인 전체 값 확인 가능.\n필요하면 각 라인 'topics' 함수 안의 EXTRA_TOPICS 에 노드 추가.",
+    "x": 300,
+    "y": 30,
+    "wires": []
+  },
+  {
+    "id": "b1d709bd07f1495c",
+    "type": "OpcUa-Endpoint",
+    "endpoint": "opc.tcp://127.0.0.1:4870/line-das/LINE-01",
+    "secpol": "None",
+    "secmode": "None",
+    "none": true,
+    "login": false,
+    "usercert": false,
+    "usercertificate": "",
+    "userprivatekey": ""
+  },
+  {
+    "id": "67279841a6f54cbd",
+    "type": "comment",
+    "z": "c5edea287009490d",
+    "name": "LINE-01  (opc.tcp://127.0.0.1:4870/line-das/LINE-01)",
+    "info": "LINE-01 라인 DAS subscribe.\n기본 구독: ns=2;s=LINE-01.payload (JSON 문자열)\n개별 태그 추가: subscribe topics 함수 내 EXTRA_TOPICS 편집",
+    "x": 200,
+    "y": 100,
+    "wires": []
+  },
+  {
+    "id": "b7fcf23348374e59",
+    "type": "debug",
+    "z": "c5edea287009490d",
+    "name": "LINE-01 payload",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "true",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 1100,
+    "y": 180,
+    "wires": []
+  },
+  {
+    "id": "5a531c37fdf044a9",
+    "type": "function",
+    "z": "c5edea287009490d",
+    "name": "LINE-01 parse",
+    "func": "// 라인 DAS payload 노드면 JSON 문자열이므로 파싱해서 객체로 풀어준다\n// (개별 태그 노드는 그대로 흘려보냄)\nconst topic = msg.topic || \"\";\nif (typeof msg.payload === \"string\" && /\\.payload$/.test(topic)) {\n  try {\n    msg.payload = JSON.parse(msg.payload);\n  } catch (e) {\n    node.warn(`json parse fail for ${topic}: ${e.message}`);\n  }\n}\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 900,
+    "y": 180,
+    "wires": [
+      [
+        "b7fcf23348374e59"
+      ]
+    ]
+  },
+  {
+    "id": "d6b45751fc9f4e48",
+    "type": "OpcUa-Client",
+    "z": "c5edea287009490d",
+    "endpoint": "b1d709bd07f1495c",
+    "action": "subscribe",
+    "deadbandtype": "a",
+    "deadbandvalue": 0,
+    "time": 1,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": true,
+    "name": "LINE-01 subscribe",
+    "x": 680,
+    "y": 180,
+    "wires": [
+      [
+        "5a531c37fdf044a9"
+      ]
+    ]
+  },
+  {
+    "id": "f22c7ea5d9af4574",
+    "type": "split",
+    "z": "c5edea287009490d",
+    "name": "split topics",
+    "splt": "\\n",
+    "spltType": "str",
+    "arraySplt": 1,
+    "arraySpltType": "len",
+    "stream": false,
+    "addname": "",
+    "x": 520,
+    "y": 180,
+    "wires": [
+      [
+        "d6b45751fc9f4e48"
+      ]
+    ]
+  },
+  {
+    "id": "c3cb0032e24d44bb",
+    "type": "function",
+    "z": "c5edea287009490d",
+    "name": "LINE-01 topics",
+    "func": "// 단순 조회 flow — 라인 DAS payload 한 노드만 구독\n// (전체 페이로드가 JSON 문자열로 들어오므로 이것 하나면 라인 전체 값 확인 가능)\n//\n// 개별 태그도 같이 보고 싶으면 아래 EXTRA_TOPICS 배열에 NodeId 를 추가하면 됨.\nconst LINE = \"LINE-01\";\nconst EXTRA_TOPICS = [\n  // 예시 — 주석 풀어서 사용:\n  // { name: `${LINE}.CAST-01.data.progress`,         datatype: 'Double'  },\n  // { name: `${LINE}.CAST-01.status`,                datatype: 'String'  },\n  // { name: `${LINE}.CNC-01.data.spindle_speed`,     datatype: 'Int32'   },\n  // { name: `${LINE}.TEST-01.data.result_ok`,        datatype: 'Boolean' },\n];\n\nconst out = [{ topic: `ns=2;s=${LINE}.payload;datatype=String` }];\nfor (const t of EXTRA_TOPICS) {\n  out.push({ topic: `ns=2;s=${t.name};datatype=${t.datatype}` });\n}\nreturn [out];\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 360,
+    "y": 180,
+    "wires": [
+      [
+        "f22c7ea5d9af4574"
+      ]
+    ]
+  },
+  {
+    "id": "e6ed47078d4b4410",
+    "type": "inject",
+    "z": "c5edea287009490d",
+    "name": "LINE-01 subscribe once",
+    "props": [
+      {
+        "p": "payload"
+      },
+      {
+        "p": "topic",
+        "vt": "str"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": true,
+    "onceDelay": "2",
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 180,
+    "y": 180,
+    "wires": [
+      [
+        "c3cb0032e24d44bb"
+      ]
+    ]
+  },
+  {
+    "id": "ccacada835be448e",
+    "type": "OpcUa-Endpoint",
+    "endpoint": "opc.tcp://127.0.0.1:4970/line-das/LINE-02",
+    "secpol": "None",
+    "secmode": "None",
+    "none": true,
+    "login": false,
+    "usercert": false,
+    "usercertificate": "",
+    "userprivatekey": ""
+  },
+  {
+    "id": "42bb1f90dffc4dff",
+    "type": "comment",
+    "z": "c5edea287009490d",
+    "name": "LINE-02  (opc.tcp://127.0.0.1:4970/line-das/LINE-02)",
+    "info": "LINE-02 라인 DAS subscribe.\n기본 구독: ns=2;s=LINE-02.payload (JSON 문자열)\n개별 태그 추가: subscribe topics 함수 내 EXTRA_TOPICS 편집",
+    "x": 200,
+    "y": 280,
+    "wires": []
+  },
+  {
+    "id": "87d7e8c8ee5f4e3b",
+    "type": "debug",
+    "z": "c5edea287009490d",
+    "name": "LINE-02 payload",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "true",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 1100,
+    "y": 360,
+    "wires": []
+  },
+  {
+    "id": "8bfab7aa8fa3493c",
+    "type": "function",
+    "z": "c5edea287009490d",
+    "name": "LINE-02 parse",
+    "func": "// 라인 DAS payload 노드면 JSON 문자열이므로 파싱해서 객체로 풀어준다\n// (개별 태그 노드는 그대로 흘려보냄)\nconst topic = msg.topic || \"\";\nif (typeof msg.payload === \"string\" && /\\.payload$/.test(topic)) {\n  try {\n    msg.payload = JSON.parse(msg.payload);\n  } catch (e) {\n    node.warn(`json parse fail for ${topic}: ${e.message}`);\n  }\n}\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 900,
+    "y": 360,
+    "wires": [
+      [
+        "87d7e8c8ee5f4e3b"
+      ]
+    ]
+  },
+  {
+    "id": "9fe36c46363b48e0",
+    "type": "OpcUa-Client",
+    "z": "c5edea287009490d",
+    "endpoint": "ccacada835be448e",
+    "action": "subscribe",
+    "deadbandtype": "a",
+    "deadbandvalue": 0,
+    "time": 1,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": true,
+    "name": "LINE-02 subscribe",
+    "x": 680,
+    "y": 360,
+    "wires": [
+      [
+        "8bfab7aa8fa3493c"
+      ]
+    ]
+  },
+  {
+    "id": "dfa89e0fc1c949d5",
+    "type": "split",
+    "z": "c5edea287009490d",
+    "name": "split topics",
+    "splt": "\\n",
+    "spltType": "str",
+    "arraySplt": 1,
+    "arraySpltType": "len",
+    "stream": false,
+    "addname": "",
+    "x": 520,
+    "y": 360,
+    "wires": [
+      [
+        "9fe36c46363b48e0"
+      ]
+    ]
+  },
+  {
+    "id": "44c28570d930402b",
+    "type": "function",
+    "z": "c5edea287009490d",
+    "name": "LINE-02 topics",
+    "func": "// 단순 조회 flow — 라인 DAS payload 한 노드만 구독\n// (전체 페이로드가 JSON 문자열로 들어오므로 이것 하나면 라인 전체 값 확인 가능)\n//\n// 개별 태그도 같이 보고 싶으면 아래 EXTRA_TOPICS 배열에 NodeId 를 추가하면 됨.\nconst LINE = \"LINE-02\";\nconst EXTRA_TOPICS = [\n  // 예시 — 주석 풀어서 사용:\n  // { name: `${LINE}.CAST-01.data.progress`,         datatype: 'Double'  },\n  // { name: `${LINE}.CAST-01.status`,                datatype: 'String'  },\n  // { name: `${LINE}.CNC-01.data.spindle_speed`,     datatype: 'Int32'   },\n  // { name: `${LINE}.TEST-01.data.result_ok`,        datatype: 'Boolean' },\n];\n\nconst out = [{ topic: `ns=2;s=${LINE}.payload;datatype=String` }];\nfor (const t of EXTRA_TOPICS) {\n  out.push({ topic: `ns=2;s=${t.name};datatype=${t.datatype}` });\n}\nreturn [out];\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 360,
+    "y": 360,
+    "wires": [
+      [
+        "dfa89e0fc1c949d5"
+      ]
+    ]
+  },
+  {
+    "id": "c0d25bb2384d44d1",
+    "type": "inject",
+    "z": "c5edea287009490d",
+    "name": "LINE-02 subscribe once",
+    "props": [
+      {
+        "p": "payload"
+      },
+      {
+        "p": "topic",
+        "vt": "str"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": true,
+    "onceDelay": "2",
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 180,
+    "y": 360,
+    "wires": [
+      [
+        "44c28570d930402b"
+      ]
+    ]
+  },
+  {
+    "id": "7f73675786344cf0",
+    "type": "OpcUa-Endpoint",
+    "endpoint": "opc.tcp://127.0.0.1:5070/line-das/LINE-03",
+    "secpol": "None",
+    "secmode": "None",
+    "none": true,
+    "login": false,
+    "usercert": false,
+    "usercertificate": "",
+    "userprivatekey": ""
+  },
+  {
+    "id": "bd047caf2c5c4fa3",
+    "type": "comment",
+    "z": "c5edea287009490d",
+    "name": "LINE-03  (opc.tcp://127.0.0.1:5070/line-das/LINE-03)",
+    "info": "LINE-03 라인 DAS subscribe.\n기본 구독: ns=2;s=LINE-03.payload (JSON 문자열)\n개별 태그 추가: subscribe topics 함수 내 EXTRA_TOPICS 편집",
+    "x": 200,
+    "y": 460,
+    "wires": []
+  },
+  {
+    "id": "3067472b961a49ab",
+    "type": "debug",
+    "z": "c5edea287009490d",
+    "name": "LINE-03 payload",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "true",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 1100,
+    "y": 540,
+    "wires": []
+  },
+  {
+    "id": "33519dd8ae554e70",
+    "type": "function",
+    "z": "c5edea287009490d",
+    "name": "LINE-03 parse",
+    "func": "// 라인 DAS payload 노드면 JSON 문자열이므로 파싱해서 객체로 풀어준다\n// (개별 태그 노드는 그대로 흘려보냄)\nconst topic = msg.topic || \"\";\nif (typeof msg.payload === \"string\" && /\\.payload$/.test(topic)) {\n  try {\n    msg.payload = JSON.parse(msg.payload);\n  } catch (e) {\n    node.warn(`json parse fail for ${topic}: ${e.message}`);\n  }\n}\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 900,
+    "y": 540,
+    "wires": [
+      [
+        "3067472b961a49ab"
+      ]
+    ]
+  },
+  {
+    "id": "7fc01e74a8d54308",
+    "type": "OpcUa-Client",
+    "z": "c5edea287009490d",
+    "endpoint": "7f73675786344cf0",
+    "action": "subscribe",
+    "deadbandtype": "a",
+    "deadbandvalue": 0,
+    "time": 1,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": true,
+    "name": "LINE-03 subscribe",
+    "x": 680,
+    "y": 540,
+    "wires": [
+      [
+        "33519dd8ae554e70"
+      ]
+    ]
+  },
+  {
+    "id": "88a8597dac29491c",
+    "type": "split",
+    "z": "c5edea287009490d",
+    "name": "split topics",
+    "splt": "\\n",
+    "spltType": "str",
+    "arraySplt": 1,
+    "arraySpltType": "len",
+    "stream": false,
+    "addname": "",
+    "x": 520,
+    "y": 540,
+    "wires": [
+      [
+        "7fc01e74a8d54308"
+      ]
+    ]
+  },
+  {
+    "id": "5ffdd61bafc846a8",
+    "type": "function",
+    "z": "c5edea287009490d",
+    "name": "LINE-03 topics",
+    "func": "// 단순 조회 flow — 라인 DAS payload 한 노드만 구독\n// (전체 페이로드가 JSON 문자열로 들어오므로 이것 하나면 라인 전체 값 확인 가능)\n//\n// 개별 태그도 같이 보고 싶으면 아래 EXTRA_TOPICS 배열에 NodeId 를 추가하면 됨.\nconst LINE = \"LINE-03\";\nconst EXTRA_TOPICS = [\n  // 예시 — 주석 풀어서 사용:\n  // { name: `${LINE}.CAST-01.data.progress`,         datatype: 'Double'  },\n  // { name: `${LINE}.CAST-01.status`,                datatype: 'String'  },\n  // { name: `${LINE}.CNC-01.data.spindle_speed`,     datatype: 'Int32'   },\n  // { name: `${LINE}.TEST-01.data.result_ok`,        datatype: 'Boolean' },\n];\n\nconst out = [{ topic: `ns=2;s=${LINE}.payload;datatype=String` }];\nfor (const t of EXTRA_TOPICS) {\n  out.push({ topic: `ns=2;s=${t.name};datatype=${t.datatype}` });\n}\nreturn [out];\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 360,
+    "y": 540,
+    "wires": [
+      [
+        "88a8597dac29491c"
+      ]
+    ]
+  },
+  {
+    "id": "57f5dd6e42674656",
+    "type": "inject",
+    "z": "c5edea287009490d",
+    "name": "LINE-03 subscribe once",
+    "props": [
+      {
+        "p": "payload"
+      },
+      {
+        "p": "topic",
+        "vt": "str"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": true,
+    "onceDelay": "2",
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 180,
+    "y": 540,
+    "wires": [
+      [
+        "5ffdd61bafc846a8"
+      ]
+    ]
+  }
+]

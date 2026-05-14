@@ -61,6 +61,15 @@ MQTT 메시지를 받은 뒤에는 FastAPI `/analyze`도 호출합니다. FastAP
 FastAPI response: equipmentId=MOTOR_001, windowIndex=0, rms=0.12242235, peakFrequency=19.53125, peakToPeak=0.77802311, crestFactor=3.31153025, kurtosis=3.20201772, prediction=bearing, confidence=0.87, modelVersion=spectrogram-pca-rf-v1, modelInputStrategy=stft_spectrogram_64x64_from_raw, modelStatus=loaded, anomalyScore=0.389, alarmLevel=normal
 ```
 
+total_DAS의 실제 DAS vibration window를 바로 분석하려면 backend를 DAS Mosquitto 네트워크에 붙이고 topic을 함께 구독합니다.
+
+```text
+PHM_MQTT_HOST=das-mosquitto
+MQTT_VIBRATION_TOPIC=factory/motor/1/vibration/window,das/common/LINE-01/CAST-01/vibration/window
+```
+
+`das/common/{line}/{equipment}/vibration/window` payload는 backend에서 기존 `VibrationWindowMessage`로 변환되어 FastAPI `/analyze`로 전달됩니다. 모든 설비 topic을 한 번에 켜면 32,000 sample window가 설비별로 계속 들어가므로, 운영 전에는 분석 대상 설비나 트리거 정책을 좁히는 것이 좋습니다.
+
 ## Run With Local Java
 
 Ubuntu에 Java 21과 Gradle wrapper가 준비된 경우:
@@ -102,6 +111,62 @@ curl -X POST http://localhost:8080/api/debug/reset-data
 ```
 
 삭제 대상은 `alarm_history`, `analysis_result`, `vibration_window`, `data/raw_windows/*`입니다. `equipment`은 유지됩니다. Node-RED flow의 `RESET DB + raw files` 버튼도 같은 API를 호출합니다.
+
+## X_DAS OPC UA Buffer Ingestion
+
+backend는 시작 시 X_DAS OPC UA server를 client로 구독하고, 수신한 실시간 설비/센서 값을 DB에 저장하지 않고 인메모리 `SensorBufferRegistry`에 적재합니다.
+
+기본 endpoint:
+
+```text
+opc.tcp://localhost:54880/UA/X_DAS/
+```
+
+Docker profile에서는 `total-das-net`의 X_DAS 컨테이너 alias로 붙습니다.
+
+```text
+opc.tcp://x-das-node-red:54880/UA/X_DAS/
+```
+
+주요 설정:
+
+```yaml
+phm:
+  opcua:
+    x-das:
+      enabled: true
+      endpoint-url: opc.tcp://localhost:54880/UA/X_DAS/
+      publishing-interval-ms: 1000
+      queue-size: 10
+      reconnect-delay-ms: 5000
+      include-line01-alias-buffers: true
+```
+
+X_DAS Node ID는 라인별 버퍼 키로 저장됩니다. LINE01은 기존 표와 API 호환을 위해 라인 없는 alias 버퍼에도 같이 적재됩니다.
+
+```text
+ns=2;s=LINE01.CAST01.Temperature       -> LINE01.CAST01:temperature, CAST01:temperature
+ns=2;s=LINE02.CAST01.Temperature       -> LINE02.CAST01:temperature
+ns=2;s=LINE03.CNC01.SpindleLoad        -> LINE03.CNC01:spindle_load
+ns=2;s=LINE01.CAST01.SensorVibration   -> LINE01.CAST01:sensor_vibration, CAST01:sensor_vibration
+```
+
+Sensor DAS에서 X_DAS로 합쳐진 공통값은 설비별로 아래 suffix에 저장됩니다.
+
+```text
+:sensor_vibration
+:sensor_current
+:sensor_voltage
+:sensor_temperature
+```
+
+조회:
+
+```bash
+curl http://localhost:8080/api/sensors
+curl "http://localhost:8080/api/sensors/LINE01.CAST01:temperature?last=10"
+curl "http://localhost:8080/api/sensors/LINE01.CAST01:sensor_vibration?last=10"
+```
 
 ## Run With Docker Compose
 

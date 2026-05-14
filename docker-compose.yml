@@ -74,17 +74,28 @@ services:
     restart: on-failure
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      MQTT_VIBRATION_TOPIC: ${MQTT_VIBRATION_TOPIC:-factory/motor/1/vibration/window}
+      PHM_MQTT_HOST: ${PHM_MQTT_HOST:-das-mosquitto}
+      MQTT_VIBRATION_TOPIC: ${MQTT_VIBRATION_TOPIC:-factory/motor/1/vibration/window,das/common/LINE-01/CAST-01/vibration/window}
       MQTT_QOS: ${MQTT_QOS:-1}
+      PHM_OPCUA_XDAS_ENABLED: ${PHM_OPCUA_XDAS_ENABLED:-true}
+      PHM_OPCUA_XDAS_ENDPOINT_URL: ${PHM_OPCUA_XDAS_ENDPOINT_URL:-opc.tcp://x-das-node-red:54880/UA/X_DAS/}
+      PHM_OPCUA_XDAS_PUBLISHING_INTERVAL_MS: ${PHM_OPCUA_XDAS_PUBLISHING_INTERVAL_MS:-1000}
+      PHM_OPCUA_XDAS_QUEUE_SIZE: ${PHM_OPCUA_XDAS_QUEUE_SIZE:-10}
+      PHM_OPCUA_XDAS_RECONNECT_DELAY_MS: ${PHM_OPCUA_XDAS_RECONNECT_DELAY_MS:-5000}
+      PHM_OPCUA_XDAS_INCLUDE_LINE01_ALIAS_BUFFERS: ${PHM_OPCUA_XDAS_INCLUDE_LINE01_ALIAS_BUFFERS:-true}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "${BACKEND_PORT:-8080}:8080"
     volumes:
       - ./data/raw_windows:/app/data/raw_windows
+    networks:
+      - default
+      - total-das-net
+      - das-internal
     depends_on:
       mysql:
         condition: service_healthy
-      mosquitto:
-        condition: service_started
       ai-api:
         condition: service_healthy
     healthcheck:
@@ -108,3 +119,11 @@ volumes:
   mysql_data:
   mosquitto_data:
   mosquitto_log:
+
+networks:
+  total-das-net:
+    external: true
+    name: total-das-net
+  das-internal:
+    external: true
+    name: das_das-internal

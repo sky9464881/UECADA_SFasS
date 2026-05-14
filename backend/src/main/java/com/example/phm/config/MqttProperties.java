@@ -1,5 +1,7 @@
 package com.example.phm.config;
 
+import java.util.Arrays;
+
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "phm.mqtt")
@@ -20,5 +22,12 @@ public record MqttProperties(
 
     public String brokerUri() {
         return "tcp://" + host + ":" + port;
+    }
+
+    public String[] vibrationTopics() {
+        return Arrays.stream(vibrationTopic.split(","))
+                .map(String::trim)
+                .filter(topic -> !topic.isBlank())
+                .toArray(String[]::new);
     }
 }

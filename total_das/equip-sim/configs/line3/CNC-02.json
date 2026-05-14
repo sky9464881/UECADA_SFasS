@@ -1,0 +1,50 @@
+{
+  "equipment_name": "${LINE_ID:-LINE-00}_CNC-02",
+  "protocol": "opcua",
+  "host": "0.0.0.0",
+  "port": 5282,
+  "sampling_ms": 1000,
+  "tags": [
+    {
+      "name": "power",
+      "role": "power",
+      "data_type": "bool",
+      "base_value": true
+    },
+    {
+      "name": "spindle_speed_sp",
+      "role": "setpoint",
+      "data_type": "int",
+      "base_value": 5500
+    },
+    {
+      "name": "spindle_speed",
+      "role": "sensor",
+      "data_type": "int",
+      "source_sp": "spindle_speed_sp",
+      "stddev": 25.0
+    },
+    {
+      "name": "tool_usage",
+      "role": "sensor",
+      "data_type": "float",
+      "base_value": 30.0,
+      "stddev": 1.5
+    },
+    {
+      "name": "coolant_flow",
+      "role": "sensor",
+      "data_type": "float",
+      "base_value": 18.0,
+      "stddev": 0.8
+    },
+    {
+      "name": "progress",
+      "role": "sensor",
+      "data_type": "float",
+      "base_value": 0.005555555555555556,
+      "stddev": 0.0005555555555555556
+    }
+  ],
+  "namespace": "${LINE_ID:-LINE-00}_CNC-02"
+}

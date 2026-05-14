@@ -1,0 +1,12 @@
+.env
+nodered/data/.config.nodes.json
+nodered/data/.config.runtime.json
+nodered/data/.sessions.json
+nodered/data/flows_cred.json
+nodered/data/node_modules/
+nodered/data/package-lock.json
+nodered/data/context/
+nodered/data/lib/
+nodered/data/projects/
+nodered/data/settings.js.backup
+
