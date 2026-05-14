@@ -1,0 +1,40 @@
+# Python
+.venv/
+ai-api/.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Node
+node_modules/
+frontend/node_modules/
+node-red/node_modules/
+dist/
+frontend/dist/
+
+# Java / Gradle
+backend/build/
+backend/.gradle/
+*.class
+
+# Env / secrets
+.env
+application-secret.yml
+backend/src/main/resources/application-secret.yml
+
+# Large local data
+data/raw_mat/*
+!data/raw_mat/.gitkeep
+data/jsonl/*
+!data/jsonl/.gitkeep
+data/raw_windows/*
+!data/raw_windows/.gitkeep
+generated/
+data.zip
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
