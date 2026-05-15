@@ -1,0 +1,108 @@
+# Local development: DB + MQTT + AI only (no backend / no external Docker networks).
+# From repo root:
+#   docker compose -f docker-compose.local-infra.yml up -d
+# Then backend on host:
+#   cd backend && .\gradlew.bat bootRun --args="--spring.profiles.active=local-docker"
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: uecada_mysql_local
+    restart: unless-stopped
+    ports:
+      - "8600:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root1234
+      MYSQL_DATABASE: uecada
+      MYSQL_USER: uecada_user
+      MYSQL_PASSWORD: uecada1234
+      TZ: Asia/Seoul
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=+09:00
+    volumes:
+      - mysql_data_local:/var/lib/mysql
+      - ./database/init/init.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
+      - ./database/init/02_seed.sql:/docker-entrypoint-initdb.d/02_seed.sql:ro
+      - ./database/init/03_indexes.sql:/docker-entrypoint-initdb.d/03_indexes.sql:ro
+    healthcheck:
+      test: ["CMD", "mysql", "-h", "localhost", "-uuecada_user", "-puecada1234", "-e", "SELECT 1 FROM uecada.analysis_result LIMIT 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: smart-factory-mosquitto-local
+    restart: unless-stopped
+    ports:
+      - "${MQTT_PORT:-1883}:1883"
+    volumes:
+      - ./mqtt/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto_data_local:/mosquitto/data
+      - mosquitto_log_local:/mosquitto/log
+
+  # 알람 시뮬레이터 — 백엔드가 호스트(localhost:8080)에서 동작 중일 때 사용.
+  # 기본 2초마다 70% 확률로 알람 생성, 30% 확률로 기존 OPEN 알람 처리.
+  # 별도 프로필이라 평소엔 안 뜸. 켜고 싶을 때만:
+  #   docker compose -f docker-compose.local-infra.yml --profile sim up -d alarm-simulator
+  # 끌 때:
+  #   docker compose -f docker-compose.local-infra.yml stop alarm-simulator
+  #   docker compose -f docker-compose.local-infra.yml rm -f alarm-simulator
+  # 인터벌·대상 변경은 environment 의 BACKEND_URL / INTERVAL_SEC 만 바꾸면 됨.
+  alarm-simulator:
+    # 표준 라이브러리만 쓰므로 alpine 으로도 안전. slim 대비 약 ~80MB 절감.
+    image: python:3.11-alpine
+    container_name: uecada_alarm_simulator
+    restart: unless-stopped
+    profiles: ["sim"]
+    environment:
+      BACKEND_URL: http://host.docker.internal:8080
+      INTERVAL_SEC: "2"
+      PYTHONUNBUFFERED: "1"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./scripts/alarm-simulator.py:/app/sim.py:ro
+    command: ["python", "-u", "/app/sim.py"]
+
+  ai-api:
+    build:
+      context: ./ai-api
+      dockerfile: Dockerfile
+    container_name: smart-factory-ai-api-local
+    environment:
+      APP_NAME: Smart Factory Vibration AI API
+      DATABASE_URL: mysql+pymysql://uecada_user:uecada1234@mysql:3306/uecada
+      FAULT_MODEL_PATH: ${FAULT_MODEL_PATH:-app/models/model.pkl}
+      FAULT_MODEL_VERSION: ${FAULT_MODEL_VERSION:-spectrogram-pca-rf-v2}
+      FAULT_MODEL_INPUT_TYPE: ${FAULT_MODEL_INPUT_TYPE:-spectrogram}
+      FAULT_MODEL_SPECTROGRAM_SIZE: ${FAULT_MODEL_SPECTROGRAM_SIZE:-64}
+      FAULT_MODEL_SPECTROGRAM_LOG_TRANSFORM: ${FAULT_MODEL_SPECTROGRAM_LOG_TRANSFORM:-false}
+      FAULT_MODEL_SPECTROGRAM_MAX_NORMALIZATION: ${FAULT_MODEL_SPECTROGRAM_MAX_NORMALIZATION:-false}
+      FAULT_MODEL_SPECTROGRAM_MAX_NORMALIZATION_EPS: ${FAULT_MODEL_SPECTROGRAM_MAX_NORMALIZATION_EPS:-0.00000001}
+      FAULT_MODEL_STFT_WINDOW: ${FAULT_MODEL_STFT_WINDOW:-hann}
+      FAULT_MODEL_STFT_NPERSEG: ${FAULT_MODEL_STFT_NPERSEG:-256}
+      FAULT_MODEL_STFT_NOVERLAP: ${FAULT_MODEL_STFT_NOVERLAP:-128}
+      FAULT_MODEL_STFT_SCALING: ${FAULT_MODEL_STFT_SCALING:-spectrum}
+      FAULT_MODEL_STFT_MODE: ${FAULT_MODEL_STFT_MODE:-magnitude}
+      FAULT_MODEL_STFT_DETREND: ${FAULT_MODEL_STFT_DETREND:-false}
+      FFT_MAX_BINS: ${FFT_MAX_BINS:-2048}
+      RAW_WINDOW_SAVE_INTERVAL_MINUTES: ${RAW_WINDOW_SAVE_INTERVAL_MINUTES:-10}
+    ports:
+      - "${AI_API_PORT:-8001}:8001"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  mysql_data_local:
+  mosquitto_data_local:
+  mosquitto_log_local:

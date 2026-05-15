@@ -1,0 +1,5 @@
+{
+  "name": "smart-factory-node-red",
+  "private": true,
+  "description": "Node-RED flows for vibration JSONL replay"
+}

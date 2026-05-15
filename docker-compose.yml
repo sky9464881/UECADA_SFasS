@@ -1,0 +1,134 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: uecada_mysql
+    restart: always
+    ports:
+      - "8600:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root1234
+      MYSQL_DATABASE: uecada
+      MYSQL_USER: uecada_user
+      MYSQL_PASSWORD: uecada1234
+      TZ: Asia/Seoul
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=+09:00
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database/init/init.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
+      - ./database/init/02_seed.sql:/docker-entrypoint-initdb.d/02_seed.sql:ro
+      - ./database/init/03_indexes.sql:/docker-entrypoint-initdb.d/03_indexes.sql:ro
+    healthcheck:
+      test: ["CMD", "mysql", "-h", "localhost", "-uuecada_user", "-puecada1234", "-e", "SELECT 1 FROM uecada.analysis_result LIMIT 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: smart-factory-mosquitto
+    ports:
+      - "${MQTT_PORT:-1883}:1883"
+    volumes:
+      - ./mqtt/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
+
+  ai-api:
+    build:
+      context: ./ai-api
+      dockerfile: Dockerfile
+    container_name: smart-factory-ai-api
+    environment:
+      APP_NAME: Smart Factory Vibration AI API
+      DATABASE_URL: mysql+pymysql://uecada_user:uecada1234@mysql:3306/uecada
+      FAULT_MODEL_PATH: ${FAULT_MODEL_PATH:-app/models/model.pkl}
+      FAULT_MODEL_VERSION: ${FAULT_MODEL_VERSION:-spectrogram-pca-rf-v2}
+      FAULT_MODEL_INPUT_TYPE: ${FAULT_MODEL_INPUT_TYPE:-spectrogram}
+      FAULT_MODEL_SPECTROGRAM_SIZE: ${FAULT_MODEL_SPECTROGRAM_SIZE:-64}
+      FAULT_MODEL_SPECTROGRAM_LOG_TRANSFORM: ${FAULT_MODEL_SPECTROGRAM_LOG_TRANSFORM:-false}
+      FAULT_MODEL_SPECTROGRAM_MAX_NORMALIZATION: ${FAULT_MODEL_SPECTROGRAM_MAX_NORMALIZATION:-false}
+      FAULT_MODEL_SPECTROGRAM_MAX_NORMALIZATION_EPS: ${FAULT_MODEL_SPECTROGRAM_MAX_NORMALIZATION_EPS:-0.00000001}
+      FAULT_MODEL_STFT_WINDOW: ${FAULT_MODEL_STFT_WINDOW:-hann}
+      FAULT_MODEL_STFT_NPERSEG: ${FAULT_MODEL_STFT_NPERSEG:-256}
+      FAULT_MODEL_STFT_NOVERLAP: ${FAULT_MODEL_STFT_NOVERLAP:-128}
+      FAULT_MODEL_STFT_SCALING: ${FAULT_MODEL_STFT_SCALING:-spectrum}
+      FAULT_MODEL_STFT_MODE: ${FAULT_MODEL_STFT_MODE:-magnitude}
+      FAULT_MODEL_STFT_DETREND: ${FAULT_MODEL_STFT_DETREND:-false}
+      FFT_MAX_BINS: ${FFT_MAX_BINS:-2048}
+      RAW_WINDOW_SAVE_INTERVAL_MINUTES: ${RAW_WINDOW_SAVE_INTERVAL_MINUTES:-10}
+    ports:
+      - "${AI_API_PORT:-8001}:8001"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: smart-factory-backend
+    restart: on-failure
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      PHM_MQTT_HOST: ${PHM_MQTT_HOST:-das-mosquitto}
+      MQTT_VIBRATION_TOPIC: ${MQTT_VIBRATION_TOPIC:-factory/motor/1/vibration/window,das/common/+/+/vibration/window}
+      MQTT_QOS: ${MQTT_QOS:-1}
+      PHM_OPCUA_XDAS_ENABLED: ${PHM_OPCUA_XDAS_ENABLED:-true}
+      PHM_OPCUA_XDAS_ENDPOINT_URL: ${PHM_OPCUA_XDAS_ENDPOINT_URL:-opc.tcp://x-das-node-red:54880/UA/X_DAS/}
+      PHM_OPCUA_XDAS_PUBLISHING_INTERVAL_MS: ${PHM_OPCUA_XDAS_PUBLISHING_INTERVAL_MS:-1000}
+      PHM_OPCUA_XDAS_QUEUE_SIZE: ${PHM_OPCUA_XDAS_QUEUE_SIZE:-10}
+      PHM_OPCUA_XDAS_RECONNECT_DELAY_MS: ${PHM_OPCUA_XDAS_RECONNECT_DELAY_MS:-5000}
+      PHM_OPCUA_XDAS_INCLUDE_LINE01_ALIAS_BUFFERS: ${PHM_OPCUA_XDAS_INCLUDE_LINE01_ALIAS_BUFFERS:-true}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    volumes:
+      - ./data/raw_windows:/app/data/raw_windows
+    networks:
+      - default
+      - total-das-net
+      - das-internal
+    depends_on:
+      mysql:
+        condition: service_healthy
+      ai-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  node-red:
+    image: nodered/node-red:latest
+    container_name: smart-factory-node-red
+    ports:
+      - "${NODE_RED_PORT:-1880}:1880"
+    volumes:
+      - ./node-red:/data
+      - ./data:/project-data:ro
+    depends_on:
+      - mosquitto
+
+volumes:
+  mysql_data:
+  mosquitto_data:
+  mosquitto_log:
+
+networks:
+  total-das-net:
+    external: true
+    name: total-das-net
+  das-internal:
+    external: true
+    name: das_das-internal

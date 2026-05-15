@@ -1,0 +1,30 @@
+services:
+  x-das-node-red:
+    build:
+      context: .
+      dockerfile: docker/node-red/Dockerfile
+    container_name: x-das-node-red
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      TZ: ${TZ:-Asia/Seoul}
+      NODE_RED_CREDENTIAL_SECRET: ${NODE_RED_CREDENTIAL_SECRET:-change-this-secret}
+      NODE_OPTIONS: ${NODE_OPTIONS:---max-old-space-size=4096}
+    ports:
+      - "${NODE_RED_PORT:-1880}:1880"
+      - "${X_DAS_OPCUA_PORT:-54880}:54880"
+    volumes:
+      - ./nodered/data:/data
+      - ./nodered/certs:/certs:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      total-das-net:
+        aliases:
+          - x-das-node-red
+
+networks:
+  total-das-net:
+    external: true
+    name: total-das-net
