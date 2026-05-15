@@ -1,0 +1,2 @@
+2026/05/15-11:31:59.047 e7c Creating DB C:\Users\hwapyeong\Desktop\github\UECADA\.tmp-edge-cdp8\Default\EntityExtractionAssetStore.db since it was missing.
+2026/05/15-11:32:05.331 e7c Reuse MANIFEST: IO error: C:\Users\hwapyeong\Desktop\github\UECADA\.tmp-edge-cdp8\Default\EntityExtractionAssetStore.db/MANIFEST-000001: Unable to create appendable file (ChromeMethodBFE: 21::NewAppendableFile::16)

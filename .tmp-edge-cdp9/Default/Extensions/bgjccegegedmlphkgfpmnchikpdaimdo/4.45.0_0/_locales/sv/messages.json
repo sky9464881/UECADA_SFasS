@@ -1,0 +1,29 @@
+{
+   "Onboarding_How_to_use_Description_part_link_url": {
+      "message": "https://intersub.cc/"
+   },
+   "Rate_link": {
+      "message": "https://microsoftedge.microsoft.com/addons/detail/intersub-learn-languages/bgjccegegedmlphkgfpmnchikpdaimdo"
+   },
+   "Special_offer_review_Description_1_link_text": {
+      "message": "Edge add-ons store"
+   },
+   "Special_offer_review_Description_1_link_url": {
+      "message": "https://microsoftedge.microsoft.com/addons/detail/intersub-learn-languages/bgjccegegedmlphkgfpmnchikpdaimdo"
+   },
+   "Support_email": {
+      "message": "support@intersub.cc"
+   },
+   "appDescription": {
+      "message": "Njut av dual undertexter och undertextöversättare för dualsub för att immersivt översätta betydelsen av vilket ord som helst från spanska till engelska, till japanska osv."
+   },
+   "appName": {
+      "message": "Dual Undertexter & Undertextöversättare - InterSub"
+   },
+   "browserName": {
+      "message": "MICROSOFT_EDGE"
+   },
+   "pluginLocaleId": {
+      "message": "sv"
+   }
+}

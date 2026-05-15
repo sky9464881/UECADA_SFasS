@@ -1,0 +1,29 @@
+{
+   "Onboarding_How_to_use_Description_part_link_url": {
+      "message": "https://intersub.cc/"
+   },
+   "Rate_link": {
+      "message": "https://microsoftedge.microsoft.com/addons/detail/intersub-learn-languages/bgjccegegedmlphkgfpmnchikpdaimdo"
+   },
+   "Special_offer_review_Description_1_link_text": {
+      "message": "Edge add-ons store"
+   },
+   "Special_offer_review_Description_1_link_url": {
+      "message": "https://microsoftedge.microsoft.com/addons/detail/intersub-learn-languages/bgjccegegedmlphkgfpmnchikpdaimdo"
+   },
+   "Support_email": {
+      "message": "support@intersub.cc"
+   },
+   "appDescription": {
+      "message": "AI 翻訳 & 字幕 翻訳で英語→日本語翻訳 語学学習に最適なテキスト意味をリアルタイム翻訳 没入型の字幕体験で学べる"
+   },
+   "appName": {
+      "message": "AI 翻訳 & 字幕 翻訳 - InterSub"
+   },
+   "browserName": {
+      "message": "MICROSOFT_EDGE"
+   },
+   "pluginLocaleId": {
+      "message": "ja"
+   }
+}

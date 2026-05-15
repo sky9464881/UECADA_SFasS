@@ -1,0 +1,29 @@
+{
+   "Onboarding_How_to_use_Description_part_link_url": {
+      "message": "https://intersub.cc/"
+   },
+   "Rate_link": {
+      "message": "https://microsoftedge.microsoft.com/addons/detail/intersub-learn-languages/bgjccegegedmlphkgfpmnchikpdaimdo"
+   },
+   "Special_offer_review_Description_1_link_text": {
+      "message": "Edge add-ons store"
+   },
+   "Special_offer_review_Description_1_link_url": {
+      "message": "https://microsoftedge.microsoft.com/addons/detail/intersub-learn-languages/bgjccegegedmlphkgfpmnchikpdaimdo"
+   },
+   "Support_email": {
+      "message": "support@intersub.cc"
+   },
+   "appDescription": {
+      "message": "Tamasahin ang tagasalin ng dobleng subtitle para sa dualsub upang masusing isalin ang kahulugan ng anumang salita mula sa Espanyol patungo sa Ingles, sa Hapon, atbp."
+   },
+   "appName": {
+      "message": "Dobleng Subtitle at Tagasalin ng Subtitle - InterSub"
+   },
+   "browserName": {
+      "message": "MICROSOFT_EDGE"
+   },
+   "pluginLocaleId": {
+      "message": "fil"
+   }
+}

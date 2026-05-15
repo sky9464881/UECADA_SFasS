@@ -1,0 +1,29 @@
+{
+   "Onboarding_How_to_use_Description_part_link_url": {
+      "message": "https://intersub.cc/"
+   },
+   "Rate_link": {
+      "message": "https://microsoftedge.microsoft.com/addons/detail/intersub-learn-languages/bgjccegegedmlphkgfpmnchikpdaimdo"
+   },
+   "Special_offer_review_Description_1_link_text": {
+      "message": "Edge add-ons store"
+   },
+   "Special_offer_review_Description_1_link_url": {
+      "message": "https://microsoftedge.microsoft.com/addons/detail/intersub-learn-languages/bgjccegegedmlphkgfpmnchikpdaimdo"
+   },
+   "Support_email": {
+      "message": "support@intersub.cc"
+   },
+   "appDescription": {
+      "message": "ডুয়াল সাবটাইটেলস এবং সাবটাইটেল অনুবাদক - ইন্টারসাব ব্যবহার করে স্প্যানিশ থেকে ইংরেজি, জাপানি ইত্যাদিতে যেকোনো শব্দের অর্থ অনুবাদ করুন।"
+   },
+   "appName": {
+      "message": "ডুয়াল সাবটাইটেলস এবং সাবটাইটেল অনুবাদক - ইন্টারসাব"
+   },
+   "browserName": {
+      "message": "MICROSOFT_EDGE"
+   },
+   "pluginLocaleId": {
+      "message": "bn"
+   }
+}

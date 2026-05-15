@@ -1,0 +1,759 @@
+{
+   "Ai_chat_Button_caption_save_definition_loop_cancel": {
+      "message": "Já não preciso de uma definição"
+   },
+   "Ai_chat_Button_caption_save_definition_loop_definition_saved": {
+      "message": "Definição guardada"
+   },
+   "Ai_chat_Button_caption_save_definition_loop_save_definition_and_end": {
+      "message": "Tudo certo, guardar no vocabulário"
+   },
+   "Ai_chat_Button_caption_save_definition_loop_start": {
+      "message": "Guardar no vocabulário"
+   },
+   "Ai_chat_Button_caption_save_definition_loop_wrong": {
+      "message": "Não está bem"
+   },
+   "Ai_chat_Definition_preview": {
+      "message": "Pré-visualização da definição"
+   },
+   "Ai_chat_Header_text": {
+      "message": "Amigo do idioma"
+   },
+   "Ai_chat_Unavailable_in_fullscreen": {
+      "message": "O bate-papo não está disponível no modo de tela cheia neste site."
+   },
+   "Ai_chat_input_field_placeholder": {
+      "message": "Escreva uma pergunta"
+   },
+   "Ai_chat_input_field_send_button_hint": {
+      "message": "Ctrl+Enter / ⌘+Enter"
+   },
+   "Big_banner_Close": {
+      "message": "Fechar"
+   },
+   "Big_banner_Seconds_left": {
+      "message": "_seconds_ segundos restantes"
+   },
+   "Big_banner_description_part_1": {
+      "message": "Você sempre pode desativar os anúncios mudando para um dos "
+   },
+   "Big_banner_description_part_3": {
+      "message": "planos pagos"
+   },
+   "Bubble_Auto_pause_disabled_message": {
+      "message": "A auto-pintura foi afinada."
+   },
+   "Bubble_Auto_pause_enabled_message": {
+      "message": "A auto-pintura na actividade do cursor está ligada. Pode desligá-la nas definições."
+   },
+   "Bubble_Choose_ads_text": {
+      "message": "Ou você pode optar por usar o InterSub com anúncios"
+   },
+   "Bubble_Choose_plan": {
+      "message": "Escolha o plano"
+   },
+   "Bubble_Continue_with_ads_button_caption": {
+      "message": "Continuar com anúncios"
+   },
+   "Bubble_Days_left": {
+      "message": "Dias restante"
+   },
+   "Bubble_Error": {
+      "message": "Erro"
+   },
+   "Bubble_Error_machine_translating_subtitles_Failed_to_fetch": {
+      "message": "Tente alterar seu endereço IP, por exemplo, ativando (desativando) a VPN ou alterando o servidor/país em suas configurações."
+   },
+   "Bubble_Error_machine_translating_subtitles_Failed_to_parse_response": {
+      "message": "Tente atualizar a página ou aguarde algum tempo. Se isso não funcionar, entre em contato com $supportEmail$.",
+      "placeholders": {
+         "supportEmail": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Error_machine_translating_subtitles_Main": {
+      "message": "Erro de tradução da legenda."
+   },
+   "Bubble_Extra_subtitles_service_unsupported": {
+      "message": "Ainda não há suporte para legendas duplas neste site. Por favor, acompanhe as atualizações."
+   },
+   "Bubble_Failed_to_load_subtitles_in_language": {
+      "message": "Por algum motivo, não foi possível fazer o download das legendas em $lang$. Tente recarregar a página para corrigir o problema.",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Force_machine_translating_subtitles_free": {
+      "message": "A tradução forçada de legendas por IA está disponível apenas nos planos pagos. As legendas originais $lang$ continuarão a ser utilizadas.",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Force_machine_translating_subtitles_paid": {
+      "message": "Substituindo as legendas $lang$ existentes por traduções feitas por IA.",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Get_trial": {
+      "message": "Obtenha sua avaliação"
+   },
+   "Bubble_Language_Auto": {
+      "message": "Auto ($detectedLanguageName$)",
+      "placeholders": {
+         "detectedLanguageName": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Language_selector_Choose_a_language_to_translate_into": {
+      "message": "Escolha um idioma para traduzir"
+   },
+   "Bubble_Language_selector_Placeholder_Search_for_a_language": {
+      "message": "Pesquisar um idioma"
+   },
+   "Bubble_Language_selector_Save": {
+      "message": "Salvar"
+   },
+   "Bubble_Limit_Days_Extend": {
+      "message": "Para ampliar o acesso ilimitado, faça sua assinatura."
+   },
+   "Bubble_Limits_Days": {
+      "message": "Dias restantes do teu período de testes/promoção: $daysLeft$.",
+      "placeholders": {
+         "daysLeft": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Limits_Logged_out_day": {
+      "message": "Tem apenas $lookupLimit$ consultas gratuitas por dia, porque estava desconectado.",
+      "placeholders": {
+         "lookupLimit": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Limits_Logged_out_month": {
+      "message": "Tem apenas $lookupLimit$ consultas gratuitas por mês, porque estava desconectado.",
+      "placeholders": {
+         "lookupLimit": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Limits_Lookups_pack": {
+      "message": "Você tem um pacote de $lookupLimit$ solicitações. Você pode atualizá-lo para um pacote maior ou para uma assinatura Premium.",
+      "placeholders": {
+         "lookupLimit": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Limits_Please_login": {
+      "message": "Para aumentar ou remover limites, por favor faça login."
+   },
+   "Bubble_Limits_Please_subscribe": {
+      "message": " Para tê-lo ilimitado, assine."
+   },
+   "Bubble_Limits_Unregistered_Please_register": {
+      "message": " Para remover o limite, registre-se."
+   },
+   "Bubble_Limits_inquiry_consented_to_ads_Description": {
+      "message": "Você sempre pode desativar os anúncios mudando para um dos planos pagos"
+   },
+   "Bubble_Limits_inquiry_consented_to_ads_Title": {
+      "message": "Você optou por usar o InterSub com anúncios"
+   },
+   "Bubble_Limits_per_period_day": {
+      "message": "Você tem $lookupLimit$ pesquisas gratuitas por dia.",
+      "placeholders": {
+         "lookupLimit": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Limits_per_period_month": {
+      "message": "Você tem $lookupLimit$ pesquisas gratuitas por mês.",
+      "placeholders": {
+         "lookupLimit": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Loading_subtitles": {
+      "message": "Carregando legendas em $lang$...",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Loading_subtitles_progress": {
+      "message": "Carregando legendas em $lang$ ($progress$%)",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         },
+         "progress": {
+            "content": "$2"
+         }
+      }
+   },
+   "Bubble_Login": {
+      "message": "Conecte-se"
+   },
+   "Bubble_Lookups_daily_limit_reached": {
+      "message": "Você atingiu seu limite diário de pesquisas"
+   },
+   "Bubble_Lookups_did_not_receive_trial_get_trial": {
+      "message": "Você pode obter acesso de teste de 14 dias ao plano Premium"
+   },
+   "Bubble_Lookups_free_finished_day": {
+      "message": "Você ficou sem suas pesquisas gratuitas. Inscreva-se para acesso ilimitado ou aguarde o dia seguinte."
+   },
+   "Bubble_Lookups_free_finished_month": {
+      "message": "Você ficou sem suas pesquisas gratuitas. Inscreva-se para acesso ilimitado ou aguarde o mês seguinte."
+   },
+   "Bubble_Lookups_left": {
+      "message": "Solicitações restantes"
+   },
+   "Bubble_Lookups_left_of": {
+      "message": "de"
+   },
+   "Bubble_Lookups_logged_out_finished_day": {
+      "message": "Você ficou sem suas pesquisas gratuitas. Por favor, faça o login para obter mais, subscreva para ter acesso ilimitado, ou aguarde pelo dia seguinte."
+   },
+   "Bubble_Lookups_logged_out_finished_month": {
+      "message": "Você ficou sem suas pesquisas gratuitas. Por favor, faça o login para obter mais, subscreva para ter acesso ilimitado, ou aguarde pelo mês seguinte."
+   },
+   "Bubble_Lookups_logged_out_please_login": {
+      "message": "Para continuar usando o plano adquirido, faça login. Se você ainda não tem um plano pago, pode fazer uma assinatura (a partir de US$ 2,5)"
+   },
+   "Bubble_Lookups_montly_limit_reached": {
+      "message": "Você atingiu seu limite mensal de pesquisas"
+   },
+   "Bubble_Lookups_received_trial_subscribe_to_continue": {
+      "message": "Para continuar, você pode assinar um plano pago (a partir de US$ 2,5)"
+   },
+   "Bubble_Lookups_unregistered_finished_day": {
+      "message": "Você ficou sem suas pesquisas gratuitas. Registe-se para acesso ilimitado ou aguarde pelo dia seguinte."
+   },
+   "Bubble_Lookups_unregistered_finished_month": {
+      "message": "Você ficou sem suas pesquisas gratuitas. Registe-se para acesso ilimitado ou aguarde pelo mês seguinte."
+   },
+   "Bubble_Machine_translating_subtitles": {
+      "message": "Este vídeo não tem legendas originais em $lang$. Faremos a tradução usando IA.",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Machine_translating_subtitles_unavailable": {
+      "message": "Este vídeo não tem legendas originais em $lang$, as legendas duplas não estão disponíveis. As legendas geradas por IA estão disponíveis somente em planos pagos.",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_No_double_subtitles": {
+      "message": "Esse vídeo não tem legendas em $lang$, as legendas duplas não estão disponíveis.",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_No_subtitles_in_language": {
+      "message": "Esse vídeo não tem legendas em $lang$.",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Nothing_found": {
+      "message": "Nada encontrado"
+   },
+   "Bubble_Player_is_too_small": {
+      "message": "Para usar o InterSub neste vídeo, mude o player para o modo de tela cheia."
+   },
+   "Bubble_Please_login_to_continue_using_translation": {
+      "message": "Faça login para continuar usando a tradução"
+   },
+   "Bubble_Previous_subtitle_hidden_message": {
+      "message": "A exibição de legendas anteriores está desativada. Você sempre pode ativá-la novamente em Configurações."
+   },
+   "Bubble_Receiving_translation": {
+      "message": "Recebendo tradução"
+   },
+   "Bubble_Register": {
+      "message": "Registe-se"
+   },
+   "Bubble_Subscribe": {
+      "message": "Compre uma assinatura"
+   },
+   "Bubble_Text_too_Long": {
+      "message": "As palavras ou frase são demasiado longas. Por favor, tente escolher uma diferente mais curta."
+   },
+   "Bubble_Translation_timed_out": {
+      "message": "Alguma coisa correu mal. Por favor, tente novamente."
+   },
+   "Bubble_Translation_timed_out_reload_page": {
+      "message": "Alguma coisa correu mal. Tente recarregar a página."
+   },
+   "Bubble_Upgrade_your_plan": {
+      "message": "Atualize seu plano"
+   },
+   "Bubble_header_Ai_icon_title": {
+      "message": "Pergunte ao nosso parceiro de idiomas"
+   },
+   "Bubble_machine_translating_subtitles_no_subs_paid": {
+      "message": "As legendas originais em $target_lang$ não estão disponíveis. Traduziremos as legendas de $original_lang$ com IA.",
+      "placeholders": {
+         "original_lang": {
+            "content": "$2"
+         },
+         "target_lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Language_list_auto": {
+      "message": "Auto"
+   },
+   "OK_button_caption": {
+      "message": "OK"
+   },
+   "Onboarding_Before_Sample_Video_Now_we_will_open_video": {
+      "message": "Em seguida, vamos guiá-lo para usar o InterSub com vídeos em uma das plataformas abaixo. Clique em qualquer uma para continuar."
+   },
+   "Onboarding_Extra_subtitles_Description_1": {
+      "message": "Funciona para vídeos quando ambos os idiomas de legenda estão disponíveis."
+   },
+   "Onboarding_Extra_subtitles_Description_2": {
+      "message": "Ative ou desative-o em Configurações ou usando a tecla de atalho D."
+   },
+   "Onboarding_Extra_subtitles_Title": {
+      "message": "Legendas duplas"
+   },
+   "Onboarding_How_to_use_Description_part_link_url": {
+      "message": "https://intersub.cc/"
+   },
+   "Onboarding_Instructions_How_to_lookup": {
+      "message": "Como traduzir palavras nas legendas"
+   },
+   "Onboarding_Instructions_Select_language_for_audio": {
+      "message": "Selecione $lang$ para áudio",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Onboarding_Instructions_Select_original_audio": {
+      "message": "Selecione dublagem original"
+   },
+   "Onboarding_Language_Selector_Translate_From": {
+      "message": "Que idioma você está aprendendo? Mostraremos legendas nesse idioma."
+   },
+   "Onboarding_Language_Selector_Translate_To": {
+      "message": "Selecione seu idioma nativo. Mostraremos a tradução nesse idioma."
+   },
+   "Onboarding_Pin_Plugin_Icon_Description": {
+      "message": "Isso lhe dará acesso rápido a Configurações, Links úteis, Recentemente e Palavras traduzidas com mais frequência."
+   },
+   "Onboarding_Pin_Plugin_Icon_Title": {
+      "message": "Fixar a extensão no painel do navegador"
+   },
+   "Onboarding_Playback_is_paused": {
+      "message": "A reprodução é pausada"
+   },
+   "Onboarding_Plugin_Installed_Congratulations": {
+      "message": "Parabéns pela instalação da InterSub!"
+   },
+   "Onboarding_Plugin_Installed_Now_you_can_lookup_words": {
+      "message": "Agora você pode verificar rapidamente palavras desconhecidas em legendas de vídeos populares, plataformas educacionais e sites da Web."
+   },
+   "Onboarding_Plugin_Settings_were_reset_Text": {
+      "message": "Precisamos ajustar algumas configurações. Alguns cliques e você estará pronto para começar."
+   },
+   "Onboarding_Plugin_Settings_were_reset_Title": {
+      "message": "Ei, aqui é a InterSub!"
+   },
+   "Onboarding_Remote_control_Title": {
+      "message": "Controlo remoto"
+   },
+   "Onboarding_Sample_video_url": {
+      "message": "https://www.youtube.com/watch?v=Nn7xwfKZSxQ"
+   },
+   "Onboarding_Text_on_websites_translation_Description_1": {
+      "message": "Selecione a palavra ou frase e clique no ícone IS."
+   },
+   "Onboarding_Text_on_websites_translation_Description_2": {
+      "message": "Você sempre pode desativá-lo ou ativá-lo em Configurações."
+   },
+   "Onboarding_Text_on_websites_translation_Title": {
+      "message": "Como procurar palavras em sites"
+   },
+   "Onboarding_Text_on_websites_translation_Title_on_websites": {
+      "message": "Como procurar palavras em sites com o InterSub"
+   },
+   "Onboarding_This_service_is_supported_Next_button_text": {
+      "message": "Assista ao tutorial"
+   },
+   "Onboarding_We_pause_playback": {
+      "message": "Pausamos automaticamente o vídeo quando o cursor está sobre a área das legendas, para que você tenha tempo de dar uma olhada."
+   },
+   "Onboarding_You_can_disable_auto_pause": {
+      "message": "A pausa automática ou o modo de fundo amplo podem ser desativados em Definições."
+   },
+   "Popup_Add_to_user_dictionary": {
+      "message": "Marcação automática de palavras como favoritas"
+   },
+   "Popup_Auto_pausing_Mode_At_the_end_of_current_subtitle": {
+      "message": "Adiado"
+   },
+   "Popup_Auto_pausing_Mode_Right_away": {
+      "message": "Imediatamente"
+   },
+   "Popup_Auto_pausing_folder_name": {
+      "message": "Pausa automática"
+   },
+   "Popup_Auto_pausing_on_cursor_activity": {
+      "message": "Qualquer atividade do mouse em tela cheia"
+   },
+   "Popup_Auto_pausing_on_hovering_subtitles_background": {
+      "message": "Passar o mouse sobre o fundo das legendas"
+   },
+   "Popup_Auto_pausing_on_hovering_subtitles_words": {
+      "message": "Passar o mouse sobre as palavras nas legendas"
+   },
+   "Popup_Bubble_font_size": {
+      "message": "Tamanho da janela de tradução"
+   },
+   "Popup_Bubble_subtitles_vertical_shift": {
+      "message": "Posição vertical da legenda"
+   },
+   "Popup_Contact_support": {
+      "message": "Contato para suporte"
+   },
+   "Popup_Dashboard": {
+      "message": "Panel"
+   },
+   "Popup_Discord_text": {
+      "message": "Nossa Discord"
+   },
+   "Popup_Extension_work_is_paused": {
+      "message": "O trabalho de extensão é pausado"
+   },
+   "Popup_Give_us_feedback": {
+      "message": "Dê-nos a sua opinião"
+   },
+   "Popup_Hide_subtitles_when_native_audio": {
+      "message": "Não exibir vídeos substitutos no idioma nativo"
+   },
+   "Popup_Hotkeys_button_caption": {
+      "message": "Teclas de atalho"
+   },
+   "Popup_How_to_use": {
+      "message": "Como utilizar"
+   },
+   "Popup_Icon_New_version_available_Tooltip": {
+      "message": "Nova versão disponível: $version$. Reinicie o seu navegador para atualizar.",
+      "placeholders": {
+         "version": {
+            "content": "$1"
+         }
+      }
+   },
+   "Popup_Login": {
+      "message": "Conecte-se"
+   },
+   "Popup_Memorize_words_button_caption": {
+      "message": "Aprenda as palavras"
+   },
+   "Popup_Nothing_found": {
+      "message": "Nada encontrado"
+   },
+   "Popup_Off": {
+      "message": "Off"
+   },
+   "Popup_On": {
+      "message": "On"
+   },
+   "Popup_Paused": {
+      "message": "Pausado"
+   },
+   "Popup_Recent": {
+      "message": "Recente"
+   },
+   "Popup_Recent_lookups": {
+      "message": "Pesquisas recentes"
+   },
+   "Popup_Settings": {
+      "message": "Definições"
+   },
+   "Popup_Settings_Extra_subtitles": {
+      "message": "Legendas duplas"
+   },
+   "Popup_Settings_Force_translate_second_subs_live": {
+      "message": "Traduzir segundos subtítulos (ao vivo)"
+   },
+   "Popup_Settings_Lookup_on_websites_only_when_page_language_does_not_match_native": {
+      "message": "Procurar palavras somente em sites no idioma de aprendizado ($sourceLanguageName$)",
+      "placeholders": {
+         "sourceLanguageName": {
+            "content": "$1"
+         }
+      }
+   },
+   "Popup_Settings_Lookup_words_in_subtitles_on_hover_enabled": {
+      "message": "Traduzir palavras na legenda ao passar o mouse"
+   },
+   "Popup_Settings_New_version_available_Description": {
+      "message": "Você está na versão $version$. Reinicie seu navegador para atualizar e obter o suporte e as correções mais recentes para as plataformas.",
+      "placeholders": {
+         "version": {
+            "content": "$1"
+         }
+      }
+   },
+   "Popup_Settings_New_version_available_Title": {
+      "message": "Nova versão disponível ($version$)",
+      "placeholders": {
+         "version": {
+            "content": "$1"
+         }
+      }
+   },
+   "Popup_Settings_Remote_control": {
+      "message": "Controlo remoto"
+   },
+   "Popup_Settings_Rewind_to_next_prev_subtitles_enabled": {
+      "message": "Rebobinar por legendas"
+   },
+   "Popup_Settings_Shadowing_duration": {
+      "message": "Duração da pausa"
+   },
+   "Popup_Settings_Shadowing_enabled": {
+      "message": "Pausa após cada sub (shadowing)"
+   },
+   "Popup_Settings_Show_extra_subtitles_always": {
+      "message": "Sempre"
+   },
+   "Popup_Settings_Show_extra_subtitles_only_on_pause": {
+      "message": "Em pausa"
+   },
+   "Popup_Settings_Text_translation_on_websites_enabled": {
+      "message": "Tradução de palavras em sites"
+   },
+   "Popup_Show_previous_subtitle_on_pause": {
+      "message": "Mostrar submarino anterior em pausa"
+   },
+   "Popup_Sorry_you_have_been_logged_out_Please_login_to_your_profile": {
+      "message": "Desculpe, foi desconectado. Por favor, inicie sessão no seu perfil"
+   },
+   "Popup_Subtitles_background_mode": {
+      "message": "Fundo das legendas"
+   },
+   "Popup_Subtitles_background_mode_narrow": {
+      "message": "Estreito"
+   },
+   "Popup_Subtitles_background_mode_wide": {
+      "message": "Largo"
+   },
+   "Popup_Subtitles_size_extra": {
+      "message": "Tamanho do meu idioma"
+   },
+   "Popup_Subtitles_size_main": {
+      "message": "Tamanho do idioma alvo"
+   },
+   "Popup_Telegram_community_text": {
+      "message": "Telegram community"
+   },
+   "Popup_Top": {
+      "message": "Topo"
+   },
+   "Popup_Top_lookups": {
+      "message": "Principais pesquisas"
+   },
+   "Popup_Translate_from": {
+      "message": "Traduzir de"
+   },
+   "Popup_Translate_to": {
+      "message": "Traduza para"
+   },
+   "Popup_View_all": {
+      "message": "Ver tudo"
+   },
+   "Popup_Watch_video": {
+      "message": "Ver vídeo"
+   },
+   "Popup_You_can_start_with_current_video": {
+      "message": "Ainda não há nada para mostrar aqui porque você ainda não procurou as palavras. Você pode começar com o vídeo atual, por exemplo."
+   },
+   "Popup_You_can_start_with_this_video_on_YouTube_for_example": {
+      "message": "Pode começar com este vídeo no YouTube, por exemplo"
+   },
+   "Popup_You_havent_looked_up_any_words_yet": {
+      "message": "Você ainda não procurou por nenhuma palavra."
+   },
+   "Rate_Text": {
+      "message": "Avaliar-nos"
+   },
+   "Rate_link": {
+      "message": "https://microsoftedge.microsoft.com/addons/detail/intersub-learn-languages/bgjccegegedmlphkgfpmnchikpdaimdo"
+   },
+   "Remote_control_QR_code_description": {
+      "message": "Digitalize com o seu telemóvel para controlo remoto"
+   },
+   "Remote_control_Stop_remote_control": {
+      "message": "Parar o controlo remoto"
+   },
+   "Remote_control_closed_note_Description": {
+      "message": "Clique no ícone do controlo remoto para mostrar novamente o código QR. Desligar/ligar o controlo remoto em Definições."
+   },
+   "Remote_control_closed_note_Title": {
+      "message": "Controlo remoto"
+   },
+   "Shadowing_toggled_off": {
+      "message": "A pausa após cada legenda (sombreamento) foi desativada.\nVocê pode controlá-la usando a tecla de atalho S ou nas configurações."
+   },
+   "Shadowing_toggled_on": {
+      "message": "A pausa após cada legenda (sombreamento) foi ativada.\nVocê pode controlá-la usando a tecla de atalho S ou nas configurações."
+   },
+   "Special_offer_review_Description_1_link_text": {
+      "message": "Chrome Web store"
+   },
+   "Special_offer_review_Description_1_link_url": {
+      "message": "https://microsoftedge.microsoft.com/addons/detail/intersub-learn-languages/bgjccegegedmlphkgfpmnchikpdaimdo"
+   },
+   "Special_offer_review_Description_1_prefix": {
+      "message": "Deixe sua avaliação sobre o InterSub em "
+   },
+   "Special_offer_review_Description_1_suffix": {
+      "message": ""
+   },
+   "Special_offer_review_Description_2_link_url": {
+      "message": "mailto=welcome@intersub.cc?subject=Prêmio de 10 dias para a revisão"
+   },
+   "Special_offer_review_Description_2_prefix": {
+      "message": "Envie uma captura de tela da sua avaliação para "
+   },
+   "Special_offer_review_Description_2_suffix": {
+      "message": ""
+   },
+   "Special_offer_review_Description_3": {
+      "message": "Aplique um código promocional que enviaremos a você"
+   },
+   "Special_offer_review_Description_4": {
+      "message": "Aproveite seu acesso Premium de 10 dias!"
+   },
+   "Special_offer_review_Main_button_caption": {
+      "message": "Feito"
+   },
+   "Special_offer_review_Title": {
+      "message": "Atingiu o limite de solicitações? Escreva uma avaliação e ganhe um prêmio de 10 dias!"
+   },
+   "Subtitle_bar_Prev_prefix": {
+      "message": "Ant"
+   },
+   "Subtitle_bar_settings_popup_Background_color": {
+      "message": "Cor de fundo"
+   },
+   "Subtitle_bar_settings_popup_Text_color_extra": {
+      "message": "Meu idioma"
+   },
+   "Subtitle_bar_settings_popup_Text_color_main": {
+      "message": "Idioma de origem"
+   },
+   "Subtitle_bar_settings_popup_Text_color_title": {
+      "message": "Cor da fonte"
+   },
+   "Subtitle_bar_settings_popup_Text_shadow_title": {
+      "message": "Contorno do texto"
+   },
+   "Subtitle_bar_settings_popup_Text_size_title": {
+      "message": "Tamanho da fonte"
+   },
+   "Subtitles_failed_to_load_Button_caption": {
+      "message": "Recarregar página"
+   },
+   "Subtitles_failed_to_load_Description": {
+      "message": "Por algum motivo, não foi possível fazer o download das legendas em $languageName$. Tente recarregar a página para corrigir o problema.",
+      "placeholders": {
+         "languageName": {
+            "content": "$1"
+         }
+      }
+   },
+   "Subtitles_failed_to_load_Title": {
+      "message": "Houston, nós temos um problema"
+   },
+   "Subtitles_failed_to_load_Too_many_requests_Button_caption": {
+      "message": "Entendido"
+   },
+   "Subtitles_failed_to_load_Too_many_requests_Description": {
+      "message": "Não foi possível baixar as legendas porque o serviço de vídeo bloqueou seu endereço IP. Tente novamente em 10 a 15 minutos."
+   },
+   "Subtitles_force_translated_by_hint": {
+      "message": "Esta é uma tradução automática em tempo real de $translatedFromLanguage$ para $translatedIntoLanguage$, realizada pelo $translatedBy$.",
+      "placeholders": {
+         "translatedBy": {
+            "content": "$3"
+         },
+         "translatedFromLanguage": {
+            "content": "$2"
+         },
+         "translatedIntoLanguage": {
+            "content": "$1"
+         }
+      }
+   },
+   "Subtitles_hidden_audio_language_matches_native": {
+      "message": "Ocultamos as legendas porque o vídeo está em seu idioma nativo. Você pode desativar esse modo em Configurações."
+   },
+   "Subtitles_translated_by_hint": {
+      "message": "Este vídeo não tem legendas em $translatedIntoLanguage$, esta é uma tradução AI de\n$translatedFromLanguage$ → $translatedIntoLanguage$ feita por $translatedBy$.",
+      "placeholders": {
+         "translatedBy": {
+            "content": "$3"
+         },
+         "translatedFromLanguage": {
+            "content": "$2"
+         },
+         "translatedIntoLanguage": {
+            "content": "$1"
+         }
+      }
+   },
+   "Support_email": {
+      "message": "support@intersub.cc"
+   },
+   "actionDefaultTitle": {
+      "message": "InterSub: legendas interativas para vídeos"
+   },
+   "appDescription": {
+      "message": "Desfruta Tradutor online & Tradução de legendas com tradução online imersiva e tradutor inglês espanhol francês e muito mais"
+   },
+   "appName": {
+      "message": "Tradutor online​ & Tradução de legendas​ - InterSub"
+   },
+   "browserName": {
+      "message": "MICROSOFT_EDGE"
+   },
+   "pluginLocaleId": {
+      "message": "pt_BR"
+   }
+}

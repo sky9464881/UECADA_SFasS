@@ -1,0 +1,29 @@
+{
+   "Onboarding_How_to_use_Description_part_link_url": {
+      "message": "https://intersub.cc/"
+   },
+   "Rate_link": {
+      "message": "https://microsoftedge.microsoft.com/addons/detail/intersub-learn-languages/bgjccegegedmlphkgfpmnchikpdaimdo"
+   },
+   "Special_offer_review_Description_1_link_text": {
+      "message": "Edge add-ons store"
+   },
+   "Special_offer_review_Description_1_link_url": {
+      "message": "https://microsoftedge.microsoft.com/addons/detail/intersub-learn-languages/bgjccegegedmlphkgfpmnchikpdaimdo"
+   },
+   "Support_email": {
+      "message": "support@intersub.cc"
+   },
+   "appDescription": {
+      "message": "Nikmati penterjemah subtitel dwi untuk dualsub yang mengasyikkan untuk menterjemah maksud mana-mana perkataan dari Sepanyol ke Inggeris, ke Jepun dan lain-lain."
+   },
+   "appName": {
+      "message": "Subtitel Dwi & Penterjemah Subtitel - InterSub"
+   },
+   "browserName": {
+      "message": "MICROSOFT_EDGE"
+   },
+   "pluginLocaleId": {
+      "message": "ms"
+   }
+}

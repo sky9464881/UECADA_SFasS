@@ -1,0 +1,857 @@
+{
+   "Ai_chat_Button_caption_save_definition_loop_cancel": {
+      "message": "Определение больше не нужно"
+   },
+   "Ai_chat_Button_caption_save_definition_loop_definition_saved": {
+      "message": "Определение сохранено"
+   },
+   "Ai_chat_Button_caption_save_definition_loop_save_definition_and_end": {
+      "message": "Отлично, сохраняем"
+   },
+   "Ai_chat_Button_caption_save_definition_loop_start": {
+      "message": "Сохранить в словарь"
+   },
+   "Ai_chat_Button_caption_save_definition_loop_wrong": {
+      "message": "Это не то, что я ожидал"
+   },
+   "Ai_chat_Definition_preview": {
+      "message": "Черновик определения"
+   },
+   "Ai_chat_Header_text": {
+      "message": "Твой приятель-полиглот"
+   },
+   "Ai_chat_Unavailable_in_fullscreen": {
+      "message": "На этом сайте чат в полноэкранном режиме плеера не работает."
+   },
+   "Ai_chat_input_field_placeholder": {
+      "message": "Напишите ваш вопрос"
+   },
+   "Ai_chat_input_field_send_button_hint": {
+      "message": "Ctrl+Enter / ⌘+Enter"
+   },
+   "Big_banner_Close": {
+      "message": "Закрыть"
+   },
+   "Big_banner_Seconds_left": {
+      "message": "Осталось _seconds_ сек"
+   },
+   "Big_banner_description_part_1": {
+      "message": "Вы всегда можете выключить рекламу, перейдя на один из "
+   },
+   "Big_banner_description_part_3": {
+      "message": "платных тарифов"
+   },
+   "Bubble_Auto_pause_disabled_message": {
+      "message": "Автопауза при движении курсора выключена."
+   },
+   "Bubble_Auto_pause_enabled_message": {
+      "message": "Автопауза при движении курсора включена. Вы можете выключить режим в настройках."
+   },
+   "Bubble_Choose_ads_text": {
+      "message": "Или вы можете выбрать использование InterSub с рекламой"
+   },
+   "Bubble_Choose_plan": {
+      "message": "Выбрать тариф"
+   },
+   "Bubble_Continue_with_ads_button_caption": {
+      "message": "Продолжить с рекламой"
+   },
+   "Bubble_Days_left": {
+      "message": "Дней осталось"
+   },
+   "Bubble_Error": {
+      "message": "Ошибка"
+   },
+   "Bubble_Error_machine_translating_subtitles_Failed_to_fetch": {
+      "message": "Попробуйте изменить свой IP-адрес, например, включив (отключив) VPN или изменив в его настройках сервер/страну."
+   },
+   "Bubble_Error_machine_translating_subtitles_Failed_to_parse_response": {
+      "message": "Попробуйте обновить страницу или подождать какое-то время. Если это не поможет, свяжитесь с нами по $supportEmail$.",
+      "placeholders": {
+         "supportEmail": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Error_machine_translating_subtitles_Main": {
+      "message": "Ошибка перевода субтитров."
+   },
+   "Bubble_Extra_subtitles_service_unsupported": {
+      "message": "Двойные субтитры на этом сайте пока не поддерживаются, но мы работаем над этим. Следите за обновлениями."
+   },
+   "Bubble_Failed_to_load_subtitles_in_language": {
+      "message": "Мы не смогли загрузить субтитры на языке \"$lang$\", попробуйте перезагрузить страницу.",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Force_machine_translating_subtitles_free": {
+      "message": "Перевод субтитров на лету с помощью ИИ доступен только на платных тарифах. Вам будут показаны оригинальные субтитры на $lang$.",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Force_machine_translating_subtitles_paid": {
+      "message": "Заменяем существующие субтитры на $lang$ ИИ-переводом.",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Get_trial": {
+      "message": "Получить пробный доступ"
+   },
+   "Bubble_Language_Auto": {
+      "message": "Авто ($detectedLanguageName$)",
+      "placeholders": {
+         "detectedLanguageName": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Language_selector_Choose_a_language_to_translate_into": {
+      "message": "Выберите язык, на который вы хотите переводить слова"
+   },
+   "Bubble_Language_selector_Placeholder_Search_for_a_language": {
+      "message": "Найти язык"
+   },
+   "Bubble_Language_selector_Save": {
+      "message": "Сохранить"
+   },
+   "Bubble_Limit_Days_Extend": {
+      "message": "Подпишитесь на Премиум, чтобы продлить безлимитный доступ."
+   },
+   "Bubble_Limits_Days": {
+      "message": "Дней доступа по вашему Тестовому/Промо плану осталось: $daysLeft$.",
+      "placeholders": {
+         "daysLeft": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Limits_Logged_out_day": {
+      "message": "Вы можете проверить не больше $lookupLimit$ слов в день т.к. не авторизованы.",
+      "placeholders": {
+         "lookupLimit": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Limits_Logged_out_month": {
+      "message": "Вы можете проверить не больше $lookupLimit$ слов в месяц т.к. не авторизованы.",
+      "placeholders": {
+         "lookupLimit": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Limits_Lookups_pack": {
+      "message": "У вас есть пакет на $lookupLimit$ запросов. Вы можете купить больший пакет или перейти на тариф Премиум.",
+      "placeholders": {
+         "lookupLimit": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Limits_Please_login": {
+      "message": "Чтобы поднять или убрать ограничение, пожалуйста, войдите в личный кабинет."
+   },
+   "Bubble_Limits_Please_subscribe": {
+      "message": " Подпишитесь на один из тарифов, чтобы убрать ограничения."
+   },
+   "Bubble_Limits_Unregistered_Please_register": {
+      "message": " Зарегистрируйтесь, чтобы убрать ограничение."
+   },
+   "Bubble_Limits_inquiry_consented_to_ads_Description": {
+      "message": "Вы всегда можете выключить рекламу, перейдя на один из платных тарифов"
+   },
+   "Bubble_Limits_inquiry_consented_to_ads_Title": {
+      "message": "Вы выбрали использование InterSub с рекламой"
+   },
+   "Bubble_Limits_per_period_day": {
+      "message": "Вы можете проверить до $lookupLimit$ слов в день.",
+      "placeholders": {
+         "lookupLimit": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Limits_per_period_month": {
+      "message": "Вы можете проверить до $lookupLimit$ слов в месяц.",
+      "placeholders": {
+         "lookupLimit": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Loading_subtitles": {
+      "message": "Загружаем субтитры для: $lang$...",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Loading_subtitles_progress": {
+      "message": "Загружаем субтитры для: $lang$ ($progress$%)",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         },
+         "progress": {
+            "content": "$2"
+         }
+      }
+   },
+   "Bubble_Login": {
+      "message": "Войти"
+   },
+   "Bubble_Lookups_daily_limit_reached": {
+      "message": "Вы исчерпали дневной лимит просмотров"
+   },
+   "Bubble_Lookups_did_not_receive_trial_get_trial": {
+      "message": "Вы можете получить 14-дневный пробный доступ к плану Премиум"
+   },
+   "Bubble_Lookups_free_finished_day": {
+      "message": "Ваши бесплатные проверки слов закончились. Чтобы снять ограничение, купите подписку. Или дождитесь следующего дня."
+   },
+   "Bubble_Lookups_free_finished_month": {
+      "message": "Ваши бесплатные проверки слов закончились. Чтобы снять ограничение, купите подписку. Или дождитесь следующего месяца."
+   },
+   "Bubble_Lookups_left": {
+      "message": "Осталось запросов"
+   },
+   "Bubble_Lookups_left_of": {
+      "message": "из"
+   },
+   "Bubble_Lookups_logged_out_finished_day": {
+      "message": "Ваши бесплатные проверки слов закончились. Авторизуйтесь, чтобы получить дополнительные проверки или купите подписку для безлимитного доступа. Или дождитесь следующего дня."
+   },
+   "Bubble_Lookups_logged_out_finished_month": {
+      "message": "Ваши бесплатные проверки слов закончились. Авторизуйтесь, чтобы получить дополнительные проверки или купите подписку для безлимитного доступа. Или дождитесь следующего месяца."
+   },
+   "Bubble_Lookups_logged_out_please_login": {
+      "message": "Если у вас уже есть активная подписка, авторизуйтесь, чтобы продолжить. Если у вас еще нет подписки, вы можете ее купить (от $2,5)"
+   },
+   "Bubble_Lookups_montly_limit_reached": {
+      "message": "Вы исчерпали месячный лимит просмотров"
+   },
+   "Bubble_Lookups_received_trial_subscribe_to_continue": {
+      "message": "Чтобы продолжить, вы можете подписаться на один из платных тарифов (от $2,5)"
+   },
+   "Bubble_Lookups_unregistered_finished_day": {
+      "message": "Ваши бесплатные проверки слов закончились. Зарегистрируйтесь, чтобы снять ограничение. Или дождитесь следующего дня."
+   },
+   "Bubble_Lookups_unregistered_finished_month": {
+      "message": "Ваши бесплатные проверки слов закончились. Зарегистрируйтесь, чтобы снять ограничение. Или дождитесь следующего месяца."
+   },
+   "Bubble_Machine_translating_subtitles": {
+      "message": "У этого видео нет оригинальных субтитров на языке $lang$. Мы сделаем перевод с помощью ИИ.",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Machine_translating_subtitles_unavailable": {
+      "message": "У этого видео нет оригинальных субтитров на: $lang$, двойные субтитры недоступны. ИИ субтитры доступны только на платных тарифах.",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_No_double_subtitles": {
+      "message": "У этого видео нет субтитров на этом языке: $lang$, двойные субтитры недоступны.",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_No_subtitles_in_language": {
+      "message": "У этого видео нет субтитров на этом языке: $lang$.",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Nothing_found": {
+      "message": "Найти перевод не получилось"
+   },
+   "Bubble_Player_is_too_small": {
+      "message": "Чтобы использовать InterSub в этом видео, перейдите в полноэкранный режим."
+   },
+   "Bubble_Please_login_to_continue_using_translation": {
+      "message": "Пожалуйста, авторизуйтесь, чтобы продолжить проверять слова"
+   },
+   "Bubble_Previous_subtitle_hidden_message": {
+      "message": "Показ предыдущих субтитров отключен. Вы всегда можете включить его обратно в Настройках."
+   },
+   "Bubble_Receiving_translation": {
+      "message": "Получаю перевод"
+   },
+   "Bubble_Register": {
+      "message": "Зарегистрироваться"
+   },
+   "Bubble_Subscribe": {
+      "message": "Купить подписку"
+   },
+   "Bubble_Text_too_Long": {
+      "message": "Выбранное вами слово (или фраза) слишком длинное. Выберите другое, более короткое."
+   },
+   "Bubble_Translation_timed_out": {
+      "message": "Что-то пошло не так. Попробуйте еще раз."
+   },
+   "Bubble_Translation_timed_out_reload_page": {
+      "message": "Что-то пошло не так. Попробуйте обновить страницу."
+   },
+   "Bubble_Upgrade_your_plan": {
+      "message": "Улучшить подписку"
+   },
+   "Bubble_header_Ai_icon_title": {
+      "message": "Спросить нашего языкового эксперта"
+   },
+   "Bubble_machine_translating_subtitles_no_subs_paid": {
+      "message": "Оригинальные субтитры на $target_lang$ недоступны. Мы сделаем перевод с $original_lang$ с помощью ИИ.",
+      "placeholders": {
+         "original_lang": {
+            "content": "$2"
+         },
+         "target_lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Language_list_auto": {
+      "message": "Авто"
+   },
+   "OK_button_caption": {
+      "message": "OK"
+   },
+   "Onboarding_Back_button_text": {
+      "message": "Назад"
+   },
+   "Onboarding_Before_Sample_Video_Now_we_will_open_video": {
+      "message": "Далее мы покажем вам, как пользоваться InterSub в видео на одной из платформ ниже. Выберите любую, чтобы продолжить."
+   },
+   "Onboarding_Before_Sample_Video_Supported_platforms": {
+      "message": "Мы работаем на:"
+   },
+   "Onboarding_Before_Sample_Video_Where_Plugin_works": {
+      "message": "Где работает InterSub"
+   },
+   "Onboarding_Extra_subtitles_Description_1": {
+      "message": "Работает, когда у видео есть субтитры на обоих выбранных языках."
+   },
+   "Onboarding_Extra_subtitles_Description_2": {
+      "message": "Вы можете включить / выключить их в настройках или с помощью горячей клавиши D."
+   },
+   "Onboarding_Extra_subtitles_Title": {
+      "message": "Двойные субтитры"
+   },
+   "Onboarding_Finish_button_text": {
+      "message": "Готово!"
+   },
+   "Onboarding_Flowplayer_1": {
+      "message": "Выберите версию видео с субтитрами"
+   },
+   "Onboarding_How_to_use_Description_part_1": {
+      "message": "Кликните на иконку InterSub, чтобы открыть настройки."
+   },
+   "Onboarding_How_to_use_Description_part_2_after_link": {
+      "message": ", чтобы быть в курсе последних новостей."
+   },
+   "Onboarding_How_to_use_Description_part_2_before_link": {
+      "message": "И присоединяйтесь к "
+   },
+   "Onboarding_How_to_use_Description_part_2_link_text": {
+      "message": "нашему сообществу в Телеграм"
+   },
+   "Onboarding_How_to_use_Description_part_link_url": {
+      "message": "https://t.me/learn_english_w_intersub"
+   },
+   "Onboarding_How_to_use_Title": {
+      "message": "На всякий случай"
+   },
+   "Onboarding_Instructions_Enable_subtitles": {
+      "message": "Включите субтитры"
+   },
+   "Onboarding_Instructions_How_to_lookup": {
+      "message": "Как переводить слова в субтитрах"
+   },
+   "Onboarding_Instructions_Move_mouse_away_from_subtitles": {
+      "message": "Отведите курсор, чтобы продолжить просмотр"
+   },
+   "Onboarding_Instructions_Move_mouse_over_word": {
+      "message": "Наведите курсор на любое слово в субтитрах"
+   },
+   "Onboarding_Instructions_Select_language_for_audio": {
+      "message": "Выберите $lang$ для озвучки",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Onboarding_Instructions_Select_language_for_audio_and_subtitles": {
+      "message": "Выберите $lang$ для озвучки и субтитров",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Onboarding_Instructions_Select_language_for_subtitles": {
+      "message": "Выберите $lang$ для субтитров",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Onboarding_Instructions_Select_original_audio": {
+      "message": "Выберите Оригинальную озвучку"
+   },
+   "Onboarding_Instructions_Turn_off_auto_translation": {
+      "message": "Проверьте, что выбран $lang$ и автоматический перевод выключен",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Onboarding_Language_Selector_Translate_From": {
+      "message": "Какой язык вы учите? Субтитры будут показываться на этом языке."
+   },
+   "Onboarding_Language_Selector_Translate_To": {
+      "message": "Выберите ваш родной язык. Переводы будут показываться на этом языке."
+   },
+   "Onboarding_Next_button_text": {
+      "message": "Дальше"
+   },
+   "Onboarding_Pin_Plugin_Icon_Description": {
+      "message": "Это даст быстрый доступ к настройкам, полезным ссылкам, личному кабинету и просмотренным словам."
+   },
+   "Onboarding_Pin_Plugin_Icon_Title": {
+      "message": "Закрепите расширение на панели браузера"
+   },
+   "Onboarding_Playback_is_paused": {
+      "message": "Воспроизведение поставлено на паузу"
+   },
+   "Onboarding_Plugin_Installed_A_couple_of_steps": {
+      "message": "Пара важных шагов и можно начинать."
+   },
+   "Onboarding_Plugin_Installed_Congratulations": {
+      "message": "Поздравляем с установкой InterSub!"
+   },
+   "Onboarding_Plugin_Installed_Hooray": {
+      "message": "Ура!"
+   },
+   "Onboarding_Plugin_Installed_Now_you_can_lookup_words": {
+      "message": "Теперь вы можете быстро переводить незнакомые слова в субтитрах как на популярных стримингах и образовательных платформах, так и на веб-сайтах."
+   },
+   "Onboarding_Plugin_Settings_were_reset_Text": {
+      "message": "Нам нужно уточнить некоторые настройки. Несколько кликов – и все готово."
+   },
+   "Onboarding_Plugin_Settings_were_reset_Title": {
+      "message": "Привет, это InterSub!"
+   },
+   "Onboarding_Remote_control_Description": {
+      "message": "Используйте ваш смартфон, чтобы проверять слова, когда ПК далеко от вас."
+   },
+   "Onboarding_Remote_control_Title": {
+      "message": "Удаленное управление"
+   },
+   "Onboarding_Sample_video_url": {
+      "message": "https://www.youtube.com/watch?v=Nn7xwfKZSxQ"
+   },
+   "Onboarding_Text_on_websites_translation_Description_1": {
+      "message": "Выделите слово или фразу и нажмите иконку IS."
+   },
+   "Onboarding_Text_on_websites_translation_Description_2": {
+      "message": "Вы всегда можете отключить или включить эту опцию в Настройках."
+   },
+   "Onboarding_Text_on_websites_translation_Title": {
+      "message": "Как переводить слова на сайтах"
+   },
+   "Onboarding_Text_on_websites_translation_Title_on_websites": {
+      "message": "Как переводить слова на сайтах c InterSub"
+   },
+   "Onboarding_This_service_is_supported_Description": {
+      "message": "Посмотрите короткую инструкцию, как все настроить."
+   },
+   "Onboarding_This_service_is_supported_Next_button_text": {
+      "message": "Дальше"
+   },
+   "Onboarding_This_service_is_supported_Title": {
+      "message": "Ура, InterSub тут тоже работает!"
+   },
+   "Onboarding_Translate_to_the_same_language_warning": {
+      "message": "Вы собираетесь переводить слова $lang$ → $lang$. Вы уверены?",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Onboarding_We_pause_playback": {
+      "message": "Мы автоматически останавливаем видео, когда курсор оказывается в зоне субтитров, чтобы вы успели перевести нужное вам слово."
+   },
+   "Onboarding_You_can_disable_auto_pause": {
+      "message": "Автопаузу или широкий фон субтитров можно отключить в Настройках."
+   },
+   "Popup_Add_to_user_dictionary": {
+      "message": "Автоматически отмечать слова избранными"
+   },
+   "Popup_Auto_pausing_Mode_At_the_end_of_current_subtitle": {
+      "message": "В конце субтитра"
+   },
+   "Popup_Auto_pausing_Mode_Right_away": {
+      "message": "Сразу"
+   },
+   "Popup_Auto_pausing_folder_name": {
+      "message": "Автопауза"
+   },
+   "Popup_Auto_pausing_on_cursor_activity": {
+      "message": "Любое движение мышкой в полноэкранном режиме"
+   },
+   "Popup_Auto_pausing_on_hovering_subtitles_background": {
+      "message": "Наведение на фон субтитров"
+   },
+   "Popup_Auto_pausing_on_hovering_subtitles_words": {
+      "message": "Наведение на слова в субтитрах"
+   },
+   "Popup_Bubble_font_size": {
+      "message": "Размер перевода слова"
+   },
+   "Popup_Bubble_subtitles_vertical_shift": {
+      "message": "Высота субтитров"
+   },
+   "Popup_Contact_support": {
+      "message": "Поддержка"
+   },
+   "Popup_Dashboard": {
+      "message": "Личный кабинет"
+   },
+   "Popup_Discord_text": {
+      "message": "Наш Discord"
+   },
+   "Popup_Extension_work_is_paused": {
+      "message": "Работа расширения приостановлена"
+   },
+   "Popup_Give_us_feedback": {
+      "message": "Расскажите о своем опыте"
+   },
+   "Popup_Hide_subtitles_when_native_audio": {
+      "message": "Не показывать субтитры для видео на родном языке"
+   },
+   "Popup_Hotkeys_button_caption": {
+      "message": "Горячие клавиши"
+   },
+   "Popup_How_to_use": {
+      "message": "Как пользоваться"
+   },
+   "Popup_Icon_New_version_available_Tooltip": {
+      "message": "Доступна новая версия: $version$. Перезапустите браузер, чтобы обновить расширение.",
+      "placeholders": {
+         "version": {
+            "content": "$1"
+         }
+      }
+   },
+   "Popup_Login": {
+      "message": "Войти"
+   },
+   "Popup_Memorize_words_button_caption": {
+      "message": "Учить слова"
+   },
+   "Popup_Nothing_found": {
+      "message": "К сожалению, здесь пока нечего показать"
+   },
+   "Popup_Off": {
+      "message": "Выкл"
+   },
+   "Popup_On": {
+      "message": "Вкл"
+   },
+   "Popup_Paused": {
+      "message": "На паузе"
+   },
+   "Popup_Recent": {
+      "message": "Последние"
+   },
+   "Popup_Recent_lookups": {
+      "message": "Последние слова"
+   },
+   "Popup_Settings": {
+      "message": "Настройки"
+   },
+   "Popup_Settings_Extra_subtitles": {
+      "message": "Двойные субтитры"
+   },
+   "Popup_Settings_Force_translate_second_subs_live": {
+      "message": "Переводить вторые субтитры (на лету)"
+   },
+   "Popup_Settings_Force_translate_second_subs_live_tooltip": {
+      "message": "Заменяет существующие вторые субтитры на перевод оригинальной дорожки.\nЗависит от внешних сервисов, может быть недоступно."
+   },
+   "Popup_Settings_Lookup_on_websites_only_when_page_language_does_not_match_native": {
+      "message": "Переводить слова только на сайтах на изучаемом языке ($sourceLanguageName$)",
+      "placeholders": {
+         "sourceLanguageName": {
+            "content": "$1"
+         }
+      }
+   },
+   "Popup_Settings_Lookup_words_in_subtitles_on_hover_enabled": {
+      "message": "Переводить слова в субтитрах по наведению"
+   },
+   "Popup_Settings_New_version_available_Description": {
+      "message": "Ваша версия - $version$. Перезапустите браузер, чтобы получить поддержку новых сервисов и исправления.",
+      "placeholders": {
+         "version": {
+            "content": "$1"
+         }
+      }
+   },
+   "Popup_Settings_New_version_available_Title": {
+      "message": "Доступна новая версия ($version$)",
+      "placeholders": {
+         "version": {
+            "content": "$1"
+         }
+      }
+   },
+   "Popup_Settings_Remote_control": {
+      "message": "Удаленное управление"
+   },
+   "Popup_Settings_Rewind_to_next_prev_subtitles_enabled": {
+      "message": "Перемотка по субтитрам"
+   },
+   "Popup_Settings_Shadowing_duration": {
+      "message": "Длительность паузы"
+   },
+   "Popup_Settings_Shadowing_enabled": {
+      "message": "Пауза после каждого субтитра (shadowing)"
+   },
+   "Popup_Settings_Show_extra_subtitles_always": {
+      "message": "Всегда"
+   },
+   "Popup_Settings_Show_extra_subtitles_only_on_pause": {
+      "message": "На паузе"
+   },
+   "Popup_Settings_Text_translation_on_websites_enabled": {
+      "message": "Перевод слов на сайтах"
+   },
+   "Popup_Show_previous_subtitle_on_pause": {
+      "message": "Предыдущий субтитр на паузе"
+   },
+   "Popup_Show_subtitles_only_on_pause": {
+      "message": "Показывать субтитры только на паузе"
+   },
+   "Popup_Sorry_you_have_been_logged_out_Please_login_to_your_profile": {
+      "message": "К сожалению, ваша сессия была завершена. Пожалуйста, авторизуйтесь, чтобы продолжить"
+   },
+   "Popup_Subtitles_background_mode": {
+      "message": "Фон субтитров"
+   },
+   "Popup_Subtitles_background_mode_narrow": {
+      "message": "Узкий"
+   },
+   "Popup_Subtitles_background_mode_wide": {
+      "message": "Широкий"
+   },
+   "Popup_Subtitles_size_extra": {
+      "message": "Второстепенные субтитры"
+   },
+   "Popup_Subtitles_size_main": {
+      "message": "Основные субтитры"
+   },
+   "Popup_Telegram_community_text": {
+      "message": "Сообщество в Telegram"
+   },
+   "Popup_Top": {
+      "message": "Популярные"
+   },
+   "Popup_Top_lookups": {
+      "message": "Популярные слова"
+   },
+   "Popup_Translate_from": {
+      "message": "Переводить с"
+   },
+   "Popup_Translate_to": {
+      "message": "Переводить на"
+   },
+   "Popup_View_all": {
+      "message": "Смотреть все"
+   },
+   "Popup_Watch_video": {
+      "message": "Смотреть видео"
+   },
+   "Popup_You_can_start_with_current_video": {
+      "message": "Здесь пока ничего нет, т.к. вы еще не переводили слова. Вы можете начать с текущего видео, например."
+   },
+   "Popup_You_can_start_with_this_video_on_YouTube_for_example": {
+      "message": "Вы можете начать с этого видео на YouTube, например"
+   },
+   "Popup_You_havent_looked_up_any_words_yet": {
+      "message": "У вас еще нет просмотров слов."
+   },
+   "Rate_Text": {
+      "message": "Оцените нас"
+   },
+   "Rate_link": {
+      "message": "https://microsoftedge.microsoft.com/addons/detail/intersub-learn-languages/bgjccegegedmlphkgfpmnchikpdaimdo"
+   },
+   "Remote_control_QR_code_description": {
+      "message": "Отсканируйте вашим телефоном для запуска удаленного контроля"
+   },
+   "Remote_control_Stop_remote_control_button_caption": {
+      "message": "Завершить"
+   },
+   "Remote_control_Stop_remote_control_text": {
+      "message": "Завершить сессию удаленного управления?"
+   },
+   "Remote_control_closed_note_Description": {
+      "message": "Нажмите на иконку Удаленного контроля, чтобы снова вывести QR-код. Вкл/выкл функции находится в Настройках."
+   },
+   "Remote_control_closed_note_Title": {
+      "message": "Удаленное управление"
+   },
+   "Shadowing_toggled_off": {
+      "message": "Пауза после каждого субтитра (Шадовинг) выключена.\nВкл/выкл по горячей клавише S или в настройках."
+   },
+   "Shadowing_toggled_on": {
+      "message": "Включена пауза после каждого субтитра (Шадовинг).\nВкл/выкл по горячей клавише S или в настройках."
+   },
+   "Special_offer_review_Description_1_link_text": {
+      "message": "Chrome Web store"
+   },
+   "Special_offer_review_Description_1_link_url": {
+      "message": "https://microsoftedge.microsoft.com/addons/detail/intersub-learn-languages/bgjccegegedmlphkgfpmnchikpdaimdo"
+   },
+   "Special_offer_review_Description_1_prefix": {
+      "message": "Оставьте свой отзыв на InterSub в "
+   },
+   "Special_offer_review_Description_1_suffix": {
+      "message": ""
+   },
+   "Special_offer_review_Description_2_link_url": {
+      "message": "mailto=welcome@intersub.cc?subject=10 дней Премиум-доступа за ревью"
+   },
+   "Special_offer_review_Description_2_prefix": {
+      "message": "Пришлите скриншот отзыва нам на "
+   },
+   "Special_offer_review_Description_2_suffix": {
+      "message": ""
+   },
+   "Special_offer_review_Description_3": {
+      "message": "Активируйте код, который мы вам пришлем в ответ"
+   },
+   "Special_offer_review_Description_4": {
+      "message": "Готово, теперь у вас есть 10 дней Премиум-доступа!"
+   },
+   "Special_offer_review_Main_button_caption": {
+      "message": "Готово"
+   },
+   "Special_offer_review_Title": {
+      "message": "Закончились запросы? Напишите отзыв и получите 10-дневный Премиум!"
+   },
+   "Subtitle_bar_Prev_prefix": {
+      "message": "Пред"
+   },
+   "Subtitle_bar_settings_popup_Background_color": {
+      "message": "Цвет подложки"
+   },
+   "Subtitle_bar_settings_popup_Text_color_extra": {
+      "message": "Мой язык"
+   },
+   "Subtitle_bar_settings_popup_Text_color_main": {
+      "message": "Исходный язык"
+   },
+   "Subtitle_bar_settings_popup_Text_color_title": {
+      "message": "Цвет шрифта"
+   },
+   "Subtitle_bar_settings_popup_Text_shadow_title": {
+      "message": "Контур текста"
+   },
+   "Subtitle_bar_settings_popup_Text_size_title": {
+      "message": "Размер шрифта"
+   },
+   "Subtitles_failed_to_load_Button_caption": {
+      "message": "Обновить страницу"
+   },
+   "Subtitles_failed_to_load_Description": {
+      "message": "Мы не смогли загрузить субтитры на языке $languageName$, попробуйте перезагрузить страницу.",
+      "placeholders": {
+         "languageName": {
+            "content": "$1"
+         }
+      }
+   },
+   "Subtitles_failed_to_load_Title": {
+      "message": "Хьюстон, у нас проблемы"
+   },
+   "Subtitles_failed_to_load_Too_many_requests_Button_caption": {
+      "message": "Понятно"
+   },
+   "Subtitles_failed_to_load_Too_many_requests_Description": {
+      "message": "Мы не смогли загрузить субтитры, т.к. видеосервис заблокировал ваш IP адрес. Попробуйте еще раз через 10-15 мин."
+   },
+   "Subtitles_force_translated_by_hint": {
+      "message": "Это принудительный онлайн ИИ-перевод из $translatedFromLanguage$ в $translatedIntoLanguage$, выполненный с помощью $translatedBy$.",
+      "placeholders": {
+         "translatedBy": {
+            "content": "$3"
+         },
+         "translatedFromLanguage": {
+            "content": "$2"
+         },
+         "translatedIntoLanguage": {
+            "content": "$1"
+         }
+      }
+   },
+   "Subtitles_hidden_audio_language_matches_native": {
+      "message": "Мы скрыли субтитры, поскольку это видео на вашем родном языке. Вы можете отключить этот режим в Настройках."
+   },
+   "Subtitles_translated_by_hint": {
+      "message": "У этого видео нет субтитров на $translatedIntoLanguage$, это ИИ-перевод\n$translatedFromLanguage$ → $translatedIntoLanguage$, выполненный $translatedBy$.",
+      "placeholders": {
+         "translatedBy": {
+            "content": "$3"
+         },
+         "translatedFromLanguage": {
+            "content": "$2"
+         },
+         "translatedIntoLanguage": {
+            "content": "$1"
+         }
+      }
+   },
+   "Support_email": {
+      "message": "support@intersub.cc"
+   },
+   "actionDefaultTitle": {
+      "message": "InterSub: интерактивные субтитры для видео"
+   },
+   "appDescription": {
+      "message": "Учите языки используя субтитры, ИИ перевод слов с английского на русский на сайтах и в субтитрах YouTube, Netflix, HDRezka итд"
+   },
+   "appName": {
+      "message": "Учите английский с субтитрами и переводчиком слов - InterSub"
+   },
+   "browserName": {
+      "message": "MICROSOFT_EDGE"
+   },
+   "pluginLocaleId": {
+      "message": "ru"
+   }
+}

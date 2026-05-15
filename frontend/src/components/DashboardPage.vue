@@ -3,7 +3,7 @@
  * SCADA 메인 대시보드 — 디자인 시스템
  * 배경 #F4F7F9, 5:5 그리드, 카드 12px·부드러운 그림자, gap 24px
  */
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { getDashboard } from '../api/dashboard.js'
 import {
   AlertTriangle,
@@ -206,7 +206,9 @@ watch(dashboardPeriod, (p) => {
   resetDonutOverlay()
 })
 
-onMounted(async () => {
+let dashboardRefreshTimer = null
+
+async function refreshDashboardData() {
   try {
     const data = await getDashboard()
 
@@ -255,6 +257,15 @@ onMounted(async () => {
   } catch (e) {
     console.warn('[Dashboard] API 연결 실패, 데모 데이터 표시:', e.message)
   }
+}
+
+onMounted(() => {
+  refreshDashboardData()
+  dashboardRefreshTimer = window.setInterval(refreshDashboardData, 2000)
+})
+
+onUnmounted(() => {
+  if (dashboardRefreshTimer) window.clearInterval(dashboardRefreshTimer)
 })
 
 function setDonutOverlayFromSlice(dataPointIndex) {

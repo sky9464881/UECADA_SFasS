@@ -72,6 +72,7 @@ public class VibrationWindowMqttSubscriber {
 
             VibrationIngestionResult ingestionResult = ingestionService.ingest(vibrationWindow);
             AnalyzeResponse analysis = ingestionResult.analysis();
+            monitorService.recordAnalysis(vibrationWindow, analysis);
             AnalysisFeatures features = analysis.getFeatures();
             log.info(
                     "FastAPI persisted vibration pipeline: vibrationWindowId={}, analysisResultId={}, rawWindowSaved={}, alarmCreated={}",

@@ -1,0 +1,29 @@
+{
+   "Onboarding_How_to_use_Description_part_link_url": {
+      "message": "https://intersub.cc/"
+   },
+   "Rate_link": {
+      "message": "https://microsoftedge.microsoft.com/addons/detail/intersub-learn-languages/bgjccegegedmlphkgfpmnchikpdaimdo"
+   },
+   "Special_offer_review_Description_1_link_text": {
+      "message": "Edge add-ons store"
+   },
+   "Special_offer_review_Description_1_link_url": {
+      "message": "https://microsoftedge.microsoft.com/addons/detail/intersub-learn-languages/bgjccegegedmlphkgfpmnchikpdaimdo"
+   },
+   "Support_email": {
+      "message": "support@intersub.cc"
+   },
+   "appDescription": {
+      "message": "ஸ்பானிஷ் மொழியிலிருந்து ஆங்கிலம், ஜப்பானியம் போன்ற எந்த வார்த்தையின் அர்த்தத்தையும் டூயல்சப் முதல் மூழ்கும் மொழிபெயர்ப்பு வரை இரட்டை வசன மொழிபெயர்ப்பாளரை அனுபவிக்கவும்."
+   },
+   "appName": {
+      "message": "இரட்டை வசன வரிகள் &amp; வசன மொழிபெயர்ப்பாளர் - இன்டர்சப்"
+   },
+   "browserName": {
+      "message": "MICROSOFT_EDGE"
+   },
+   "pluginLocaleId": {
+      "message": "ta"
+   }
+}

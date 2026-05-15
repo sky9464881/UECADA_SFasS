@@ -6251,6 +6251,78 @@ select {
   margin-top: 14px;
 }
 
+.equipment-vibration-analysis-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(300px, 0.85fr);
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.equipment-echart-card,
+.equipment-analysis-metrics {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #e4ebf4;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.equipment-echart-card--raw {
+  min-height: 318px;
+}
+
+.equipment-chart-head div {
+  display: grid;
+  gap: 2px;
+}
+
+.equipment-chart-head small {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.equipment-echart {
+  width: 100%;
+  height: 292px;
+  margin-top: 8px;
+}
+
+.equipment-echart--small {
+  height: 252px;
+}
+
+.equipment-analysis-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.equipment-analysis-metrics article {
+  min-height: 91px;
+  display: grid;
+  align-content: space-between;
+  gap: 8px;
+  padding: 11px;
+  border: 1px solid #d8e4f0;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.equipment-analysis-metrics span {
+  color: #0f1f38;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.equipment-analysis-metrics strong {
+  overflow-wrap: anywhere;
+  color: #0f1f38;
+  font-size: 22px;
+  line-height: 1.1;
+  letter-spacing: 0;
+}
+
 .equipment-popup-chart-card {
   min-height: 244px;
   padding: 14px;
@@ -7404,6 +7476,7 @@ select {
   .line-analysis-grid,
   .line-popup-mini-layout,
   .equipment-popup-data-grid,
+  .equipment-vibration-analysis-grid,
   .swmp-test-grid {
     grid-template-columns: 1fr;
   }
@@ -7702,7 +7775,9 @@ select {
   .line-popup-metrics,
   .line-popup-equipment,
   .line-popup-analysis-grid,
-  .line-popup-quadrant-grid {
+  .line-popup-quadrant-grid,
+  .equipment-vibration-analysis-grid,
+  .equipment-analysis-metrics {
     grid-template-columns: 1fr;
   }
 

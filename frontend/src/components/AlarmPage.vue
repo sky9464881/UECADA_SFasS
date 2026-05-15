@@ -1,6 +1,6 @@
 <script setup>
 import { onMounted, ref } from 'vue'
-import { getAlarms, getAlarmStats } from '../api/alarm.js'
+import { getAlarms, getAlarmHistories, getAlarmStats } from '../api/alarm.js'
 import {
   AlertTriangle,
   BarChart3,
@@ -88,16 +88,46 @@ onMounted(async () => {
     const toStr = now.toISOString().slice(0, 19)
     const fromStr = from.toISOString().slice(0, 19)
 
-    const [alarms, stats] = await Promise.all([
+    const [alarms, stats, aiHistories] = await Promise.all([
       getAlarms({ from: fromStr, to: toStr }),
       getAlarmStats(fromStr, toStr),
+      getAlarmHistories(100),
     ])
 
-    if (alarms?.length) {
-      const total = alarms.length
-      const critical = alarms.filter(a => a.severity === 'CRITICAL').length
-      const resolved = alarms.filter(a => a.status === 'RESOLVED').length
-      const open = alarms.filter(a => a.status === 'OPEN').length
+    const alarmList = alarms ?? []
+    const aiHistoryList = aiHistories ?? []
+    const displayRows = [
+      ...alarmList.map(a => ({
+        occurredAt: a.occurredAt,
+        equipmentCode: a.equipmentCode,
+        type: severityLabel(a.severity),
+        category: a.alarmType ?? '-',
+        message: a.alarmMessage ?? '-',
+        status: statusLabel(a.status),
+        frequencyType: a.alarmType ?? 'UNKNOWN',
+        isCritical: a.severity === 'CRITICAL',
+        isResolved: a.status === 'RESOLVED',
+        isOpen: a.status === 'OPEN',
+      })),
+      ...aiHistoryList.map(h => ({
+        occurredAt: h.occurredAt,
+        equipmentCode: h.equipmentCode,
+        type: h.alarmLevel === 'danger' ? severityLabel('CRITICAL') : severityLabel('WARNING'),
+        category: 'AI vibration',
+        message: h.message ?? `AI prediction: ${h.prediction ?? '-'}`,
+        status: h.status === 'OPEN' ? statusLabel('OPEN') : statusLabel('RESOLVED'),
+        frequencyType: 'AI vibration',
+        isCritical: h.alarmLevel === 'danger',
+        isResolved: h.status !== 'OPEN',
+        isOpen: h.status === 'OPEN',
+      })),
+    ].sort((a, b) => String(b.occurredAt ?? '').localeCompare(String(a.occurredAt ?? '')))
+
+    if (displayRows.length) {
+      const total = displayRows.length
+      const critical = displayRows.filter(a => a.isCritical).length
+      const resolved = displayRows.filter(a => a.isResolved).length
+      const open = displayRows.filter(a => a.isOpen).length
       alarmSummary.value = [
         { label: '전체 알람 수', value: total, detail: `금일 ${fromStr.slice(11)} ~ ${toStr.slice(11)}`, tone: 'info' },
         { label: '긴급 알람', value: critical, detail: '즉시 조치 필요', tone: 'critical' },
@@ -105,18 +135,18 @@ onMounted(async () => {
         { label: '미처리 알람', value: open, detail: '담당자 확인 필요', tone: 'pending' },
       ]
 
-      alarmRows.value = alarms.slice(0, 20).map(a => ({
+      alarmRows.value = displayRows.slice(0, 20).map(a => ({
         time: a.occurredAt ? a.occurredAt.slice(11, 19) : '--',
         equipment: a.equipmentCode,
-        type: severityLabel(a.severity),
-        category: a.alarmType ?? '-',
-        message: a.alarmMessage ?? '-',
-        status: statusLabel(a.status),
+        type: a.type,
+        category: a.category,
+        message: a.message,
+        status: a.status,
       }))
 
       // 설비별 빈도
       const eqMap = {}
-      alarms.forEach(a => { eqMap[a.equipmentCode] = (eqMap[a.equipmentCode] || 0) + 1 })
+      displayRows.forEach(a => { eqMap[a.equipmentCode] = (eqMap[a.equipmentCode] || 0) + 1 })
       const eqSorted = Object.entries(eqMap).sort((a, b) => b[1] - a[1]).slice(0, 5)
       const maxEq = eqSorted[0]?.[1] || 1
       equipmentFrequency.value = eqSorted.map(([code, cnt]) => ({
@@ -125,7 +155,7 @@ onMounted(async () => {
 
       // 유형별 빈도
       const typeMap = {}
-      alarms.forEach(a => { const t = a.alarmType ?? '기타'; typeMap[t] = (typeMap[t] || 0) + 1 })
+      displayRows.forEach(a => { const t = a.frequencyType ?? 'UNKNOWN'; typeMap[t] = (typeMap[t] || 0) + 1 })
       const typeSorted = Object.entries(typeMap).sort((a, b) => b[1] - a[1]).slice(0, 6)
       const maxType = typeSorted[0]?.[1] || 1
       typeFrequency.value = typeSorted.map(([t, cnt]) => ({

@@ -35,6 +35,7 @@ def save_raw_window_if_due(
     window_size: int,
     window_index: int,
     values: list[float],
+    force: bool = False,
 ) -> tuple[VibrationWindow | None, bool]:
     latest_saved_at = (
         db.query(func.max(VibrationWindow.measured_at))
@@ -42,7 +43,7 @@ def save_raw_window_if_due(
         .scalar()
     )
     save_interval = timedelta(minutes=max(0, settings.raw_window_save_interval_minutes))
-    should_save = latest_saved_at is None or measured_at >= latest_saved_at + save_interval
+    should_save = force or latest_saved_at is None or measured_at >= latest_saved_at + save_interval
     if not should_save:
         return None, False
 
@@ -58,6 +59,10 @@ def save_raw_window_if_due(
     db.add(vibration_window)
     db.flush()
     return vibration_window, True
+
+
+def has_open_alarm(db: Session, *, equipment_code: str) -> bool:
+    return _latest_open_alarm(db, equipment_code) is not None
 
 
 def save_alarm_state_if_needed(

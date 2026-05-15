@@ -1,6 +1,9 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import * as echarts from 'echarts'
 import { getEquipments, getEquipmentStatus } from '../api/equipment.js'
+import { getSensorBuffer, getSensorKeys } from '../api/sensor.js'
+import { getRealtimeVibration } from '../api/vibration.js'
 import {
   Activity,
   AlertTriangle,
@@ -274,15 +277,35 @@ const categories = ref([
 const selectedCategoryId = ref('casting')
 const selectedEquipmentId = ref('CAST-02')
 const isEquipmentPopupOpen = ref(false)
+const realtimeVibration = ref(null)
+const sensorBuffers = ref({})
+const sensorKeySet = ref(new Set())
+const vibrationTrendHistory = ref([])
+const rawVibrationChartEl = ref(null)
+const fftChartEl = ref(null)
+const trendChartEl = ref(null)
+let realtimeRefreshTimer = null
+let sensorRefreshTimer = null
+let sensorKeyRefreshTimer = null
+let catalogRefreshTimer = null
+let chartRenderPending = false
+const chartInstances = {}
+
+const commonSensorMetrics = [
+  { key: 'sensor_temperature', label: '온도', unit: '℃', digits: 1, max: 90 },
+  { key: 'sensor_current', label: '전류', unit: 'A', digits: 1, max: 60 },
+  { key: 'sensor_voltage', label: '전압', unit: 'V', digits: 0, max: 420 },
+  { key: 'sensor_vibration', label: '진동', unit: 'a.u.', digits: 3, max: 4 },
+]
 
 const selectedCategory = computed(() =>
   categories.value.find((category) => category.id === selectedCategoryId.value),
 )
 
-onMounted(async () => {
+async function refreshEquipmentCatalog() {
   try {
     const equipData = await getEquipments('FACTORY-01')
-    if (!equipData?.length) return
+    if (!equipData?.length) return false
 
     const ids = equipData.map(e => e.equipmentCode)
     let statusMap = {}
@@ -332,31 +355,154 @@ onMounted(async () => {
         const stopped = eqs.filter(e => e.state === '이상').length
         const waiting = eqs.filter(e => e.state === '대기' || e.state === '점검').length
         const existingCat = categories.value.find(c => c.id === id)
+        const avgRate = eqs.length
+          ? Math.round(eqs.reduce((sum, eq) => sum + Number(eq.rate || 0), 0) / eqs.length)
+          : 0
         return {
           ...(existingCat ?? {}),
           id,
           name: processName[id],
+          status: stopped > 0 ? '이상' : waiting > 0 ? '대기' : '정상',
           count: eqs.length,
           running,
           stopped,
           waiting,
+          avgRate,
+          defectCount: eqs.reduce((sum, eq) => sum + Number(eq.defects || 0), 0),
           equipment: eqs,
         }
       })
 
     if (updated.length) {
+      const currentEquipmentId = selectedEquipmentId.value
       categories.value = updated
-      selectedCategoryId.value = updated[0].id
-      selectedEquipmentId.value = updated[0].equipment[0]?.id ?? ''
+      const currentStillExists = updated.some(category =>
+        category.equipment.some(equipment => equipment.id === currentEquipmentId),
+      )
+      if (!currentStillExists) {
+        selectedCategoryId.value = updated[0].id
+        selectedEquipmentId.value = updated[0].equipment[0]?.id ?? ''
+      } else {
+        const currentCategory = updated.find(category =>
+          category.equipment.some(equipment => equipment.id === currentEquipmentId),
+        )
+        if (currentCategory) selectedCategoryId.value = currentCategory.id
+      }
     }
+    return true
   } catch (e) {
     console.warn('[EquipmentDetail] API 연결 실패, 데모 데이터 표시:', e.message)
+    return false
   }
+}
+
+async function refreshRealtimeVibration() {
+  if (!isRealtimeEquipmentCode(selectedEquipmentId.value)) return
+  try {
+    realtimeVibration.value = await getRealtimeVibration(selectedEquipmentId.value)
+    recordTrendPoint()
+    queueChartRender()
+  } catch (e) {
+    realtimeVibration.value = null
+  }
+}
+
+async function refreshSensorBuffers() {
+  if (!isRealtimeEquipmentCode(selectedEquipmentId.value)) return
+  if (!sensorKeySet.value.size) await refreshSensorKeySet()
+  const entries = await Promise.all(
+    commonSensorMetrics.map(async (metric) => {
+      const buffer = await readSensorBuffer(metric.key, 240)
+      return [metric.key, buffer]
+    }),
+  )
+  sensorBuffers.value = Object.fromEntries(entries)
+  queueChartRender()
+}
+
+async function refreshSensorKeySet() {
+  try {
+    const keys = await getSensorKeys()
+    sensorKeySet.value = new Set(Array.isArray(keys) ? keys : [])
+  } catch (_) {
+    sensorKeySet.value = new Set()
+  }
+}
+
+onMounted(() => {
+  refreshEquipmentCatalog()
+  refreshSensorKeySet()
+  refreshRealtimeVibration()
+  refreshSensorBuffers()
+  catalogRefreshTimer = window.setInterval(refreshEquipmentCatalog, 5000)
+  sensorKeyRefreshTimer = window.setInterval(refreshSensorKeySet, 5000)
+  realtimeRefreshTimer = window.setInterval(refreshRealtimeVibration, 1000)
+  sensorRefreshTimer = window.setInterval(refreshSensorBuffers, 2000)
+  window.addEventListener('resize', resizeEquipmentCharts)
+})
+
+onUnmounted(() => {
+  if (catalogRefreshTimer) window.clearInterval(catalogRefreshTimer)
+  if (sensorKeyRefreshTimer) window.clearInterval(sensorKeyRefreshTimer)
+  if (realtimeRefreshTimer) window.clearInterval(realtimeRefreshTimer)
+  if (sensorRefreshTimer) window.clearInterval(sensorRefreshTimer)
+  window.removeEventListener('resize', resizeEquipmentCharts)
+  disposeEquipmentCharts()
+})
+
+watch(selectedEquipmentId, () => {
+  vibrationTrendHistory.value = []
+  sensorBuffers.value = {}
+  refreshRealtimeVibration()
+  refreshSensorBuffers()
+})
+
+watch(isEquipmentPopupOpen, (open) => {
+  if (open) queueChartRender()
+  else disposeEquipmentCharts()
 })
 
 const selectedEquipment = computed(() =>
   selectedCategory.value.equipment.find((equipment) => equipment.id === selectedEquipmentId.value),
 )
+
+function isRealtimeEquipmentCode(equipmentId) {
+  return /^LINE-\d+_/.test(equipmentId ?? '')
+}
+
+const sensorBaseKeys = computed(() => {
+  const equipmentId = selectedEquipmentId.value ?? ''
+  const normalized = equipmentId.replace(/-/g, '')
+  const match = equipmentId.match(/^LINE-(\d+)_(.+)$/)
+  if (!match) return [equipmentId, normalized].filter(Boolean)
+
+  const lineKey = `LINE${match[1].padStart(2, '0')}`
+  const equipmentKey = match[2].replace(/-/g, '')
+  return [`${lineKey}.${equipmentKey}`, equipmentKey, equipmentId]
+})
+
+async function readSensorBuffer(sensorType, last = 240) {
+  const candidateKeys = sensorBaseKeys.value.map(baseKey => `${baseKey}:${sensorType}`)
+  const existingKeys = candidateKeys.filter(bufferKey => sensorKeySet.value.has(bufferKey))
+  for (const bufferKey of existingKeys) {
+    try {
+      return await getSensorBuffer(bufferKey, last)
+    } catch (_) {
+      // Try the next registered key shape. X_DAS uses LINE01.CNC02 while some aliases use CNC02.
+    }
+  }
+  return null
+}
+
+function latestSensorValue(sensorType) {
+  return sensorBuffers.value?.[sensorType]?.latest?.value ?? null
+}
+
+function sensorDisplay(sensorType, fallback = '-', unit = '', digits = 1) {
+  const value = latestSensorValue(sensorType)
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return fallback
+  return `${Number(value).toFixed(digits)}${unit}`
+}
 
 const selectCategory = (category) => {
   selectedCategoryId.value = category.id
@@ -377,8 +523,326 @@ const metricNumber = (value) => {
   return match ? Number(match[0]) : 0
 }
 
+const commonDataItems = computed(() => {
+  const equipment = selectedEquipment.value
+  const existing = new Map((equipment?.common ?? []).map((metric) => [metric.label, metric.value]))
+  const ok = existing.get('OK') ?? existing.get('생산수량') ?? '-'
+  const ng = existing.get('NG') ?? equipment?.defects ?? '-'
+
+  return [
+    { label: '운전 상태', value: equipment?.state ?? existing.get('운전 상태') ?? '-' },
+    { label: '가동률', value: `${equipment?.rate ?? '-'}%` },
+    { label: '싸이클 타임', value: equipment?.cycle ?? existing.get('싸이클 타임') ?? '-' },
+    { label: '진동', value: realtimeAnalysis.value?.features?.rms != null ? `${fixedMetric(realtimeAnalysis.value.features.rms)} a.u.` : sensorDisplay('sensor_vibration', existing.get('진동') ?? '-', ' a.u.', 3) },
+    { label: '온도', value: sensorDisplay('sensor_temperature', existing.get('온도') ?? '-', '℃', 1) },
+    { label: '전압', value: sensorDisplay('sensor_voltage', existing.get('전압') ?? '-', 'V', 0) },
+    { label: '전류', value: sensorDisplay('sensor_current', existing.get('전류') ?? '-', 'A', 1) },
+    { label: '생산수량', value: ok },
+    { label: '불량수량', value: ng },
+    { label: '설비 코드', value: equipment?.id ?? existing.get('설비 코드') ?? '-' },
+    { label: '위치', value: equipment?.line ?? existing.get('위치') ?? '-' },
+    { label: '모델', value: existing.get('모델') ?? '-' },
+  ]
+})
+
 const getCommonMetric = (label) =>
-  selectedEquipment.value.common.find((metric) => metric.label === label)?.value ?? '-'
+  commonDataItems.value.find((metric) => metric.label === label)?.value
+    ?? selectedEquipment.value.common.find((metric) => metric.label === label)?.value
+    ?? '-'
+
+const fixedMetric = (value, digits = 3) =>
+  value === null || value === undefined || Number.isNaN(Number(value))
+    ? '-'
+    : Number(value).toFixed(digits)
+
+const realtimeAnalysis = computed(() => realtimeVibration.value?.analysis ?? null)
+
+const realtimeItems = computed(() => {
+  const analysis = realtimeAnalysis.value
+  const window = realtimeVibration.value?.window
+  return [
+    { label: '수신 상태', value: realtimeVibration.value?.received ? '실시간 수신' : '대기' },
+    { label: 'Window', value: window?.windowIndex ?? '-' },
+    { label: 'Samples', value: window?.valuesLength ?? '-' },
+    { label: 'RMS', value: fixedMetric(analysis?.features?.rms) },
+    { label: 'Peak Hz', value: fixedMetric(analysis?.features?.peakFrequency, 1) },
+    { label: '예측', value: analysis?.prediction ?? '-' },
+    { label: '알림', value: analysis?.alarmLevel ?? '-' },
+    { label: '모델', value: analysis?.modelVersion ?? '-' },
+  ]
+})
+
+const analysisMetricCards = computed(() => {
+  const analysis = realtimeAnalysis.value
+  return [
+    { label: 'AI 예측 후보', value: analysis?.prediction ?? '-' },
+    { label: '신뢰도', value: analysis?.confidence != null ? `${fixedMetric(analysis.confidence * 100, 1)}%` : '-' },
+    { label: 'RMS', value: fixedMetric(analysis?.features?.rms) },
+    { label: 'Peak-to-Peak', value: fixedMetric(analysis?.features?.peakToPeak) },
+    { label: 'Crest Factor', value: fixedMetric(analysis?.features?.crestFactor) },
+    { label: 'Kurtosis', value: fixedMetric(analysis?.features?.kurtosis) },
+  ]
+})
+
+function recordTrendPoint() {
+  const analysis = realtimeAnalysis.value
+  if (!analysis?.features) return
+
+  const timestamp = Date.parse(realtimeVibration.value?.receivedAt ?? analysis.timestamp ?? new Date().toISOString())
+  const windowIndex = realtimeVibration.value?.window?.windowIndex ?? analysis.windowIndex ?? timestamp
+  const last = vibrationTrendHistory.value.at(-1)
+  if (last?.windowIndex === windowIndex) return
+
+  vibrationTrendHistory.value = [
+    ...vibrationTrendHistory.value,
+    {
+      windowIndex,
+      timestamp,
+      rms: analysis.features.rms ?? 0,
+      peakToPeak: analysis.features.peakToPeak ?? 0,
+      anomalyScore: analysis.anomalyScore ?? 0,
+    },
+  ].slice(-90)
+}
+
+function queueChartRender() {
+  if (!isEquipmentPopupOpen.value || chartRenderPending) return
+  chartRenderPending = true
+  window.requestAnimationFrame(() => {
+    chartRenderPending = false
+    nextTick(renderEquipmentCharts)
+  })
+}
+
+function ensureChart(name, el) {
+  if (!el) return null
+  if (!chartInstances[name] || chartInstances[name].isDisposed?.()) {
+    chartInstances[name] = echarts.init(el)
+  }
+  return chartInstances[name]
+}
+
+function renderEquipmentCharts() {
+  if (!isEquipmentPopupOpen.value) return
+  renderRawVibrationChart()
+  renderFftChart()
+  renderTrendChart()
+}
+
+function resizeEquipmentCharts() {
+  Object.values(chartInstances).forEach(chart => chart?.resize?.())
+}
+
+function disposeEquipmentCharts() {
+  Object.values(chartInstances).forEach(chart => chart?.dispose?.())
+  Object.keys(chartInstances).forEach(key => delete chartInstances[key])
+}
+
+function downsampleIndexed(values, maxPoints = 1600) {
+  if (!Array.isArray(values) || values.length === 0) return []
+  const step = Math.max(1, Math.ceil(values.length / maxPoints))
+  const points = []
+  for (let i = 0; i < values.length; i += step) {
+    const slice = values.slice(i, i + step)
+    const avg = slice.reduce((sum, value) => sum + Number(value || 0), 0) / slice.length
+    points.push({ index: i, value: Number(avg.toFixed(5)) })
+  }
+  return points
+}
+
+function vibrationTimeSeries() {
+  const values = realtimeVibration.value?.values ?? []
+  const window = realtimeVibration.value?.window ?? {}
+  const samplingRate = window.samplingRate || realtimeAnalysis.value?.samplingRate || 16000
+  const timestamp = Date.parse(window.timestamp ?? realtimeAnalysis.value?.timestamp ?? new Date().toISOString())
+  const start = timestamp - (values.length / samplingRate) * 1000
+
+  return downsampleIndexed(values).map(point => [
+    start + (point.index / samplingRate) * 1000,
+    point.value,
+  ])
+}
+
+function fftSeries() {
+  const fft = realtimeAnalysis.value?.fft
+  const frequencies = fft?.frequencies ?? []
+  const magnitudes = fft?.magnitudes ?? []
+  if (!frequencies.length || !magnitudes.length) return []
+  const step = Math.max(1, Math.ceil(frequencies.length / 1200))
+  const points = []
+  for (let i = 0; i < frequencies.length; i += step) {
+    points.push([Number(frequencies[i].toFixed(2)), Number((magnitudes[i] ?? 0).toFixed(6))])
+  }
+  return points
+}
+
+function renderRawVibrationChart() {
+  const chart = ensureChart('raw', rawVibrationChartEl.value)
+  if (!chart) return
+  const data = vibrationTimeSeries()
+  const startX = data[0]?.[0]
+  const endX = data.at(-1)?.[0]
+  const span = startX && endX ? endX - startX : 0
+
+  chart.setOption({
+    useUTC: true,
+    animation: false,
+    tooltip: { trigger: 'axis' },
+    grid: { left: 54, right: 18, top: 36, bottom: 56 },
+    toolbox: {
+      right: 8,
+      top: 4,
+      feature: { dataZoom: { yAxisIndex: 'none' }, restore: {}, saveAsImage: {} },
+    },
+    xAxis: {
+      type: 'time',
+      axisLabel: {
+        formatter: value => echarts.time.format(value, '{HH}:{mm}:{ss}', true),
+      },
+    },
+    yAxis: {
+      type: 'value',
+      name: '진동 진폭 (a.u.)',
+      min: 'dataMin',
+      max: 'dataMax',
+      splitLine: { lineStyle: { color: '#e3ebf5' } },
+    },
+    dataZoom: [
+      { type: 'inside', xAxisIndex: 0 },
+      { type: 'slider', xAxisIndex: 0, height: 24, bottom: 16 },
+    ],
+    series: [
+      {
+        name: '측정값',
+        type: 'line',
+        symbol: 'none',
+        sampling: 'lttb',
+        lineStyle: { width: 1, color: '#0f5e8c' },
+        areaStyle: { color: 'rgba(23, 121, 178, 0.08)' },
+        data,
+        markArea: span ? {
+          silent: true,
+          itemStyle: { color: 'rgba(34, 197, 94, 0.09)' },
+          label: { color: '#334155', fontWeight: 800 },
+          data: [
+            [
+              { name: '회복 확인 구간', xAxis: startX + span * 0.32 },
+              { xAxis: startX + span * 0.46 },
+            ],
+            [
+              { name: '회복 확인 구간', xAxis: startX + span * 0.66 },
+              { xAxis: startX + span * 0.80 },
+            ],
+          ],
+        } : undefined,
+      },
+    ],
+  }, true)
+}
+
+function renderFftChart() {
+  const chart = ensureChart('fft', fftChartEl.value)
+  if (!chart) return
+  chart.setOption({
+    animation: false,
+    tooltip: { trigger: 'axis' },
+    grid: { left: 54, right: 18, top: 34, bottom: 48 },
+    toolbox: {
+      right: 8,
+      top: 2,
+      feature: { dataZoom: { yAxisIndex: 'none' }, restore: {}, saveAsImage: {} },
+    },
+    xAxis: {
+      type: 'value',
+      name: '주파수 (Hz)',
+      splitLine: { lineStyle: { color: '#e3ebf5' } },
+    },
+    yAxis: {
+      type: 'value',
+      name: 'FFT 크기',
+      min: 0,
+      splitLine: { lineStyle: { color: '#e3ebf5' } },
+    },
+    dataZoom: [
+      { type: 'inside', xAxisIndex: 0 },
+      { type: 'slider', xAxisIndex: 0, height: 20, bottom: 12 },
+    ],
+    series: [
+      {
+        name: 'FFT',
+        type: 'line',
+        symbol: 'none',
+        lineStyle: { width: 1.2, color: '#645bff' },
+        areaStyle: { color: 'rgba(100, 91, 255, 0.08)' },
+        data: fftSeries(),
+      },
+    ],
+  }, true)
+}
+
+function renderTrendChart() {
+  const chart = ensureChart('trend', trendChartEl.value)
+  if (!chart) return
+  const rows = vibrationTrendHistory.value
+  const anomalyPoints = rows.map(row => [row.timestamp, row.anomalyScore])
+  const maxAnomaly = anomalyPoints.reduce((max, point) => point[1] > max[1] ? point : max, [null, -Infinity])
+
+  chart.setOption({
+    useUTC: true,
+    animation: false,
+    legend: { top: 2, right: 44, itemWidth: 14, textStyle: { color: '#334155', fontWeight: 700 } },
+    tooltip: { trigger: 'axis' },
+    grid: { left: 48, right: 18, top: 42, bottom: 46 },
+    toolbox: {
+      right: 8,
+      top: 2,
+      feature: { dataZoom: { yAxisIndex: 'none' }, restore: {}, saveAsImage: {} },
+    },
+    xAxis: {
+      type: 'time',
+      axisLabel: { formatter: value => echarts.time.format(value, '{HH}:{mm}:{ss}', true) },
+    },
+    yAxis: {
+      type: 'value',
+      name: '특징값',
+      min: 0,
+      splitLine: { lineStyle: { color: '#e3ebf5' } },
+    },
+    dataZoom: [{ type: 'inside', xAxisIndex: 0 }],
+    series: [
+      {
+        name: 'RMS',
+        type: 'line',
+        symbolSize: 4,
+        lineStyle: { width: 1.5, color: '#4f6df5' },
+        itemStyle: { color: '#4f6df5' },
+        data: rows.map(row => [row.timestamp, Number(row.rms.toFixed(4))]),
+      },
+      {
+        name: 'Peak-to-Peak',
+        type: 'line',
+        symbolSize: 4,
+        lineStyle: { width: 1.5, color: '#f59e0b' },
+        itemStyle: { color: '#f59e0b' },
+        data: rows.map(row => [row.timestamp, Number(row.peakToPeak.toFixed(4))]),
+      },
+      {
+        name: '이상 점수',
+        type: 'line',
+        symbolSize: 4,
+        lineStyle: { width: 1.5, color: '#ef4444' },
+        itemStyle: { color: '#ef4444' },
+        data: anomalyPoints,
+        markPoint: maxAnomaly[0] ? {
+          symbol: 'pin',
+          symbolSize: 56,
+          label: { formatter: '최고 위험', color: '#ffffff', fontSize: 10, fontWeight: 900 },
+          data: [{ coord: maxAnomaly, value: fixedMetric(maxAnomaly[1], 3) }],
+        } : undefined,
+      },
+    ],
+  }, true)
+}
 
 const clampPercent = (value) => Math.max(0, Math.min(100, Math.round(value)))
 
@@ -618,7 +1082,7 @@ const specificMetricPercent = (metric) => {
             </div>
 
             <div class="common-metric-grid compact">
-              <article v-for="metric in selectedEquipment.common" :key="metric.label">
+              <article v-for="metric in commonDataItems" :key="metric.label">
                 <span>{{ metric.label }}</span>
                 <strong>{{ metric.value }}</strong>
               </article>
@@ -716,7 +1180,7 @@ const specificMetricPercent = (metric) => {
                 <Activity :size="22" />
               </div>
               <div class="equipment-popup-metric-grid">
-                <article v-for="metric in selectedEquipment.common" :key="`popup-common-${metric.label}`">
+                <article v-for="metric in commonDataItems" :key="`popup-common-${metric.label}`">
                   <span>{{ metric.label }}</span>
                   <strong>{{ metric.value }}</strong>
                 </article>
@@ -745,70 +1209,50 @@ const specificMetricPercent = (metric) => {
             <div class="section-title-row">
               <div>
                 <p class="panel-kicker">Equipment Graph</p>
-                <h3>설비 그래프</h3>
+                <h3>진동 데이터 집중 분석</h3>
               </div>
               <Gauge :size="22" />
             </div>
 
-            <div class="equipment-popup-graph-grid">
-              <article class="equipment-popup-chart-card">
+            <div class="equipment-vibration-analysis-grid">
+              <article class="equipment-echart-card equipment-echart-card--raw">
                 <div class="equipment-chart-head">
-                  <strong>가동률 추이</strong>
-                  <span>{{ selectedEquipment.rate }}%</span>
-                </div>
-                <div class="equipment-trend-bars">
-                  <i
-                    v-for="item in operationTrend"
-                    :key="item.label"
-                    :style="{ height: `${item.value}%` }"
-                  >
-                    <b>{{ item.value }}%</b>
-                    <span>{{ item.label }}</span>
-                  </i>
-                </div>
-              </article>
-
-              <article class="equipment-popup-chart-card">
-                <div class="equipment-chart-head">
-                  <strong>OK / NG 품질</strong>
-                  <span>{{ qualityPercent }}%</span>
-                </div>
-                <div class="equipment-quality-donut" :style="{ '--value': `${qualityPercent}%` }">
-                  <strong>{{ qualityPercent }}%</strong>
-                  <span>OK 기준</span>
-                </div>
-                <div class="equipment-quality-row">
-                  <span>OK {{ getCommonMetric('OK') }}</span>
-                  <span>NG {{ getCommonMetric('NG') }}</span>
-                </div>
-              </article>
-
-              <article class="equipment-popup-chart-card">
-                <div class="equipment-chart-head">
-                  <strong>공통 센서 데이터</strong>
-                  <span>현재값</span>
-                </div>
-                <div class="equipment-horizontal-bars">
-                  <div v-for="item in sensorChart" :key="item.label">
-                    <span>{{ item.label }}</span>
-                    <i><b :style="{ width: `${item.percent}%` }"></b></i>
-                    <strong>{{ item.value }}</strong>
+                  <div>
+                    <strong>원본 진동 데이터 윈도우</strong>
+                    <span>회복 확인 구간</span>
                   </div>
+                  <small>{{ realtimeVibration?.window?.valuesLength ?? 0 }} samples</small>
                 </div>
+                <div ref="rawVibrationChartEl" class="equipment-echart"></div>
               </article>
 
-              <article class="equipment-popup-chart-card">
+              <aside class="equipment-analysis-metrics" aria-label="AI 분석 요약">
+                <article v-for="metric in analysisMetricCards" :key="metric.label">
+                  <span>{{ metric.label }}</span>
+                  <strong>{{ metric.value }}</strong>
+                </article>
+              </aside>
+
+              <article class="equipment-echart-card">
                 <div class="equipment-chart-head">
-                  <strong>{{ selectedCategory.name }} 유형별 지표</strong>
-                  <span>{{ selectedEquipment.specific.length }}개</span>
-                </div>
-                <div class="equipment-horizontal-bars">
-                  <div v-for="metric in selectedEquipment.specific" :key="`chart-${metric.label}`">
-                    <span>{{ metric.label }}</span>
-                    <i><b :style="{ width: `${specificMetricPercent(metric)}%` }"></b></i>
-                    <strong>{{ metric.value }}</strong>
+                  <div>
+                    <strong>선택 구간 FFT</strong>
+                    <span>FFT 크기</span>
                   </div>
+                  <small>{{ realtimeAnalysis?.fft?.binCount ?? 0 }} bin</small>
                 </div>
+                <div ref="fftChartEl" class="equipment-echart equipment-echart--small"></div>
+              </article>
+
+              <article class="equipment-echart-card">
+                <div class="equipment-chart-head">
+                  <div>
+                    <strong>구간 특성값 흐름</strong>
+                    <span>최근 {{ vibrationTrendHistory.length }} window</span>
+                  </div>
+                  <small>{{ realtimeAnalysis?.alarmLevel ?? 'normal' }}</small>
+                </div>
+                <div ref="trendChartEl" class="equipment-echart equipment-echart--small"></div>
               </article>
             </div>
           </section>

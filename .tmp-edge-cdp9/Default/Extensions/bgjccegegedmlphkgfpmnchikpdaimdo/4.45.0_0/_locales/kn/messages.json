@@ -1,0 +1,29 @@
+{
+   "Onboarding_How_to_use_Description_part_link_url": {
+      "message": "https://intersub.cc/"
+   },
+   "Rate_link": {
+      "message": "https://microsoftedge.microsoft.com/addons/detail/intersub-learn-languages/bgjccegegedmlphkgfpmnchikpdaimdo"
+   },
+   "Special_offer_review_Description_1_link_text": {
+      "message": "Edge add-ons store"
+   },
+   "Special_offer_review_Description_1_link_url": {
+      "message": "https://microsoftedge.microsoft.com/addons/detail/intersub-learn-languages/bgjccegegedmlphkgfpmnchikpdaimdo"
+   },
+   "Support_email": {
+      "message": "support@intersub.cc"
+   },
+   "appDescription": {
+      "message": "ಸ್ಪ್ಯಾನಿಷ್‌ನಿಂದ ಇಂಗ್ಲಿಷ್‌ಗೆ, ಜಪಾನೀಸ್ ಇತ್ಯಾದಿಗಳಿಗೆ ಯಾವುದೇ ಪದದ ಅರ್ಥವನ್ನು ತಲ್ಲೀನಗೊಳಿಸುವ ಅನುವಾದಕ್ಕಾಗಿ ಡ್ಯುಯಲ್ ಸಬ್‌ಟೈಟಲ್‌ಗಳ ಅನುವಾದಕವನ್ನು ಆನಂದಿಸಿ."
+   },
+   "appName": {
+      "message": "ಡ್ಯುಯಲ್ ಸಬ್‌ಟೈಟಲ್‌ಗಳು ಮತ್ತು ಸಬ್‌ಟೈಟಲ್ ಅನುವಾದಕ - ಇಂಟರ್‌ಸಬ್"
+   },
+   "browserName": {
+      "message": "MICROSOFT_EDGE"
+   },
+   "pluginLocaleId": {
+      "message": "kn"
+   }
+}

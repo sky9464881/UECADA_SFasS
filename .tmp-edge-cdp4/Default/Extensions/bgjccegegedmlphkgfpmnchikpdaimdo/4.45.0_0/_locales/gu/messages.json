@@ -1,0 +1,29 @@
+{
+   "Onboarding_How_to_use_Description_part_link_url": {
+      "message": "https://intersub.cc/"
+   },
+   "Rate_link": {
+      "message": "https://microsoftedge.microsoft.com/addons/detail/intersub-learn-languages/bgjccegegedmlphkgfpmnchikpdaimdo"
+   },
+   "Special_offer_review_Description_1_link_text": {
+      "message": "Edge add-ons store"
+   },
+   "Special_offer_review_Description_1_link_url": {
+      "message": "https://microsoftedge.microsoft.com/addons/detail/intersub-learn-languages/bgjccegegedmlphkgfpmnchikpdaimdo"
+   },
+   "Support_email": {
+      "message": "support@intersub.cc"
+   },
+   "appDescription": {
+      "message": "ડ્યુઅલસબ માટે ડ્યુઅલ સબટાઈટલ ટ્રાન્સલેટરનો આનંદ માણો, સ્પેનિશથી અંગ્રેજી, જાપાનીઝ વગેરેમાં કોઈપણ શબ્દનો અર્થ ઇમર્સિવ અનુવાદ કરો."
+   },
+   "appName": {
+      "message": "ડ્યુઅલ સબટાઈટલ અને સબટાઈટલ ટ્રાન્સલેટર - ઇન્ટરસબ"
+   },
+   "browserName": {
+      "message": "MICROSOFT_EDGE"
+   },
+   "pluginLocaleId": {
+      "message": "gu"
+   }
+}

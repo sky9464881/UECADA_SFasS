@@ -1,0 +1,348 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/components/LoginPage.vue");import { onBeforeUnmount, onMounted, ref } from "/node_modules/.vite/deps/vue.js?v=2bc82960"
+import { X } from "/node_modules/.vite/deps/lucide-vue-next.js?v=2bc82960"
+import { login } from "/src/api/auth.js"
+
+
+const _sfc_main = {
+  __name: 'LoginPage',
+  setup(__props, { expose: __expose }) {
+  __expose();
+
+const loginId = ref('')
+const password = ref('')
+const loginError = ref('')
+const loginLoading = ref(false)
+
+const goDashboard = async () => {
+  if (!loginId.value || !password.value) {
+    loginError.value = '아이디와 비밀번호를 입력하세요.'
+    return
+  }
+  loginLoading.value = true
+  loginError.value = ''
+  try {
+    const user = await login(loginId.value, password.value)
+    sessionStorage.setItem('user', JSON.stringify(user))
+    window.location.hash = '#/dashboard'
+  } catch {
+    loginError.value = '아이디 또는 비밀번호가 올바르지 않습니다.'
+  } finally {
+    loginLoading.value = false
+  }
+}
+
+const activeModal = ref(null)
+
+const modalTitle = {
+  findId: '아이디 찾기',
+  findPw: '비밀번호 찾기',
+  signup: '회원가입',
+}
+
+const openModal = (id) => {
+  activeModal.value = id
+}
+
+const closeModal = () => {
+  activeModal.value = null
+}
+
+const onKeydown = (e) => {
+  if (e.key === 'Escape') closeModal()
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', onKeydown)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onKeydown)
+})
+
+const __returned__ = { loginId, password, loginError, loginLoading, goDashboard, activeModal, modalTitle, openModal, closeModal, onKeydown, onBeforeUnmount, onMounted, ref, get X() { return X }, get login() { return login } }
+Object.defineProperty(__returned__, '__isScriptSetup', { enumerable: false, value: true })
+return __returned__
+}
+
+}
+import { createElementVNode as _createElementVNode, vModelText as _vModelText, withDirectives as _withDirectives, withKeys as _withKeys, toDisplayString as _toDisplayString, openBlock as _openBlock, createElementBlock as _createElementBlock, createCommentVNode as _createCommentVNode, createVNode as _createVNode, withModifiers as _withModifiers, Teleport as _Teleport, createBlock as _createBlock, createStaticVNode as _createStaticVNode } from "/node_modules/.vite/deps/vue.js?v=2bc82960"
+
+const _hoisted_1 = { class: "login-page" }
+const _hoisted_2 = {
+  class: "login-panel",
+  "aria-label": "로그인"
+}
+const _hoisted_3 = { class: "panel-inner" }
+const _hoisted_4 = { class: "login-form" }
+const _hoisted_5 = {
+  key: 0,
+  style: {"color":"#d92d20","font-size":"13px","margin":"-4px 0 4px"}
+}
+const _hoisted_6 = ["disabled"]
+const _hoisted_7 = {
+  class: "account-links",
+  "aria-label": "계정 메뉴"
+}
+const _hoisted_8 = {
+  class: "login-auth-modal",
+  role: "dialog",
+  "aria-modal": "true",
+  "aria-labelledby": "login-auth-dialog-title"
+}
+const _hoisted_9 = { class: "login-auth-modal-head" }
+const _hoisted_10 = { id: "login-auth-dialog-title" }
+const _hoisted_11 = {
+  key: 0,
+  class: "login-auth-body"
+}
+const _hoisted_12 = {
+  key: 1,
+  class: "login-auth-body"
+}
+const _hoisted_13 = {
+  key: 2,
+  class: "login-auth-body"
+}
+
+function _sfc_render(_ctx, _cache, $props, $setup, $data, $options) {
+  return (_openBlock(), _createElementBlock("main", _hoisted_1, [
+    _cache[21] || (_cache[21] = _createStaticVNode("<section class=\"visual-area\" aria-label=\"설비 관제 현황\"><div class=\"brand-mark\"><span class=\"brand-symbol\">U</span><span class=\"brand-copy\"><strong>우리들의 스카다</strong><small>유익하다</small></span></div><div class=\"command-copy\"><p class=\"eyebrow\">설비통합관제시스템</p><h1>UECADA</h1><p>우리가 만든 SCADA 유익하다.</p></div><div class=\"control-board\"><div class=\"board-header\"><span>Ulsan Plant A</span><strong>98.7%</strong></div><div class=\"status-grid\"><article><span>라인 가동률</span><strong>96%</strong><div class=\"meter\"><i style=\"width:96%;\"></i></div></article><article><span>전력 부하</span><strong>72%</strong><div class=\"meter cyan\"><i style=\"width:72%;\"></i></div></article><article><span>온도 안정성</span><strong>Normal</strong><div class=\"pulse-row\"><i></i><i></i><i></i><i></i><i></i></div></article></div><div class=\"plant-map\"><span class=\"node node-a\"></span><span class=\"node node-b\"></span><span class=\"node node-c\"></span><span class=\"path path-one\"></span><span class=\"path path-two\"></span><div class=\"machine machine-one\"></div><div class=\"machine machine-two\"></div><div class=\"machine machine-three\"></div></div></div></section>", 1)),
+    _createElementVNode("section", _hoisted_2, [
+      _createElementVNode("div", _hoisted_3, [
+        _cache[11] || (_cache[11] = _createElementVNode("div", { class: "mobile-brand" }, [
+          _createElementVNode("span", { class: "brand-symbol" }, "U"),
+          _createElementVNode("span", { class: "brand-copy" }, [
+            _createElementVNode("strong", null, "우리들의 스카다"),
+            _createElementVNode("small", null, "유익하다")
+          ])
+        ], -1 /* CACHED */)),
+        _cache[12] || (_cache[12] = _createElementVNode("div", { class: "form-heading" }, [
+          _createElementVNode("p", null, "Welcome Back"),
+          _createElementVNode("h2", null, "로그인")
+        ], -1 /* CACHED */)),
+        _createElementVNode("form", _hoisted_4, [
+          _createElementVNode("label", null, [
+            _cache[8] || (_cache[8] = _createElementVNode("span", null, "아이디", -1 /* CACHED */)),
+            _withDirectives(_createElementVNode("input", {
+              "onUpdate:modelValue": _cache[0] || (_cache[0] = $event => (($setup.loginId) = $event)),
+              type: "text",
+              placeholder: "아이디를 입력하세요",
+              autocomplete: "username"
+            }, null, 512 /* NEED_PATCH */), [
+              [_vModelText, $setup.loginId]
+            ])
+          ]),
+          _createElementVNode("label", null, [
+            _cache[9] || (_cache[9] = _createElementVNode("span", null, "비밀번호", -1 /* CACHED */)),
+            _withDirectives(_createElementVNode("input", {
+              "onUpdate:modelValue": _cache[1] || (_cache[1] = $event => (($setup.password) = $event)),
+              type: "password",
+              placeholder: "비밀번호를 입력하세요",
+              autocomplete: "current-password",
+              onKeyup: _withKeys($setup.goDashboard, ["enter"])
+            }, null, 544 /* NEED_HYDRATION, NEED_PATCH */), [
+              [_vModelText, $setup.password]
+            ])
+          ]),
+          _cache[10] || (_cache[10] = _createElementVNode("div", { class: "form-options" }, [
+            _createElementVNode("label", { class: "check-row" }, [
+              _createElementVNode("input", { type: "checkbox" }),
+              _createElementVNode("span", null, "아이디 저장")
+            ]),
+            _createElementVNode("a", { href: "#" }, "보안접속")
+          ], -1 /* CACHED */)),
+          ($setup.loginError)
+            ? (_openBlock(), _createElementBlock("p", _hoisted_5, _toDisplayString($setup.loginError), 1 /* TEXT */))
+            : _createCommentVNode("v-if", true),
+          _createElementVNode("button", {
+            type: "button",
+            class: "login-button",
+            disabled: $setup.loginLoading,
+            onClick: $setup.goDashboard
+          }, _toDisplayString($setup.loginLoading ? '로그인 중...' : '로그인'), 9 /* TEXT, PROPS */, _hoisted_6)
+        ]),
+        _createElementVNode("nav", _hoisted_7, [
+          _createElementVNode("button", {
+            type: "button",
+            class: "account-link-btn",
+            onClick: _cache[2] || (_cache[2] = $event => ($setup.openModal('findId')))
+          }, "아이디 찾기"),
+          _createElementVNode("button", {
+            type: "button",
+            class: "account-link-btn",
+            onClick: _cache[3] || (_cache[3] = $event => ($setup.openModal('findPw')))
+          }, "비밀번호 찾기"),
+          _createElementVNode("button", {
+            type: "button",
+            class: "account-link-btn",
+            onClick: _cache[4] || (_cache[4] = $event => ($setup.openModal('signup')))
+          }, "회원가입")
+        ]),
+        _cache[13] || (_cache[13] = _createElementVNode("p", { class: "support-text" }, "Copyright 2026 Hyundai Facility Control", -1 /* CACHED */))
+      ])
+    ]),
+    (_openBlock(), _createBlock(_Teleport, { to: "body" }, [
+      ($setup.activeModal)
+        ? (_openBlock(), _createElementBlock("div", {
+            key: 0,
+            class: "login-auth-backdrop",
+            role: "presentation",
+            onClick: _withModifiers($setup.closeModal, ["self"])
+          }, [
+            _createElementVNode("article", _hoisted_8, [
+              _createElementVNode("header", _hoisted_9, [
+                _createElementVNode("h2", _hoisted_10, _toDisplayString($setup.modalTitle[$setup.activeModal]), 1 /* TEXT */),
+                _createElementVNode("button", {
+                  type: "button",
+                  class: "login-auth-close",
+                  "aria-label": "닫기",
+                  onClick: $setup.closeModal
+                }, [
+                  _createVNode($setup["X"], { size: 18 })
+                ])
+              ]),
+              ($setup.activeModal === 'findId')
+                ? (_openBlock(), _createElementBlock("div", _hoisted_11, [
+                    _cache[15] || (_cache[15] = _createElementVNode("p", { class: "login-auth-lead" }, "가입 시 등록한 정보로 아이디를 찾습니다.", -1 /* CACHED */)),
+                    _createElementVNode("form", {
+                      class: "login-auth-form",
+                      onSubmit: _cache[5] || (_cache[5] = _withModifiers(() => {}, ["prevent"]))
+                    }, [...(_cache[14] || (_cache[14] = [
+                      _createElementVNode("label", null, [
+                        _createElementVNode("span", null, "이름"),
+                        _createElementVNode("input", {
+                          type: "text",
+                          name: "find-name",
+                          autocomplete: "name",
+                          placeholder: "이름 입력"
+                        })
+                      ], -1 /* CACHED */),
+                      _createElementVNode("label", null, [
+                        _createElementVNode("span", null, "이메일"),
+                        _createElementVNode("input", {
+                          type: "email",
+                          name: "find-email",
+                          autocomplete: "email",
+                          placeholder: "이메일 입력"
+                        })
+                      ], -1 /* CACHED */),
+                      _createElementVNode("button", {
+                        type: "button",
+                        class: "login-auth-primary"
+                      }, "인증 메일 발송", -1 /* CACHED */)
+                    ]))], 32 /* NEED_HYDRATION */)
+                  ]))
+                : ($setup.activeModal === 'findPw')
+                  ? (_openBlock(), _createElementBlock("div", _hoisted_12, [
+                      _cache[17] || (_cache[17] = _createElementVNode("p", { class: "login-auth-lead" }, "아이디 확인 후 비밀번호 재설정 링크를 보냅니다.", -1 /* CACHED */)),
+                      _createElementVNode("form", {
+                        class: "login-auth-form",
+                        onSubmit: _cache[6] || (_cache[6] = _withModifiers(() => {}, ["prevent"]))
+                      }, [...(_cache[16] || (_cache[16] = [
+                        _createElementVNode("label", null, [
+                          _createElementVNode("span", null, "아이디"),
+                          _createElementVNode("input", {
+                            type: "text",
+                            name: "pw-id",
+                            autocomplete: "username",
+                            placeholder: "아이디 입력"
+                          })
+                        ], -1 /* CACHED */),
+                        _createElementVNode("label", null, [
+                          _createElementVNode("span", null, "이메일"),
+                          _createElementVNode("input", {
+                            type: "email",
+                            name: "pw-email",
+                            autocomplete: "email",
+                            placeholder: "가입 이메일 입력"
+                          })
+                        ], -1 /* CACHED */),
+                        _createElementVNode("button", {
+                          type: "button",
+                          class: "login-auth-primary"
+                        }, "재설정 링크 발송", -1 /* CACHED */)
+                      ]))], 32 /* NEED_HYDRATION */)
+                    ]))
+                  : (_openBlock(), _createElementBlock("div", _hoisted_13, [
+                      _cache[19] || (_cache[19] = _createElementVNode("p", { class: "login-auth-lead" }, "UECADA 관제 시스템 이용을 위한 계정을 만듭니다.", -1 /* CACHED */)),
+                      _createElementVNode("form", {
+                        class: "login-auth-form",
+                        onSubmit: _cache[7] || (_cache[7] = _withModifiers(() => {}, ["prevent"]))
+                      }, [...(_cache[18] || (_cache[18] = [
+                        _createElementVNode("label", null, [
+                          _createElementVNode("span", null, "아이디"),
+                          _createElementVNode("input", {
+                            type: "text",
+                            name: "reg-id",
+                            autocomplete: "username",
+                            placeholder: "영문·숫자 조합"
+                          })
+                        ], -1 /* CACHED */),
+                        _createElementVNode("label", null, [
+                          _createElementVNode("span", null, "비밀번호"),
+                          _createElementVNode("input", {
+                            type: "password",
+                            name: "reg-pw",
+                            autocomplete: "new-password",
+                            placeholder: "8자 이상"
+                          })
+                        ], -1 /* CACHED */),
+                        _createElementVNode("label", null, [
+                          _createElementVNode("span", null, "비밀번호 확인"),
+                          _createElementVNode("input", {
+                            type: "password",
+                            name: "reg-pw2",
+                            autocomplete: "new-password",
+                            placeholder: "비밀번호 재입력"
+                          })
+                        ], -1 /* CACHED */),
+                        _createElementVNode("label", null, [
+                          _createElementVNode("span", null, "이름"),
+                          _createElementVNode("input", {
+                            type: "text",
+                            name: "reg-name",
+                            autocomplete: "name",
+                            placeholder: "이름"
+                          })
+                        ], -1 /* CACHED */),
+                        _createElementVNode("label", null, [
+                          _createElementVNode("span", null, "이메일"),
+                          _createElementVNode("input", {
+                            type: "email",
+                            name: "reg-email",
+                            autocomplete: "email",
+                            placeholder: "이메일"
+                          })
+                        ], -1 /* CACHED */),
+                        _createElementVNode("button", {
+                          type: "button",
+                          class: "login-auth-primary"
+                        }, "가입 요청", -1 /* CACHED */)
+                      ]))], 32 /* NEED_HYDRATION */)
+                    ])),
+              _cache[20] || (_cache[20] = _createElementVNode("p", { class: "login-auth-note" }, "데모 화면입니다. 실제 인증·가입은 연동 후 사용합니다.", -1 /* CACHED */))
+            ])
+          ]))
+        : _createCommentVNode("v-if", true)
+    ]))
+  ]))
+}
+
+
+_sfc_main.__hmrId = "1aea22a9"
+typeof __VUE_HMR_RUNTIME__ !== 'undefined' && __VUE_HMR_RUNTIME__.createRecord(_sfc_main.__hmrId, _sfc_main)
+import.meta.hot.on('file-changed', ({ file }) => {
+  __VUE_HMR_RUNTIME__.CHANGED_FILE = file
+})
+import.meta.hot.accept(mod => {
+  if (!mod) return
+  const { default: updated, _rerender_only } = mod
+  if (_rerender_only) {
+    __VUE_HMR_RUNTIME__.rerender(updated.__hmrId, updated.render)
+  } else {
+    __VUE_HMR_RUNTIME__.reload(updated.__hmrId, updated)
+  }
+})
+import _export_sfc from "/@id/__x00__plugin-vue:export-helper"
+export default /*#__PURE__*/_export_sfc(_sfc_main, [['render',_sfc_render],['__file',"C:/Users/hwapyeong/Desktop/github/UECADA/frontend/src/components/LoginPage.vue"]])
+//# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6W10sInNvdXJjZXMiOlsiTG9naW5QYWdlLnZ1ZSJdLCJzb3VyY2VzQ29udGVudCI6WyI8c2NyaXB0IHNldHVwPlxyXG5pbXBvcnQgeyBvbkJlZm9yZVVubW91bnQsIG9uTW91bnRlZCwgcmVmIH0gZnJvbSAndnVlJ1xyXG5pbXBvcnQgeyBYIH0gZnJvbSAnbHVjaWRlLXZ1ZS1uZXh0J1xyXG5pbXBvcnQgeyBsb2dpbiB9IGZyb20gJy4uL2FwaS9hdXRoLmpzJ1xyXG5cclxuY29uc3QgbG9naW5JZCA9IHJlZignJylcclxuY29uc3QgcGFzc3dvcmQgPSByZWYoJycpXHJcbmNvbnN0IGxvZ2luRXJyb3IgPSByZWYoJycpXHJcbmNvbnN0IGxvZ2luTG9hZGluZyA9IHJlZihmYWxzZSlcclxuXHJcbmNvbnN0IGdvRGFzaGJvYXJkID0gYXN5bmMgKCkgPT4ge1xyXG4gIGlmICghbG9naW5JZC52YWx1ZSB8fCAhcGFzc3dvcmQudmFsdWUpIHtcclxuICAgIGxvZ2luRXJyb3IudmFsdWUgPSAn7JWE7J2065SU7JmAIOu5hOuwgOuyiO2YuOulvCDsnoXroKXtlZjshLjsmpQuJ1xyXG4gICAgcmV0dXJuXHJcbiAgfVxyXG4gIGxvZ2luTG9hZGluZy52YWx1ZSA9IHRydWVcclxuICBsb2dpbkVycm9yLnZhbHVlID0gJydcclxuICB0cnkge1xyXG4gICAgY29uc3QgdXNlciA9IGF3YWl0IGxvZ2luKGxvZ2luSWQudmFsdWUsIHBhc3N3b3JkLnZhbHVlKVxyXG4gICAgc2Vzc2lvblN0b3JhZ2Uuc2V0SXRlbSgndXNlcicsIEpTT04uc3RyaW5naWZ5KHVzZXIpKVxyXG4gICAgd2luZG93LmxvY2F0aW9uLmhhc2ggPSAnIy9kYXNoYm9hcmQnXHJcbiAgfSBjYXRjaCB7XHJcbiAgICBsb2dpbkVycm9yLnZhbHVlID0gJ+yVhOydtOuUlCDrmJDripQg67mE67CA67KI7Zi46rCAIOyYrOuwlOultOyngCDslYrsirXri4jri6QuJ1xyXG4gIH0gZmluYWxseSB7XHJcbiAgICBsb2dpbkxvYWRpbmcudmFsdWUgPSBmYWxzZVxyXG4gIH1cclxufVxyXG5cclxuY29uc3QgYWN0aXZlTW9kYWwgPSByZWYobnVsbClcclxuXHJcbmNvbnN0IG1vZGFsVGl0bGUgPSB7XHJcbiAgZmluZElkOiAn7JWE7J2065SUIOywvuq4sCcsXHJcbiAgZmluZFB3OiAn67mE67CA67KI7Zi4IOywvuq4sCcsXHJcbiAgc2lnbnVwOiAn7ZqM7JuQ6rCA7J6FJyxcclxufVxyXG5cclxuY29uc3Qgb3Blbk1vZGFsID0gKGlkKSA9PiB7XHJcbiAgYWN0aXZlTW9kYWwudmFsdWUgPSBpZFxyXG59XHJcblxyXG5jb25zdCBjbG9zZU1vZGFsID0gKCkgPT4ge1xyXG4gIGFjdGl2ZU1vZGFsLnZhbHVlID0gbnVsbFxyXG59XHJcblxyXG5jb25zdCBvbktleWRvd24gPSAoZSkgPT4ge1xyXG4gIGlmIChlLmtleSA9PT0gJ0VzY2FwZScpIGNsb3NlTW9kYWwoKVxyXG59XHJcblxyXG5vbk1vdW50ZWQoKCkgPT4ge1xyXG4gIHdpbmRvdy5hZGRFdmVudExpc3RlbmVyKCdrZXlkb3duJywgb25LZXlkb3duKVxyXG59KVxyXG5cclxub25CZWZvcmVVbm1vdW50KCgpID0+IHtcclxuICB3aW5kb3cucmVtb3ZlRXZlbnRMaXN0ZW5lcigna2V5ZG93bicsIG9uS2V5ZG93bilcclxufSlcclxuPC9zY3JpcHQ+XHJcblxyXG48dGVtcGxhdGU+XHJcbiAgPG1haW4gY2xhc3M9XCJsb2dpbi1wYWdlXCI+XHJcbiAgICA8c2VjdGlvbiBjbGFzcz1cInZpc3VhbC1hcmVhXCIgYXJpYS1sYWJlbD1cIuyEpOu5hCDqtIDsoJwg7ZiE7ZmpXCI+XHJcbiAgICAgIDxkaXYgY2xhc3M9XCJicmFuZC1tYXJrXCI+XHJcbiAgICAgICAgPHNwYW4gY2xhc3M9XCJicmFuZC1zeW1ib2xcIj5VPC9zcGFuPlxyXG4gICAgICAgIDxzcGFuIGNsYXNzPVwiYnJhbmQtY29weVwiPlxyXG4gICAgICAgICAgPHN0cm9uZz7smrDrpqzrk6TsnZgg7Iqk7Lm064ukPC9zdHJvbmc+XHJcbiAgICAgICAgICA8c21hbGw+7Jyg7J217ZWY64ukPC9zbWFsbD5cclxuICAgICAgICA8L3NwYW4+XHJcbiAgICAgIDwvZGl2PlxyXG5cclxuICAgICAgPGRpdiBjbGFzcz1cImNvbW1hbmQtY29weVwiPlxyXG4gICAgICAgIDxwIGNsYXNzPVwiZXllYnJvd1wiPuyEpOu5hO2Gte2Vqeq0gOygnOyLnOyKpO2FnDwvcD5cclxuICAgICAgICA8aDE+VUVDQURBPC9oMT5cclxuICAgICAgICA8cD7smrDrpqzqsIAg66eM65OgIFNDQURBIOycoOydte2VmOuLpC48L3A+XHJcbiAgICAgIDwvZGl2PlxyXG5cclxuICAgICAgPGRpdiBjbGFzcz1cImNvbnRyb2wtYm9hcmRcIj5cclxuICAgICAgICA8ZGl2IGNsYXNzPVwiYm9hcmQtaGVhZGVyXCI+XHJcbiAgICAgICAgICA8c3Bhbj5VbHNhbiBQbGFudCBBPC9zcGFuPlxyXG4gICAgICAgICAgPHN0cm9uZz45OC43JTwvc3Ryb25nPlxyXG4gICAgICAgIDwvZGl2PlxyXG5cclxuICAgICAgICA8ZGl2IGNsYXNzPVwic3RhdHVzLWdyaWRcIj5cclxuICAgICAgICAgIDxhcnRpY2xlPlxyXG4gICAgICAgICAgICA8c3Bhbj7rnbzsnbgg6rCA64+Z66WgPC9zcGFuPlxyXG4gICAgICAgICAgICA8c3Ryb25nPjk2JTwvc3Ryb25nPlxyXG4gICAgICAgICAgICA8ZGl2IGNsYXNzPVwibWV0ZXJcIj48aSBzdHlsZT1cIndpZHRoOiA5NiVcIj48L2k+PC9kaXY+XHJcbiAgICAgICAgICA8L2FydGljbGU+XHJcbiAgICAgICAgICA8YXJ0aWNsZT5cclxuICAgICAgICAgICAgPHNwYW4+7KCE66ClIOu2gO2VmDwvc3Bhbj5cclxuICAgICAgICAgICAgPHN0cm9uZz43MiU8L3N0cm9uZz5cclxuICAgICAgICAgICAgPGRpdiBjbGFzcz1cIm1ldGVyIGN5YW5cIj48aSBzdHlsZT1cIndpZHRoOiA3MiVcIj48L2k+PC9kaXY+XHJcbiAgICAgICAgICA8L2FydGljbGU+XHJcbiAgICAgICAgICA8YXJ0aWNsZT5cclxuICAgICAgICAgICAgPHNwYW4+7Jio64+EIOyViOygleyEsTwvc3Bhbj5cclxuICAgICAgICAgICAgPHN0cm9uZz5Ob3JtYWw8L3N0cm9uZz5cclxuICAgICAgICAgICAgPGRpdiBjbGFzcz1cInB1bHNlLXJvd1wiPlxyXG4gICAgICAgICAgICAgIDxpPjwvaT48aT48L2k+PGk+PC9pPjxpPjwvaT48aT48L2k+XHJcbiAgICAgICAgICAgIDwvZGl2PlxyXG4gICAgICAgICAgPC9hcnRpY2xlPlxyXG4gICAgICAgIDwvZGl2PlxyXG5cclxuICAgICAgICA8ZGl2IGNsYXNzPVwicGxhbnQtbWFwXCI+XHJcbiAgICAgICAgICA8c3BhbiBjbGFzcz1cIm5vZGUgbm9kZS1hXCI+PC9zcGFuPlxyXG4gICAgICAgICAgPHNwYW4gY2xhc3M9XCJub2RlIG5vZGUtYlwiPjwvc3Bhbj5cclxuICAgICAgICAgIDxzcGFuIGNsYXNzPVwibm9kZSBub2RlLWNcIj48L3NwYW4+XHJcbiAgICAgICAgICA8c3BhbiBjbGFzcz1cInBhdGggcGF0aC1vbmVcIj48L3NwYW4+XHJcbiAgICAgICAgICA8c3BhbiBjbGFzcz1cInBhdGggcGF0aC10d29cIj48L3NwYW4+XHJcbiAgICAgICAgICA8ZGl2IGNsYXNzPVwibWFjaGluZSBtYWNoaW5lLW9uZVwiPjwvZGl2PlxyXG4gICAgICAgICAgPGRpdiBjbGFzcz1cIm1hY2hpbmUgbWFjaGluZS10d29cIj48L2Rpdj5cclxuICAgICAgICAgIDxkaXYgY2xhc3M9XCJtYWNoaW5lIG1hY2hpbmUtdGhyZWVcIj48L2Rpdj5cclxuICAgICAgICA8L2Rpdj5cclxuICAgICAgPC9kaXY+XHJcbiAgICA8L3NlY3Rpb24+XHJcblxyXG4gICAgPHNlY3Rpb24gY2xhc3M9XCJsb2dpbi1wYW5lbFwiIGFyaWEtbGFiZWw9XCLroZzqt7jsnbhcIj5cclxuICAgICAgPGRpdiBjbGFzcz1cInBhbmVsLWlubmVyXCI+XHJcbiAgICAgICAgPGRpdiBjbGFzcz1cIm1vYmlsZS1icmFuZFwiPlxyXG4gICAgICAgICAgPHNwYW4gY2xhc3M9XCJicmFuZC1zeW1ib2xcIj5VPC9zcGFuPlxyXG4gICAgICAgICAgPHNwYW4gY2xhc3M9XCJicmFuZC1jb3B5XCI+XHJcbiAgICAgICAgICAgIDxzdHJvbmc+7Jqw66as65Ok7J2YIOyKpOy5tOuLpDwvc3Ryb25nPlxyXG4gICAgICAgICAgICA8c21hbGw+7Jyg7J217ZWY64ukPC9zbWFsbD5cclxuICAgICAgICAgIDwvc3Bhbj5cclxuICAgICAgICA8L2Rpdj5cclxuXHJcbiAgICAgICAgPGRpdiBjbGFzcz1cImZvcm0taGVhZGluZ1wiPlxyXG4gICAgICAgICAgPHA+V2VsY29tZSBCYWNrPC9wPlxyXG4gICAgICAgICAgPGgyPuuhnOq3uOyduDwvaDI+XHJcbiAgICAgICAgPC9kaXY+XHJcblxyXG4gICAgICAgIDxmb3JtIGNsYXNzPVwibG9naW4tZm9ybVwiPlxyXG4gICAgICAgICAgPGxhYmVsPlxyXG4gICAgICAgICAgICA8c3Bhbj7slYTsnbTrlJQ8L3NwYW4+XHJcbiAgICAgICAgICAgIDxpbnB1dCB2LW1vZGVsPVwibG9naW5JZFwiIHR5cGU9XCJ0ZXh0XCIgcGxhY2Vob2xkZXI9XCLslYTsnbTrlJTrpbwg7J6F66Cl7ZWY7IS47JqUXCIgYXV0b2NvbXBsZXRlPVwidXNlcm5hbWVcIiAvPlxyXG4gICAgICAgICAgPC9sYWJlbD5cclxuXHJcbiAgICAgICAgICA8bGFiZWw+XHJcbiAgICAgICAgICAgIDxzcGFuPuu5hOuwgOuyiO2YuDwvc3Bhbj5cclxuICAgICAgICAgICAgPGlucHV0IHYtbW9kZWw9XCJwYXNzd29yZFwiIHR5cGU9XCJwYXNzd29yZFwiIHBsYWNlaG9sZGVyPVwi67mE67CA67KI7Zi466W8IOyeheugpe2VmOyEuOyalFwiIGF1dG9jb21wbGV0ZT1cImN1cnJlbnQtcGFzc3dvcmRcIiBAa2V5dXAuZW50ZXI9XCJnb0Rhc2hib2FyZFwiIC8+XHJcbiAgICAgICAgICA8L2xhYmVsPlxyXG5cclxuICAgICAgICAgIDxkaXYgY2xhc3M9XCJmb3JtLW9wdGlvbnNcIj5cclxuICAgICAgICAgICAgPGxhYmVsIGNsYXNzPVwiY2hlY2stcm93XCI+XHJcbiAgICAgICAgICAgICAgPGlucHV0IHR5cGU9XCJjaGVja2JveFwiIC8+XHJcbiAgICAgICAgICAgICAgPHNwYW4+7JWE7J2065SUIOyggOyepTwvc3Bhbj5cclxuICAgICAgICAgICAgPC9sYWJlbD5cclxuICAgICAgICAgICAgPGEgaHJlZj1cIiNcIj7rs7TslYjsoJHsho08L2E+XHJcbiAgICAgICAgICA8L2Rpdj5cclxuXHJcbiAgICAgICAgICA8cCB2LWlmPVwibG9naW5FcnJvclwiIHN0eWxlPVwiY29sb3I6I2Q5MmQyMDtmb250LXNpemU6MTNweDttYXJnaW46LTRweCAwIDRweDtcIj57eyBsb2dpbkVycm9yIH19PC9wPlxyXG4gICAgICAgICAgPGJ1dHRvbiB0eXBlPVwiYnV0dG9uXCIgY2xhc3M9XCJsb2dpbi1idXR0b25cIiA6ZGlzYWJsZWQ9XCJsb2dpbkxvYWRpbmdcIiBAY2xpY2s9XCJnb0Rhc2hib2FyZFwiPlxyXG4gICAgICAgICAgICB7eyBsb2dpbkxvYWRpbmcgPyAn66Gc6re47J24IOykkS4uLicgOiAn66Gc6re47J24JyB9fVxyXG4gICAgICAgICAgPC9idXR0b24+XHJcbiAgICAgICAgPC9mb3JtPlxyXG5cclxuICAgICAgICA8bmF2IGNsYXNzPVwiYWNjb3VudC1saW5rc1wiIGFyaWEtbGFiZWw9XCLqs4TsoJUg66mU64m0XCI+XHJcbiAgICAgICAgICA8YnV0dG9uIHR5cGU9XCJidXR0b25cIiBjbGFzcz1cImFjY291bnQtbGluay1idG5cIiBAY2xpY2s9XCJvcGVuTW9kYWwoJ2ZpbmRJZCcpXCI+7JWE7J2065SUIOywvuq4sDwvYnV0dG9uPlxyXG4gICAgICAgICAgPGJ1dHRvbiB0eXBlPVwiYnV0dG9uXCIgY2xhc3M9XCJhY2NvdW50LWxpbmstYnRuXCIgQGNsaWNrPVwib3Blbk1vZGFsKCdmaW5kUHcnKVwiPuu5hOuwgOuyiO2YuCDssL7quLA8L2J1dHRvbj5cclxuICAgICAgICAgIDxidXR0b24gdHlwZT1cImJ1dHRvblwiIGNsYXNzPVwiYWNjb3VudC1saW5rLWJ0blwiIEBjbGljaz1cIm9wZW5Nb2RhbCgnc2lnbnVwJylcIj7tmozsm5DqsIDsnoU8L2J1dHRvbj5cclxuICAgICAgICA8L25hdj5cclxuXHJcbiAgICAgICAgPHAgY2xhc3M9XCJzdXBwb3J0LXRleHRcIj5Db3B5cmlnaHQgMjAyNiBIeXVuZGFpIEZhY2lsaXR5IENvbnRyb2w8L3A+XHJcbiAgICAgIDwvZGl2PlxyXG4gICAgPC9zZWN0aW9uPlxyXG5cclxuICAgIDxUZWxlcG9ydCB0bz1cImJvZHlcIj5cclxuICAgICAgPGRpdlxyXG4gICAgICAgIHYtaWY9XCJhY3RpdmVNb2RhbFwiXHJcbiAgICAgICAgY2xhc3M9XCJsb2dpbi1hdXRoLWJhY2tkcm9wXCJcclxuICAgICAgICByb2xlPVwicHJlc2VudGF0aW9uXCJcclxuICAgICAgICBAY2xpY2suc2VsZj1cImNsb3NlTW9kYWxcIlxyXG4gICAgICA+XHJcbiAgICAgICAgPGFydGljbGVcclxuICAgICAgICAgIGNsYXNzPVwibG9naW4tYXV0aC1tb2RhbFwiXHJcbiAgICAgICAgICByb2xlPVwiZGlhbG9nXCJcclxuICAgICAgICAgIGFyaWEtbW9kYWw9XCJ0cnVlXCJcclxuICAgICAgICAgIGFyaWEtbGFiZWxsZWRieT1cImxvZ2luLWF1dGgtZGlhbG9nLXRpdGxlXCJcclxuICAgICAgICA+XHJcbiAgICAgICAgICA8aGVhZGVyIGNsYXNzPVwibG9naW4tYXV0aC1tb2RhbC1oZWFkXCI+XHJcbiAgICAgICAgICAgIDxoMiBpZD1cImxvZ2luLWF1dGgtZGlhbG9nLXRpdGxlXCI+e3sgbW9kYWxUaXRsZVthY3RpdmVNb2RhbF0gfX08L2gyPlxyXG4gICAgICAgICAgICA8YnV0dG9uIHR5cGU9XCJidXR0b25cIiBjbGFzcz1cImxvZ2luLWF1dGgtY2xvc2VcIiBhcmlhLWxhYmVsPVwi64ur6riwXCIgQGNsaWNrPVwiY2xvc2VNb2RhbFwiPlxyXG4gICAgICAgICAgICAgIDxYIDpzaXplPVwiMThcIiAvPlxyXG4gICAgICAgICAgICA8L2J1dHRvbj5cclxuICAgICAgICAgIDwvaGVhZGVyPlxyXG5cclxuICAgICAgICAgIDxkaXYgdi1pZj1cImFjdGl2ZU1vZGFsID09PSAnZmluZElkJ1wiIGNsYXNzPVwibG9naW4tYXV0aC1ib2R5XCI+XHJcbiAgICAgICAgICAgIDxwIGNsYXNzPVwibG9naW4tYXV0aC1sZWFkXCI+6rCA7J6FIOyLnCDrk7HroZ3tlZwg7KCV67O066GcIOyVhOydtOuUlOulvCDssL7sirXri4jri6QuPC9wPlxyXG4gICAgICAgICAgICA8Zm9ybSBjbGFzcz1cImxvZ2luLWF1dGgtZm9ybVwiIEBzdWJtaXQucHJldmVudD5cclxuICAgICAgICAgICAgICA8bGFiZWw+XHJcbiAgICAgICAgICAgICAgICA8c3Bhbj7snbTrpoQ8L3NwYW4+XHJcbiAgICAgICAgICAgICAgICA8aW5wdXQgdHlwZT1cInRleHRcIiBuYW1lPVwiZmluZC1uYW1lXCIgYXV0b2NvbXBsZXRlPVwibmFtZVwiIHBsYWNlaG9sZGVyPVwi7J2066aEIOyeheugpVwiIC8+XHJcbiAgICAgICAgICAgICAgPC9sYWJlbD5cclxuICAgICAgICAgICAgICA8bGFiZWw+XHJcbiAgICAgICAgICAgICAgICA8c3Bhbj7snbTrqZTsnbw8L3NwYW4+XHJcbiAgICAgICAgICAgICAgICA8aW5wdXQgdHlwZT1cImVtYWlsXCIgbmFtZT1cImZpbmQtZW1haWxcIiBhdXRvY29tcGxldGU9XCJlbWFpbFwiIHBsYWNlaG9sZGVyPVwi7J2066mU7J28IOyeheugpVwiIC8+XHJcbiAgICAgICAgICAgICAgPC9sYWJlbD5cclxuICAgICAgICAgICAgICA8YnV0dG9uIHR5cGU9XCJidXR0b25cIiBjbGFzcz1cImxvZ2luLWF1dGgtcHJpbWFyeVwiPuyduOymnSDrqZTsnbwg67Cc7IahPC9idXR0b24+XHJcbiAgICAgICAgICAgIDwvZm9ybT5cclxuICAgICAgICAgIDwvZGl2PlxyXG5cclxuICAgICAgICAgIDxkaXYgdi1lbHNlLWlmPVwiYWN0aXZlTW9kYWwgPT09ICdmaW5kUHcnXCIgY2xhc3M9XCJsb2dpbi1hdXRoLWJvZHlcIj5cclxuICAgICAgICAgICAgPHAgY2xhc3M9XCJsb2dpbi1hdXRoLWxlYWRcIj7slYTsnbTrlJQg7ZmV7J24IO2bhCDruYTrsIDrsojtmLgg7J6s7ISk7KCVIOunge2BrOulvCDrs7Trg4Xri4jri6QuPC9wPlxyXG4gICAgICAgICAgICA8Zm9ybSBjbGFzcz1cImxvZ2luLWF1dGgtZm9ybVwiIEBzdWJtaXQucHJldmVudD5cclxuICAgICAgICAgICAgICA8bGFiZWw+XHJcbiAgICAgICAgICAgICAgICA8c3Bhbj7slYTsnbTrlJQ8L3NwYW4+XHJcbiAgICAgICAgICAgICAgICA8aW5wdXQgdHlwZT1cInRleHRcIiBuYW1lPVwicHctaWRcIiBhdXRvY29tcGxldGU9XCJ1c2VybmFtZVwiIHBsYWNlaG9sZGVyPVwi7JWE7J2065SUIOyeheugpVwiIC8+XHJcbiAgICAgICAgICAgICAgPC9sYWJlbD5cclxuICAgICAgICAgICAgICA8bGFiZWw+XHJcbiAgICAgICAgICAgICAgICA8c3Bhbj7snbTrqZTsnbw8L3NwYW4+XHJcbiAgICAgICAgICAgICAgICA8aW5wdXQgdHlwZT1cImVtYWlsXCIgbmFtZT1cInB3LWVtYWlsXCIgYXV0b2NvbXBsZXRlPVwiZW1haWxcIiBwbGFjZWhvbGRlcj1cIuqwgOyehSDsnbTrqZTsnbwg7J6F66ClXCIgLz5cclxuICAgICAgICAgICAgICA8L2xhYmVsPlxyXG4gICAgICAgICAgICAgIDxidXR0b24gdHlwZT1cImJ1dHRvblwiIGNsYXNzPVwibG9naW4tYXV0aC1wcmltYXJ5XCI+7J6s7ISk7KCVIOunge2BrCDrsJzshqE8L2J1dHRvbj5cclxuICAgICAgICAgICAgPC9mb3JtPlxyXG4gICAgICAgICAgPC9kaXY+XHJcblxyXG4gICAgICAgICAgPGRpdiB2LWVsc2UgY2xhc3M9XCJsb2dpbi1hdXRoLWJvZHlcIj5cclxuICAgICAgICAgICAgPHAgY2xhc3M9XCJsb2dpbi1hdXRoLWxlYWRcIj5VRUNBREEg6rSA7KCcIOyLnOyKpO2FnCDsnbTsmqnsnYQg7JyE7ZWcIOqzhOygleydhCDrp4zrk63ri4jri6QuPC9wPlxyXG4gICAgICAgICAgICA8Zm9ybSBjbGFzcz1cImxvZ2luLWF1dGgtZm9ybVwiIEBzdWJtaXQucHJldmVudD5cclxuICAgICAgICAgICAgICA8bGFiZWw+XHJcbiAgICAgICAgICAgICAgICA8c3Bhbj7slYTsnbTrlJQ8L3NwYW4+XHJcbiAgICAgICAgICAgICAgICA8aW5wdXQgdHlwZT1cInRleHRcIiBuYW1lPVwicmVnLWlkXCIgYXV0b2NvbXBsZXRlPVwidXNlcm5hbWVcIiBwbGFjZWhvbGRlcj1cIuyYgeusuMK37Iir7J6QIOyhsO2VqVwiIC8+XHJcbiAgICAgICAgICAgICAgPC9sYWJlbD5cclxuICAgICAgICAgICAgICA8bGFiZWw+XHJcbiAgICAgICAgICAgICAgICA8c3Bhbj7ruYTrsIDrsojtmLg8L3NwYW4+XHJcbiAgICAgICAgICAgICAgICA8aW5wdXQgdHlwZT1cInBhc3N3b3JkXCIgbmFtZT1cInJlZy1wd1wiIGF1dG9jb21wbGV0ZT1cIm5ldy1wYXNzd29yZFwiIHBsYWNlaG9sZGVyPVwiOOyekCDsnbTsg4FcIiAvPlxyXG4gICAgICAgICAgICAgIDwvbGFiZWw+XHJcbiAgICAgICAgICAgICAgPGxhYmVsPlxyXG4gICAgICAgICAgICAgICAgPHNwYW4+67mE67CA67KI7Zi4IO2ZleyduDwvc3Bhbj5cclxuICAgICAgICAgICAgICAgIDxpbnB1dCB0eXBlPVwicGFzc3dvcmRcIiBuYW1lPVwicmVnLXB3MlwiIGF1dG9jb21wbGV0ZT1cIm5ldy1wYXNzd29yZFwiIHBsYWNlaG9sZGVyPVwi67mE67CA67KI7Zi4IOyerOyeheugpVwiIC8+XHJcbiAgICAgICAgICAgICAgPC9sYWJlbD5cclxuICAgICAgICAgICAgICA8bGFiZWw+XHJcbiAgICAgICAgICAgICAgICA8c3Bhbj7snbTrpoQ8L3NwYW4+XHJcbiAgICAgICAgICAgICAgICA8aW5wdXQgdHlwZT1cInRleHRcIiBuYW1lPVwicmVnLW5hbWVcIiBhdXRvY29tcGxldGU9XCJuYW1lXCIgcGxhY2Vob2xkZXI9XCLsnbTrpoRcIiAvPlxyXG4gICAgICAgICAgICAgIDwvbGFiZWw+XHJcbiAgICAgICAgICAgICAgPGxhYmVsPlxyXG4gICAgICAgICAgICAgICAgPHNwYW4+7J2066mU7J28PC9zcGFuPlxyXG4gICAgICAgICAgICAgICAgPGlucHV0IHR5cGU9XCJlbWFpbFwiIG5hbWU9XCJyZWctZW1haWxcIiBhdXRvY29tcGxldGU9XCJlbWFpbFwiIHBsYWNlaG9sZGVyPVwi7J2066mU7J28XCIgLz5cclxuICAgICAgICAgICAgICA8L2xhYmVsPlxyXG4gICAgICAgICAgICAgIDxidXR0b24gdHlwZT1cImJ1dHRvblwiIGNsYXNzPVwibG9naW4tYXV0aC1wcmltYXJ5XCI+6rCA7J6FIOyalOyyrTwvYnV0dG9uPlxyXG4gICAgICAgICAgICA8L2Zvcm0+XHJcbiAgICAgICAgICA8L2Rpdj5cclxuXHJcbiAgICAgICAgICA8cCBjbGFzcz1cImxvZ2luLWF1dGgtbm90ZVwiPuuNsOuqqCDtmZTrqbTsnoXri4jri6QuIOyLpOygnCDsnbjspp3Ct+qwgOyeheydgCDsl7Drj5kg7ZuEIOyCrOyaqe2VqeuLiOuLpC48L3A+XHJcbiAgICAgICAgPC9hcnRpY2xlPlxyXG4gICAgICA8L2Rpdj5cclxuICAgIDwvVGVsZXBvcnQ+XHJcbiAgPC9tYWluPlxyXG48L3RlbXBsYXRlPlxyXG4iXSwibWFwcGluZ3MiOiJBQUNBLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQztBQUNyRCxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUM7QUFDbkMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDO0FBQ3RDOzs7Ozs7QUFKYztBQUtkLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQztBQUN2QixDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQztBQUN4QixDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUM7QUFDMUIsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQztBQUMvQjtBQUNBLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDO0FBQ2pDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDO0FBQzFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDO0FBQzFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUM7QUFDVixDQUFDLENBQUMsQ0FBQztBQUNILENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDO0FBQzNCLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQztBQUN2QixDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDO0FBQ1AsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDO0FBQzNELENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQztBQUN4RCxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDO0FBQ3hDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQztBQUNYLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDO0FBQ2hELENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUM7QUFDYixDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQztBQUM5QixDQUFDLENBQUMsQ0FBQztBQUNILENBQUM7QUFDRDtBQUNBLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQztBQUM3QjtBQUNBLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQztBQUNwQixDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDO0FBQ25CLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQztBQUNwQixDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUM7QUFDakIsQ0FBQztBQUNEO0FBQ0EsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUM7QUFDM0IsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUM7QUFDeEIsQ0FBQztBQUNEO0FBQ0EsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDO0FBQzFCLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQztBQUMxQixDQUFDO0FBQ0Q7QUFDQSxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUM7QUFDMUIsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDO0FBQ3RDLENBQUM7QUFDRDtBQUNBLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQztBQUNqQixDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUM7QUFDL0MsQ0FBQyxDQUFDO0FBQ0Y7QUFDQSxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUM7QUFDdkIsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENBQUMsQ0FBQyxDQUFDLENB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

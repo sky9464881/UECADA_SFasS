@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { getLines } from '../api/lines.js'
 import { getEquipments, getEquipmentStatus } from '../api/equipment.js'
 import {
@@ -215,7 +215,9 @@ const selectedEquipmentMetrics = computed(() => selectedEquipment.value?.main.sp
 
 const lineEquipments = (lineId) => equipmentNodes.value.filter((node) => node.lineId === lineId)
 
-onMounted(async () => {
+let factoryRefreshTimer = null
+
+async function refreshFactoryLayout() {
   try {
     const [linesData, equipData] = await Promise.all([
       getLines('FACTORY-01'),
@@ -272,11 +274,22 @@ onMounted(async () => {
           main: `${e.equipmentCode} · ${sc}`,
         }
       })
-      if (equipmentNodes.value.length) selectedEquipmentId.value = equipmentNodes.value[0].id
+      if (equipmentNodes.value.length && !equipmentNodes.value.some(e => e.id === selectedEquipmentId.value)) {
+        selectedEquipmentId.value = equipmentNodes.value[0].id
+      }
     }
   } catch (e) {
     console.warn('[FactoryLayout] API 연결 실패, 데모 데이터 표시:', e.message)
   }
+}
+
+onMounted(() => {
+  refreshFactoryLayout()
+  factoryRefreshTimer = window.setInterval(refreshFactoryLayout, 2000)
+})
+
+onUnmounted(() => {
+  if (factoryRefreshTimer) window.clearInterval(factoryRefreshTimer)
 })
 
 /** 공정 단계별 노드 (세척기는 한 단계에 통합) */

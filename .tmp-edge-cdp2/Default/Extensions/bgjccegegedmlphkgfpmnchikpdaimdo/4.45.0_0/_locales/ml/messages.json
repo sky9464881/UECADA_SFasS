@@ -1,0 +1,29 @@
+{
+   "Onboarding_How_to_use_Description_part_link_url": {
+      "message": "https://intersub.cc/"
+   },
+   "Rate_link": {
+      "message": "https://microsoftedge.microsoft.com/addons/detail/intersub-learn-languages/bgjccegegedmlphkgfpmnchikpdaimdo"
+   },
+   "Special_offer_review_Description_1_link_text": {
+      "message": "Edge add-ons store"
+   },
+   "Special_offer_review_Description_1_link_url": {
+      "message": "https://microsoftedge.microsoft.com/addons/detail/intersub-learn-languages/bgjccegegedmlphkgfpmnchikpdaimdo"
+   },
+   "Support_email": {
+      "message": "support@intersub.cc"
+   },
+   "appDescription": {
+      "message": "സ്പാനിഷിൽ നിന്ന് ഇംഗ്ലീഷിലേക്കും ജാപ്പനീസിലേക്കും ഏത് പദത്തിന്റെയും അർത്ഥം വിവർത്തനം ചെയ്യുന്നതിനായി ഡ്യുവൽ സബ്ടൈറ്റിൽ ട്രാൻസ്ലേറ്റർ ആസ്വദിക്കൂ."
+   },
+   "appName": {
+      "message": "ഡ്യുവൽ സബ്ടൈറ്റിലുകളും സബ്ടൈറ്റിൽ ട്രാൻസ്ലേറ്ററും - ഇന്റർസബ്"
+   },
+   "browserName": {
+      "message": "MICROSOFT_EDGE"
+   },
+   "pluginLocaleId": {
+      "message": "ml"
+   }
+}

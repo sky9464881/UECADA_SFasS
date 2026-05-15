@@ -1,0 +1,80 @@
+{
+   "action": {
+      "default_icon": {
+         "128": "assets/images/icon128.png",
+         "48": "assets/images/icon48.png",
+         "512": "assets/images/icon512.png"
+      },
+      "default_popup": "popup.html",
+      "default_title": "__MSG_actionDefaultTitle__"
+   },
+   "background": {
+      "service_worker": "service-worker.js"
+   },
+   "content_scripts": [ {
+      "all_frames": true,
+      "js": [ "content-script.js" ],
+      "match_about_blank": true,
+      "matches": [ "http://*/*", "https://*/*" ]
+   }, {
+      "all_frames": true,
+      "js": [ "alloha-tv-subtitle-sniffer-injector.js" ],
+      "matches": [ "https://*.newplayjj.com/*", "https://*.thealloha.club/*", "https://*.pljjalgo.online/*", "https://*.allarknow.online/*", "https://*.online-serial.com/*", "https://*.algonoew.online/*", "https://*.stloadi.live/*", "https://*.lordfilm64.com/*" ],
+      "run_at": "document_start"
+   }, {
+      "all_frames": true,
+      "js": [ "amazon-prime-subtitle-sniffer-injector.js" ],
+      "matches": [ "https://*.primevideo.com/*", "https://*.amazon.com/*", "https://*.amazon.co.uk/*", "https://*.amazon.de/*", "https://*.amazon.co.jp/*" ],
+      "run_at": "document_start"
+   }, {
+      "all_frames": true,
+      "js": [ "crunchyroll-subtitle-sniffer-injector.js" ],
+      "matches": [ "https://*.crunchyroll.com/*" ],
+      "run_at": "document_start"
+   }, {
+      "all_frames": true,
+      "js": [ "hbo-max-subtitle-sniffer-injector.js" ],
+      "matches": [ "https://*.brightline.tv/*", "https://*.cinemax.com/*", "https://*.discomax.com/*", "https://*.forthethrone.com/*", "https://*.hbo.com/*", "https://*.hboasia.com/*", "https://*.hbogo.co.th/*", "https://*.hbogo.com/*", "https://*.hbogo.eu/*", "https://*.hbogoasia.com/*", "https://*.hbogoasia.hk/*", "https://*.hbogoasia.id/*", "https://*.hbogoasia.ph/*", "https://*.hbogoasia.sg/*", "https://*.hbogoasia.tw/*", "https://*.hbomax.com/*", "https://*.hbomaxcdn.com/*", "https://*.hbonow.com/*", "https://*.max.com/*", "https://*.maxgo.com/*" ],
+      "run_at": "document_start"
+   }, {
+      "all_frames": true,
+      "js": [ "kinopub-subtitle-sniffer-injector.js" ],
+      "matches": [ "https://kino.pub/*" ],
+      "run_at": "document_start"
+   }, {
+      "all_frames": true,
+      "js": [ "netflix-subtitle-sniffer-injector.js" ],
+      "matches": [ "https://*.netflix.com/*" ],
+      "run_at": "document_start"
+   }, {
+      "all_frames": true,
+      "js": [ "ororo-subtitle-sniffer-injector.js" ],
+      "matches": [ "https://*.ororo.tv/*" ],
+      "run_at": "document_start"
+   }, {
+      "all_frames": true,
+      "js": [ "two-sub-movie-subtitle-sniffer-injector.js" ],
+      "matches": [ "https://*.2sub.net/*", "https://*.2sub.movie/*", "https://*.2sub.pro/*", "https://*.yohoho.tv/*" ],
+      "run_at": "document_start"
+   } ],
+   "content_security_policy": {
+   },
+   "default_locale": "en",
+   "description": "__MSG_appDescription__",
+   "host_permissions": [ "\u003Call_urls>" ],
+   "icons": {
+      "128": "assets/images/icon128.png",
+      "48": "assets/images/icon48.png",
+      "512": "assets/images/icon512.png"
+   },
+   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA206vJSd5xg+O4HknHEC2s0h+yvDHlfCfJSkAOW+UzKC4wpyhVLimelZl2U1BvwKgOoSQTGqSArc8g20N1L5DAzZLYNdbDXqgd5IkfK8e9lGkch9PUlQXqd4Ze3wGDtBlI1Fg0a77dfs7hZ0IJKGl0UeWAeEKKQGkapT6U4eQhWgCf53eCKMWBeHkei/uJ9Ja7CohCZhNTNnha2L9Mj1TVco8zAMLdHeciC5DmN67fD+AXHJYQXtV9PtkqCt0C/tYMQjObg4VYsN9AAZjedFe77EmMfsr5eiwu1DMw4vt07GuBV/yAu9+KqpWNUjyBKXRrRIUlaF6fx6uK8XW/9YSzQIDAQAB",
+   "manifest_version": 3,
+   "name": "__MSG_appName__",
+   "permissions": [ "storage", "identity", "identity.email", "unlimitedStorage", "webRequest" ],
+   "update_url": "https://edge.microsoft.com/extensionwebstorebase/v1/crx",
+   "version": "4.45.0",
+   "web_accessible_resources": [ {
+      "matches": [ "*://*/*" ],
+      "resources": [ "assets/*", "*.css", "*.js" ]
+   } ]
+}

@@ -5,6 +5,7 @@ import CommunityPage from './components/CommunityPage.vue'
 import DashboardPage from './components/DashboardPage.vue'
 import EquipmentDetailPage from './components/EquipmentDetailPage.vue'
 import FactoryLayoutPage from './components/FactoryLayoutPage.vue'
+import LineDetailPage from './components/LineDetailPage.vue'
 import LoginPage from './components/LoginPage.vue'
 import SwmpTestPage from './components/SwmpTestPage.vue'
 import UserManagementPage from './components/UserManagementPage.vue'
@@ -26,6 +27,7 @@ onUnmounted(() => {
 const currentView = computed(() => {
   if (routeHash.value === '#/login') return 'login'
   if (routeHash.value === '#/layout') return 'layout'
+  if (routeHash.value === '#/lines') return 'lines'
   if (routeHash.value === '#/equipment') return 'equipment'
   if (routeHash.value === '#/alarms') return 'alarms'
   if (routeHash.value === '#/users') return 'users'
@@ -38,6 +40,7 @@ const currentView = computed(() => {
 <template>
   <LoginPage v-if="currentView === 'login'" />
   <FactoryLayoutPage v-else-if="currentView === 'layout'" />
+  <LineDetailPage v-else-if="currentView === 'lines'" />
   <EquipmentDetailPage v-else-if="currentView === 'equipment'" />
   <AlarmPage v-else-if="currentView === 'alarms'" />
   <UserManagementPage v-else-if="currentView === 'users'" />

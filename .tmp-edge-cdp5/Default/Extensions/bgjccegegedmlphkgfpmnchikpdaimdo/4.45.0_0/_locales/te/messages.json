@@ -1,0 +1,29 @@
+{
+   "Onboarding_How_to_use_Description_part_link_url": {
+      "message": "https://intersub.cc/"
+   },
+   "Rate_link": {
+      "message": "https://microsoftedge.microsoft.com/addons/detail/intersub-learn-languages/bgjccegegedmlphkgfpmnchikpdaimdo"
+   },
+   "Special_offer_review_Description_1_link_text": {
+      "message": "Edge add-ons store"
+   },
+   "Special_offer_review_Description_1_link_url": {
+      "message": "https://microsoftedge.microsoft.com/addons/detail/intersub-learn-languages/bgjccegegedmlphkgfpmnchikpdaimdo"
+   },
+   "Support_email": {
+      "message": "support@intersub.cc"
+   },
+   "appDescription": {
+      "message": "స్పానిష్ నుండి ఇంగ్లీషు, జపనీస్ మొదలైన వాటికి ఏదైనా పదం యొక్క అర్థాన్ని ఇమ్మర్సివ్ అనువాదం కోసం డ్యూయల్ సబ్‌టైటిల్స్ ట్రాన్స్‌లేటర్‌ని ఆస్వాదించండి."
+   },
+   "appName": {
+      "message": "డ్యూయల్ సబ్‌టైటిల్స్ &amp; సబ్‌టైటిల్ ట్రాన్స్‌లేటర్ - ఇంటర్‌సబ్"
+   },
+   "browserName": {
+      "message": "MICROSOFT_EDGE"
+   },
+   "pluginLocaleId": {
+      "message": "te"
+   }
+}

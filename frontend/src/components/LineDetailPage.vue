@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import { getLines } from '../api/lines.js'
 import {
   Activity,
@@ -33,7 +33,9 @@ const lines = ref([
   { name: '라인 3', oee: 88, equipment: 9, status: { run: 90, stop: 5, wait: 5, stopEnd: 95 }, balance: 86, stations: [88, 90, 85, 87, 84, 86], upmh: 402, uph: 60, productivity: 90, upmhPercent: 81, uphPercent: 82 },
 ])
 
-onMounted(async () => {
+let lineRefreshTimer = null
+
+async function refreshLines() {
   try {
     const data = await getLines('FACTORY-01')
     if (data?.length) {
@@ -57,6 +59,15 @@ onMounted(async () => {
   } catch (e) {
     console.warn('[LineDetail] API 연결 실패, 데모 데이터 표시:', e.message)
   }
+}
+
+onMounted(() => {
+  refreshLines()
+  lineRefreshTimer = window.setInterval(refreshLines, 2000)
+})
+
+onUnmounted(() => {
+  if (lineRefreshTimer) window.clearInterval(lineRefreshTimer)
 })
 </script>
 

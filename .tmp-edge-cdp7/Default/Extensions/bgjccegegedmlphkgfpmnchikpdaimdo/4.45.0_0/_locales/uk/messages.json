@@ -1,0 +1,857 @@
+{
+   "Ai_chat_Button_caption_save_definition_loop_cancel": {
+      "message": "Визначення більше не потрібне"
+   },
+   "Ai_chat_Button_caption_save_definition_loop_definition_saved": {
+      "message": "Визначення збережено"
+   },
+   "Ai_chat_Button_caption_save_definition_loop_save_definition_and_end": {
+      "message": "Чудово, зберігаємо"
+   },
+   "Ai_chat_Button_caption_save_definition_loop_start": {
+      "message": "Зберегти в словник"
+   },
+   "Ai_chat_Button_caption_save_definition_loop_wrong": {
+      "message": "Це не те, чого я очікував"
+   },
+   "Ai_chat_Definition_preview": {
+      "message": "Чернетка визначення"
+   },
+   "Ai_chat_Header_text": {
+      "message": "Твій приятель-поліглот"
+   },
+   "Ai_chat_Unavailable_in_fullscreen": {
+      "message": "На цьому сайті чат у повноекранному режимі плеєра не працює."
+   },
+   "Ai_chat_input_field_placeholder": {
+      "message": "Напишіть ваше запитання"
+   },
+   "Ai_chat_input_field_send_button_hint": {
+      "message": "Ctrl+Enter / ⌘+Enter"
+   },
+   "Big_banner_Close": {
+      "message": "Закрити"
+   },
+   "Big_banner_Seconds_left": {
+      "message": "Залишилося _seconds_ сек"
+   },
+   "Big_banner_description_part_1": {
+      "message": "Ви завжди можете вимкнути рекламу, перейшовши на один із "
+   },
+   "Big_banner_description_part_3": {
+      "message": "платних тарифів"
+   },
+   "Bubble_Auto_pause_disabled_message": {
+      "message": "Автопаузу під час руху курсору вимкнено."
+   },
+   "Bubble_Auto_pause_enabled_message": {
+      "message": "Автопаузу під час руху курсору ввімкнено. Ви можете вимкнути режим у налаштуваннях."
+   },
+   "Bubble_Choose_ads_text": {
+      "message": "Або ви можете вибрати за допомогою InterSub з рекламою"
+   },
+   "Bubble_Choose_plan": {
+      "message": "Вибрати тариф"
+   },
+   "Bubble_Continue_with_ads_button_caption": {
+      "message": "Продовжити з рекламою"
+   },
+   "Bubble_Days_left": {
+      "message": "Днів залишилося"
+   },
+   "Bubble_Error": {
+      "message": "Помилка"
+   },
+   "Bubble_Error_machine_translating_subtitles_Failed_to_fetch": {
+      "message": "Спробуйте змінити свою IP-адресу, наприклад, увімкнувши (вимкнувши) VPN або змінивши сервер/країну в ньому."
+   },
+   "Bubble_Error_machine_translating_subtitles_Failed_to_parse_response": {
+      "message": "Спробуйте оновити сторінку або почекати якийсь час. Якщо це не допоможе, зв'яжіться з нами по $supportEmail$.",
+      "placeholders": {
+         "supportEmail": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Error_machine_translating_subtitles_Main": {
+      "message": "Помилка перекладу субтитрів."
+   },
+   "Bubble_Extra_subtitles_service_unsupported": {
+      "message": "Подвійні субтитри на цьому сайті поки що не підтримуються, але ми працюємо над цим. Слідкуйте за оновленнями."
+   },
+   "Bubble_Failed_to_load_subtitles_in_language": {
+      "message": "Ми не змогли завантажити субтитри мовою \"$lang$\", спробуйте перезавантажити сторінку.",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Force_machine_translating_subtitles_free": {
+      "message": "Переклад субтитрів на льоту за допомогою ШІ доступний тільки на платних тарифах. Вам будуть показані оригінальні субтитри на $lang$.",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Force_machine_translating_subtitles_paid": {
+      "message": "Замінюємо існуючі субтитри на $lang$ ШІ-перекладом.",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Get_trial": {
+      "message": "Отримати пробну версію"
+   },
+   "Bubble_Language_Auto": {
+      "message": "Авто ($detectedLanguageName$)",
+      "placeholders": {
+         "detectedLanguageName": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Language_selector_Choose_a_language_to_translate_into": {
+      "message": "Виберіть мову, на яку ви хочете перекладати слова"
+   },
+   "Bubble_Language_selector_Placeholder_Search_for_a_language": {
+      "message": "Знайти мову"
+   },
+   "Bubble_Language_selector_Save": {
+      "message": "Зберегти"
+   },
+   "Bubble_Limit_Days_Extend": {
+      "message": "Підпишіться на Преміум, щоб продовжити безлімітний доступ."
+   },
+   "Bubble_Limits_Days": {
+      "message": "Днів доступу за вашим Тестовим/Промо планом залишилося: $daysLeft$.",
+      "placeholders": {
+         "daysLeft": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Limits_Logged_out_day": {
+      "message": "Ви можете перевірити не більше $lookupLimit$ слів на день, оскільки не авторизовані.",
+      "placeholders": {
+         "lookupLimit": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Limits_Logged_out_month": {
+      "message": "Ви можете перевірити не більше $lookupLimit$ слів на місяць, оскільки не авторизовані.",
+      "placeholders": {
+         "lookupLimit": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Limits_Lookups_pack": {
+      "message": "У вас є пакет на $lookupLimit$ запитів. Ви можете купити більший пакет або перейти на тариф Преміум.",
+      "placeholders": {
+         "lookupLimit": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Limits_Please_login": {
+      "message": "Щоб підняти або прибрати обмеження, будь ласка, увійдіть в особистий кабінет."
+   },
+   "Bubble_Limits_Please_subscribe": {
+      "message": " Підпишіться на один із тарифів, щоб прибрати обмеження."
+   },
+   "Bubble_Limits_Unregistered_Please_register": {
+      "message": " Зареєструйтеся, щоб прибрати обмеження."
+   },
+   "Bubble_Limits_inquiry_consented_to_ads_Description": {
+      "message": "Ви завжди можете вимкнути рекламу, перейшовши на один із платних тарифів"
+   },
+   "Bubble_Limits_inquiry_consented_to_ads_Title": {
+      "message": "Ви вибрали використання InterSub з рекламою"
+   },
+   "Bubble_Limits_per_period_day": {
+      "message": "Ви можете перекласти до $lookupLimit$ слів на день.",
+      "placeholders": {
+         "lookupLimit": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Limits_per_period_month": {
+      "message": "Ви можете перекласти до $lookupLimit$ слів на місяць.",
+      "placeholders": {
+         "lookupLimit": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Loading_subtitles": {
+      "message": "Завантажуємо субтитри для: $lang$...",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Loading_subtitles_progress": {
+      "message": "Завантажуємо субтитри для: $lang$ ($progress$%)",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         },
+         "progress": {
+            "content": "$2"
+         }
+      }
+   },
+   "Bubble_Login": {
+      "message": "Увійти"
+   },
+   "Bubble_Lookups_daily_limit_reached": {
+      "message": "Ви досягли денного ліміту пошуку"
+   },
+   "Bubble_Lookups_did_not_receive_trial_get_trial": {
+      "message": "Ви можете отримати 14-денний тестовий доступ до Преміум-плану"
+   },
+   "Bubble_Lookups_free_finished_day": {
+      "message": "Ваші безкоштовні переклади слів закінчились. Щоб зняти обмеження, придбайте підписку або дочекайтеся наступного дня."
+   },
+   "Bubble_Lookups_free_finished_month": {
+      "message": "Ваші безкоштовні переклади слів закінчились. Щоб зняти обмеження, придбайте підписку або дочекайтеся наступного місяця."
+   },
+   "Bubble_Lookups_left": {
+      "message": "Залишилося запитів"
+   },
+   "Bubble_Lookups_left_of": {
+      "message": "з"
+   },
+   "Bubble_Lookups_logged_out_finished_day": {
+      "message": "Ваші безкоштовні переклади на сьогодні закінчилися. Авторизуйтесь, щоб отримати додаткові переклади або купіть підписку для безлімітного доступу. Або дочекайтеся наступного дня."
+   },
+   "Bubble_Lookups_logged_out_finished_month": {
+      "message": "Ваші безкоштовні переклади на сьогодні закінчилися. Авторизуйтесь, щоб отримати додаткові переклади або купіть підписку для безлімітного доступу. Або дочекайтеся наступного місяця."
+   },
+   "Bubble_Lookups_logged_out_please_login": {
+      "message": "Якщо у вас уже є активна підписка, авторизуйтесь, щоб продовжити. Якщо у вас ще немає підписки, ви можете її купити (від $2,5)"
+   },
+   "Bubble_Lookups_montly_limit_reached": {
+      "message": "Ви досягли місячного ліміту пошуку"
+   },
+   "Bubble_Lookups_received_trial_subscribe_to_continue": {
+      "message": "Щоб продовжити, ви можете підписатися на один із платних тарифів (від $2,5)"
+   },
+   "Bubble_Lookups_unregistered_finished_day": {
+      "message": "Ваші безкоштовні переклади слів на сьогодні закінчилися. Зареєструйтеся, щоб зняти обмеження. Або дочекайтеся наступного дня."
+   },
+   "Bubble_Lookups_unregistered_finished_month": {
+      "message": "Ваші безкоштовні переклади слів на сьогодні закінчилися. Зареєструйтеся, щоб зняти обмеження. Або дочекайтеся наступного місяця."
+   },
+   "Bubble_Machine_translating_subtitles": {
+      "message": "Це відео не має оригінальних субтитрів у $lang$. Ми зробимо переклад за допомогою ШИ.",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Machine_translating_subtitles_unavailable": {
+      "message": "У цього відео немає оригінальних субтитрів на: $lang$, подвійні субтитри недоступні. ШІ субтитри доступні тільки на платних тарифах.",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_No_double_subtitles": {
+      "message": "У цього відео немає субтитрів цією мовою: $lang$, подвійні субтитри недоступні.",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_No_subtitles_in_language": {
+      "message": "У цього відео немає субтитрів цією мовою: $lang$.",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Nothing_found": {
+      "message": "Знайти переклад не вдалося"
+   },
+   "Bubble_Player_is_too_small": {
+      "message": "Щоб використовувати InterSub у цьому відео, перейдіть у повноекранний режим."
+   },
+   "Bubble_Please_login_to_continue_using_translation": {
+      "message": "Будь ласка, авторизуйтесь, щоб продовжити перекладати слова"
+   },
+   "Bubble_Previous_subtitle_hidden_message": {
+      "message": "Показ попередніх субтитрів вимкнено. Ви завжди можете ввімкнути його назад у Налаштуваннях."
+   },
+   "Bubble_Receiving_translation": {
+      "message": "Отримую переклад"
+   },
+   "Bubble_Register": {
+      "message": "Зареєструватися"
+   },
+   "Bubble_Subscribe": {
+      "message": "Купити підписку"
+   },
+   "Bubble_Text_too_Long": {
+      "message": "Слово або фраза занадто довга. Спробуйте вибрати інше, коротше."
+   },
+   "Bubble_Translation_timed_out": {
+      "message": "Щось пішло не так. Спробуйте ще раз."
+   },
+   "Bubble_Translation_timed_out_reload_page": {
+      "message": "Щось пішло не так. Спробуйте оновити сторінку."
+   },
+   "Bubble_Upgrade_your_plan": {
+      "message": "Поліпшити підписку"
+   },
+   "Bubble_header_Ai_icon_title": {
+      "message": "Запитати нашого мовного експерта"
+   },
+   "Bubble_machine_translating_subtitles_no_subs_paid": {
+      "message": "Оригінальні субтитри на $target_lang$ недоступні. Ми зробимо переклад з $original_lang$ за допомогою ШІ.",
+      "placeholders": {
+         "original_lang": {
+            "content": "$2"
+         },
+         "target_lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Language_list_auto": {
+      "message": "Авто"
+   },
+   "OK_button_caption": {
+      "message": "OK"
+   },
+   "Onboarding_Back_button_text": {
+      "message": "Назад"
+   },
+   "Onboarding_Before_Sample_Video_Now_we_will_open_video": {
+      "message": "Далі ми покажемо вам як користуватися InterSub у відео на одній із платформ нижче. Виберіть будь-яку, щоб продовжити."
+   },
+   "Onboarding_Before_Sample_Video_Supported_platforms": {
+      "message": "Ми працюємо на:"
+   },
+   "Onboarding_Before_Sample_Video_Where_Plugin_works": {
+      "message": "Де працює InterSub"
+   },
+   "Onboarding_Extra_subtitles_Description_1": {
+      "message": "Працює, коли у відео є субтитри обома обраними мовами."
+   },
+   "Onboarding_Extra_subtitles_Description_2": {
+      "message": "Ви можете ввімкнути / вимкнути їх у налаштуваннях або за допомогою гарячої клавіші D."
+   },
+   "Onboarding_Extra_subtitles_Title": {
+      "message": "Подвійні субтитри"
+   },
+   "Onboarding_Finish_button_text": {
+      "message": "Готово!"
+   },
+   "Onboarding_Flowplayer_1": {
+      "message": "Виберіть версію відео з субтитрами"
+   },
+   "Onboarding_How_to_use_Description_part_1": {
+      "message": "Натисніть на іконку InterSub, щоб відкрити налаштування."
+   },
+   "Onboarding_How_to_use_Description_part_2_after_link": {
+      "message": "."
+   },
+   "Onboarding_How_to_use_Description_part_2_before_link": {
+      "message": "Рекомендації щодо використання InterSub завжди доступні за посиланням "
+   },
+   "Onboarding_How_to_use_Description_part_2_link_text": {
+      "message": "Як користуватися"
+   },
+   "Onboarding_How_to_use_Description_part_link_url": {
+      "message": "https://intersub.cc/"
+   },
+   "Onboarding_How_to_use_Title": {
+      "message": "Про всяк випадок"
+   },
+   "Onboarding_Instructions_Enable_subtitles": {
+      "message": "Увімкніть субтитри"
+   },
+   "Onboarding_Instructions_How_to_lookup": {
+      "message": "Як перекладати слова в субтитрах"
+   },
+   "Onboarding_Instructions_Move_mouse_away_from_subtitles": {
+      "message": "Відведіть курсор, щоб продовжити перегляд"
+   },
+   "Onboarding_Instructions_Move_mouse_over_word": {
+      "message": "Наведіть курсор на будь-яке слово в субтитрах"
+   },
+   "Onboarding_Instructions_Select_language_for_audio": {
+      "message": "Виберіть $lang$ для озвучки",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Onboarding_Instructions_Select_language_for_audio_and_subtitles": {
+      "message": "Виберіть $lang$ для озвучки та субтитрів",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Onboarding_Instructions_Select_language_for_subtitles": {
+      "message": "Виберіть $lang$ для субтитрів",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Onboarding_Instructions_Select_original_audio": {
+      "message": "Виберіть Оригінальну озвучку"
+   },
+   "Onboarding_Instructions_Turn_off_auto_translation": {
+      "message": "Перевірте, що обрано $lang$ і автоматичний переклад вимкнено",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Onboarding_Language_Selector_Translate_From": {
+      "message": "Яку мову ви вивчаєте? Субтитри показуватимуться цією мовою."
+   },
+   "Onboarding_Language_Selector_Translate_To": {
+      "message": "Виберіть вашу рідну мову. Переклади показуватимуться цією мовою."
+   },
+   "Onboarding_Next_button_text": {
+      "message": "Далі"
+   },
+   "Onboarding_Pin_Plugin_Icon_Description": {
+      "message": "Це дасть швидкий доступ до налаштувань, корисних посилань, особистого кабінету та переглянутих слів."
+   },
+   "Onboarding_Pin_Plugin_Icon_Title": {
+      "message": "Закріпіть розширення в панелі браузера"
+   },
+   "Onboarding_Playback_is_paused": {
+      "message": "Відтворення поставлено на паузу"
+   },
+   "Onboarding_Plugin_Installed_A_couple_of_steps": {
+      "message": "Пара важливих кроків і можна починати."
+   },
+   "Onboarding_Plugin_Installed_Congratulations": {
+      "message": "Вітаємо зі встановленням InterSub!"
+   },
+   "Onboarding_Plugin_Installed_Hooray": {
+      "message": "Ура!"
+   },
+   "Onboarding_Plugin_Installed_Now_you_can_lookup_words": {
+      "message": "Тепер ви можете швидко перекладати незнайомі слова в субтитрах як на популярних стрімінгах та освітніх платформах, так і на веб-сайтах."
+   },
+   "Onboarding_Plugin_Settings_were_reset_Text": {
+      "message": "Нам потрібно уточнити деякі налаштування. Кілька кліків – і все готово."
+   },
+   "Onboarding_Plugin_Settings_were_reset_Title": {
+      "message": "Привіт, це InterSub!"
+   },
+   "Onboarding_Remote_control_Description": {
+      "message": "Використовуйте ваш смартфон, щоб перевіряти слова, коли ПК далеко від вас."
+   },
+   "Onboarding_Remote_control_Title": {
+      "message": "Віддалене керування"
+   },
+   "Onboarding_Sample_video_url": {
+      "message": "https://www.youtube.com/watch?v=Nn7xwfKZSxQ"
+   },
+   "Onboarding_Text_on_websites_translation_Description_1": {
+      "message": "Виділіть слово або фразу і натисніть іконку IS."
+   },
+   "Onboarding_Text_on_websites_translation_Description_2": {
+      "message": "Ви завжди можете вимкнути або ввімкнути цю опцію в Налаштуваннях."
+   },
+   "Onboarding_Text_on_websites_translation_Title": {
+      "message": "Як перекладати слова на сайтах"
+   },
+   "Onboarding_Text_on_websites_translation_Title_on_websites": {
+      "message": "Як перекладати слова на сайтах з InterSub"
+   },
+   "Onboarding_This_service_is_supported_Description": {
+      "message": "Подивіться коротку інструкцію, як усе налаштувати."
+   },
+   "Onboarding_This_service_is_supported_Next_button_text": {
+      "message": "Далі"
+   },
+   "Onboarding_This_service_is_supported_Title": {
+      "message": "Ура, InterSub теж тут працює!"
+   },
+   "Onboarding_Translate_to_the_same_language_warning": {
+      "message": "Ви збираєтеся перекладати слова $lang$ → $lang$. Ви впевнені?",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Onboarding_We_pause_playback": {
+      "message": "Ми автоматично зупиняємо відео, коли курсор опиняється в зоні субтитрів, щоб ви встигли перекласти потрібне вам слово."
+   },
+   "Onboarding_You_can_disable_auto_pause": {
+      "message": "Автопаузу або широкий фон субтитрів можна вимкнути в Налаштуваннях."
+   },
+   "Popup_Add_to_user_dictionary": {
+      "message": "Автоматично позначати слова обраними"
+   },
+   "Popup_Auto_pausing_Mode_At_the_end_of_current_subtitle": {
+      "message": "Наприкінці субтитра"
+   },
+   "Popup_Auto_pausing_Mode_Right_away": {
+      "message": "Відразу"
+   },
+   "Popup_Auto_pausing_folder_name": {
+      "message": "Автопауза"
+   },
+   "Popup_Auto_pausing_on_cursor_activity": {
+      "message": "Будь-який рух мишкою в повноекранному режимі"
+   },
+   "Popup_Auto_pausing_on_hovering_subtitles_background": {
+      "message": "Наведення на фон субтитрів"
+   },
+   "Popup_Auto_pausing_on_hovering_subtitles_words": {
+      "message": "Наведення на слова в субтитрах"
+   },
+   "Popup_Bubble_font_size": {
+      "message": "Розмір перекладу слова"
+   },
+   "Popup_Bubble_subtitles_vertical_shift": {
+      "message": "Висота субтитрів"
+   },
+   "Popup_Contact_support": {
+      "message": "Зв'язатися з підтримкою"
+   },
+   "Popup_Dashboard": {
+      "message": "Особ. кабінет"
+   },
+   "Popup_Discord_text": {
+      "message": "Наш Discord"
+   },
+   "Popup_Extension_work_is_paused": {
+      "message": "Роботу розширення зупинено"
+   },
+   "Popup_Give_us_feedback": {
+      "message": "Розкажіть про свій досвід"
+   },
+   "Popup_Hide_subtitles_when_native_audio": {
+      "message": "Не показувати субтитри для відео рідною мовою"
+   },
+   "Popup_Hotkeys_button_caption": {
+      "message": "Гарячі клавіші"
+   },
+   "Popup_How_to_use": {
+      "message": "Як користуватися"
+   },
+   "Popup_Icon_New_version_available_Tooltip": {
+      "message": "Доступна нова версія: $version$. Перезапустіть браузер, щоб оновити розширення.",
+      "placeholders": {
+         "version": {
+            "content": "$1"
+         }
+      }
+   },
+   "Popup_Login": {
+      "message": "Увійти"
+   },
+   "Popup_Memorize_words_button_caption": {
+      "message": "Вчити слова"
+   },
+   "Popup_Nothing_found": {
+      "message": "На жаль, тут поки що нічого показати"
+   },
+   "Popup_Off": {
+      "message": "Вимк"
+   },
+   "Popup_On": {
+      "message": "Увімкнений"
+   },
+   "Popup_Paused": {
+      "message": "На паузі"
+   },
+   "Popup_Recent": {
+      "message": "Останні"
+   },
+   "Popup_Recent_lookups": {
+      "message": "Останні слова"
+   },
+   "Popup_Settings": {
+      "message": "Налаштування"
+   },
+   "Popup_Settings_Extra_subtitles": {
+      "message": "Подвійні субтитри"
+   },
+   "Popup_Settings_Force_translate_second_subs_live": {
+      "message": "Перекладати другі субтитри (на льоту)"
+   },
+   "Popup_Settings_Force_translate_second_subs_live_tooltip": {
+      "message": "Замінює існуючі другі субтитри на переклад оригінальної доріжки.\nЗалежить від зовнішніх сервісів, може бути недоступним."
+   },
+   "Popup_Settings_Lookup_on_websites_only_when_page_language_does_not_match_native": {
+      "message": "Перекладати слова тільки на сайтах мовою, що вивчається ($sourceLanguageName$)",
+      "placeholders": {
+         "sourceLanguageName": {
+            "content": "$1"
+         }
+      }
+   },
+   "Popup_Settings_Lookup_words_in_subtitles_on_hover_enabled": {
+      "message": "Перекладати слова в субтитрах за наведенням"
+   },
+   "Popup_Settings_New_version_available_Description": {
+      "message": "Ваша версія - $version$. Перезапустіть браузер, щоб отримати підтримку нових сервісів і виправлення.",
+      "placeholders": {
+         "version": {
+            "content": "$1"
+         }
+      }
+   },
+   "Popup_Settings_New_version_available_Title": {
+      "message": "Доступна нова версія ($version$)",
+      "placeholders": {
+         "version": {
+            "content": "$1"
+         }
+      }
+   },
+   "Popup_Settings_Remote_control": {
+      "message": "Віддалене керування"
+   },
+   "Popup_Settings_Rewind_to_next_prev_subtitles_enabled": {
+      "message": "Перемотка за субтитрами"
+   },
+   "Popup_Settings_Shadowing_duration": {
+      "message": "Тривалість паузи"
+   },
+   "Popup_Settings_Shadowing_enabled": {
+      "message": "Пауза після кожного субтитру (shadowing)"
+   },
+   "Popup_Settings_Show_extra_subtitles_always": {
+      "message": "Завжди"
+   },
+   "Popup_Settings_Show_extra_subtitles_only_on_pause": {
+      "message": "На паузі"
+   },
+   "Popup_Settings_Text_translation_on_websites_enabled": {
+      "message": "Переклад слів на сайтах"
+   },
+   "Popup_Show_previous_subtitle_on_pause": {
+      "message": "Попередній субтитр на паузі"
+   },
+   "Popup_Show_subtitles_only_on_pause": {
+      "message": "Показувати субтитри тільки на паузі"
+   },
+   "Popup_Sorry_you_have_been_logged_out_Please_login_to_your_profile": {
+      "message": "На жаль, вашу сесію було завершено. Будь ласка, авторизуйтеся, щоб продовжити"
+   },
+   "Popup_Subtitles_background_mode": {
+      "message": "Фон субтитрів"
+   },
+   "Popup_Subtitles_background_mode_narrow": {
+      "message": "Вузький"
+   },
+   "Popup_Subtitles_background_mode_wide": {
+      "message": "Широкий"
+   },
+   "Popup_Subtitles_size_extra": {
+      "message": "Другорядні субтитри"
+   },
+   "Popup_Subtitles_size_main": {
+      "message": "Основні субтитри"
+   },
+   "Popup_Telegram_community_text": {
+      "message": "Telegram community"
+   },
+   "Popup_Top": {
+      "message": "Популярні"
+   },
+   "Popup_Top_lookups": {
+      "message": "Популярні слова"
+   },
+   "Popup_Translate_from": {
+      "message": "Перекладати з"
+   },
+   "Popup_Translate_to": {
+      "message": "Перекладати на"
+   },
+   "Popup_View_all": {
+      "message": "Дивитися всі"
+   },
+   "Popup_Watch_video": {
+      "message": "Дивитися відео"
+   },
+   "Popup_You_can_start_with_current_video": {
+      "message": "Тут поки що нічого немає, тому що ви ще не перекладали слова. Ви можете почати з поточного відео, наприклад."
+   },
+   "Popup_You_can_start_with_this_video_on_YouTube_for_example": {
+      "message": "Ви можете почати з цього відео на YouTube, наприклад"
+   },
+   "Popup_You_havent_looked_up_any_words_yet": {
+      "message": "У вас ще немає переглядів слів."
+   },
+   "Rate_Text": {
+      "message": "Оцініть нас"
+   },
+   "Rate_link": {
+      "message": "https://microsoftedge.microsoft.com/addons/detail/intersub-learn-languages/bgjccegegedmlphkgfpmnchikpdaimdo"
+   },
+   "Remote_control_QR_code_description": {
+      "message": "Відскануйте вашим телефоном для запуску віддаленого контролю"
+   },
+   "Remote_control_Stop_remote_control_button_caption": {
+      "message": "Завершити"
+   },
+   "Remote_control_Stop_remote_control_text": {
+      "message": "Завершити сесію віддаленого керування?"
+   },
+   "Remote_control_closed_note_Description": {
+      "message": "Натисніть на іконку Віддаленого контролю, щоб знову вивести QR-код. Увімкнення/вимкнення функції знаходиться в Налаштуваннях."
+   },
+   "Remote_control_closed_note_Title": {
+      "message": "Віддалене керування"
+   },
+   "Shadowing_toggled_off": {
+      "message": "Пауза після кожного субтитру (Шадовінг) вимкнена.\nУвімкнути/вимкнути за гарячою клавішею S або в налаштуваннях."
+   },
+   "Shadowing_toggled_on": {
+      "message": "Увімкнено паузу після кожного субтитру (Шадовінг).\nУвімкнути/вимкнути за гарячою клавішею S або в налаштуваннях."
+   },
+   "Special_offer_review_Description_1_link_text": {
+      "message": "Chrome Web store"
+   },
+   "Special_offer_review_Description_1_link_url": {
+      "message": "https://microsoftedge.microsoft.com/addons/detail/intersub-learn-languages/bgjccegegedmlphkgfpmnchikpdaimdo"
+   },
+   "Special_offer_review_Description_1_prefix": {
+      "message": "Залиште свій відгук на InterSub в "
+   },
+   "Special_offer_review_Description_1_suffix": {
+      "message": ""
+   },
+   "Special_offer_review_Description_2_link_url": {
+      "message": "mailto=welcome@intersub.cc?subject=10 днів Приміум-доступу за рев'ю"
+   },
+   "Special_offer_review_Description_2_prefix": {
+      "message": "Надішліть скріншот відгуку нам на "
+   },
+   "Special_offer_review_Description_2_suffix": {
+      "message": ""
+   },
+   "Special_offer_review_Description_3": {
+      "message": "Активуйте код, який ми вам надішлемо у відповідь"
+   },
+   "Special_offer_review_Description_4": {
+      "message": "Готово, тепер у вас є 10 днів Преміум-доступу!"
+   },
+   "Special_offer_review_Main_button_caption": {
+      "message": "Готово"
+   },
+   "Special_offer_review_Title": {
+      "message": "Закінчилися запити? Напишіть відгук та отримайте 10-денний Преміум!"
+   },
+   "Subtitle_bar_Prev_prefix": {
+      "message": "Поперед"
+   },
+   "Subtitle_bar_settings_popup_Background_color": {
+      "message": "Колір підкладки"
+   },
+   "Subtitle_bar_settings_popup_Text_color_extra": {
+      "message": "Моя мова"
+   },
+   "Subtitle_bar_settings_popup_Text_color_main": {
+      "message": "Вихідна мова"
+   },
+   "Subtitle_bar_settings_popup_Text_color_title": {
+      "message": "Колір шрифту"
+   },
+   "Subtitle_bar_settings_popup_Text_shadow_title": {
+      "message": "Контур тексту"
+   },
+   "Subtitle_bar_settings_popup_Text_size_title": {
+      "message": "Розмір шрифту"
+   },
+   "Subtitles_failed_to_load_Button_caption": {
+      "message": "Оновити сторінку"
+   },
+   "Subtitles_failed_to_load_Description": {
+      "message": "Ми не змогли завантажити субтитри мовою $languageName$, спробуйте перезавантажити сторінку.",
+      "placeholders": {
+         "languageName": {
+            "content": "$1"
+         }
+      }
+   },
+   "Subtitles_failed_to_load_Title": {
+      "message": "Г'юстоне, у нас проблема"
+   },
+   "Subtitles_failed_to_load_Too_many_requests_Button_caption": {
+      "message": "Зрозуміло"
+   },
+   "Subtitles_failed_to_load_Too_many_requests_Description": {
+      "message": "Ми не змогли завантажити субтитри, оскільки відеосервіс заблокував вашу IP-адресу. Спробуйте ще раз через 10-15 хвилин."
+   },
+   "Subtitles_force_translated_by_hint": {
+      "message": "Це автоматичний онлайн-переклад за допомогою штучного інтелекту з $translatedFromLanguage$ на $translatedIntoLanguage$, виконаний за допомогою $translatedBy$.",
+      "placeholders": {
+         "translatedBy": {
+            "content": "$3"
+         },
+         "translatedFromLanguage": {
+            "content": "$2"
+         },
+         "translatedIntoLanguage": {
+            "content": "$1"
+         }
+      }
+   },
+   "Subtitles_hidden_audio_language_matches_native": {
+      "message": "Ми приховали субтитри, оскільки це відео вашою рідною мовою. Ви можете вимкнути цей режим у Налаштуваннях."
+   },
+   "Subtitles_translated_by_hint": {
+      "message": "У цього відео немає субтитрів на $translatedIntoLanguage$, це ШІ- переклад\n$translatedFromLanguage$ → $translatedIntoLanguage$, виконаний $translatedBy$.",
+      "placeholders": {
+         "translatedBy": {
+            "content": "$3"
+         },
+         "translatedFromLanguage": {
+            "content": "$2"
+         },
+         "translatedIntoLanguage": {
+            "content": "$1"
+         }
+      }
+   },
+   "Support_email": {
+      "message": "support@intersub.cc"
+   },
+   "actionDefaultTitle": {
+      "message": "InterSub: інтерактивні субтитри для відео"
+   },
+   "appDescription": {
+      "message": "Скористайтеся перекладачем двоїних субтитрів для двоїних субтитрів, щоб зануритися в переклад значення будь-якого слова з іспанської на англійську, японську тощо."
+   },
+   "appName": {
+      "message": "Двоїні субтитри та перекладач субтитрів - InterSub"
+   },
+   "browserName": {
+      "message": "MICROSOFT_EDGE"
+   },
+   "pluginLocaleId": {
+      "message": "uk"
+   }
+}

@@ -38,6 +38,7 @@ class AnalysisResult(Base):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     vibration_window_id: Mapped[int | None] = mapped_column(BigInteger)
     equipment_code: Mapped[str] = mapped_column(String(50), nullable=False)
+    analysis_type: Mapped[str | None] = mapped_column(String(50))
     rms: Mapped[float | None] = mapped_column(Double)
     peak_frequency: Mapped[float | None] = mapped_column(Double)
     peak_to_peak: Mapped[float | None] = mapped_column(Double)

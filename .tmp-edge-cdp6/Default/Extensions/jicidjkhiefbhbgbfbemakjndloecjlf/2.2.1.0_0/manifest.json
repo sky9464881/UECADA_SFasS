@@ -1,0 +1,54 @@
+{
+   "action": {
+      "default_icon": {
+         "128": "assets/images/icon-128x128.png",
+         "16": "assets/images/icon-16x16.png",
+         "32": "assets/images/icon-32x32.png",
+         "48": "assets/images/icon-48x48.png"
+      },
+      "default_popup": "popup.html"
+   },
+   "background": {
+      "scripts": [ "background.js" ]
+   },
+   "browser_specific_settings": {
+      "gecko": {
+         "update_url": "https://raw.githubusercontent.com/klas-helper/klas-helper-extension/main/update/manifest.json"
+      }
+   },
+   "content_scripts": [ {
+      "js": [ "content-style.js" ],
+      "matches": [ "https://klas.kw.ac.kr/*" ],
+      "run_at": "document_start"
+   }, {
+      "js": [ "content-main.js" ],
+      "matches": [ "https://klas.kw.ac.kr/*" ],
+      "run_at": "document_end"
+   }, {
+      "all_frames": true,
+      "js": [ "content-video.js" ],
+      "matches": [ "https://kwcommons.kw.ac.kr/*" ],
+      "run_at": "document_end"
+   } ],
+   "description": "광운대학교 KLAS 사이트에 편리한 기능을 추가하는 브라우저 확장 프로그램",
+   "homepage_url": "https://github.com/klas-helper/klas-helper-extension",
+   "icons": {
+      "128": "assets/images/icon-128x128.png",
+      "16": "assets/images/icon-16x16.png",
+      "32": "assets/images/icon-32x32.png",
+      "48": "assets/images/icon-48x48.png"
+   },
+   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsb7tH7vjJJ5myQ/Q6iTo53vgaWUoHh8ykFGzpbKk8lNLxY/grzZqKRAun066SfDIAw7kmdtInTq14L1aYAVts2B8LoHhCpBEduwOhushlQFwvETFu+IEB2jEWLnQsA1Qe0gXvMXzOnA+/4ribdw4XrMrm3J1wrFkGGR7THloKrx8s2IH0vTaZFtW1dLdwPmyPzNOR5i/Q5sqApJ8bIEo2etW1mOz3ElopBm5kbaUzr6+SM5H+j8HFBR5RtPS9EGWlFxl8MBo8XTbbaS9UIbUduqamLkvOiGccCQGouSKZiDMjCYbAIqyKYwQYdg1HWB1pGab+L4irgFtrbaFRraH0wIDAQAB",
+   "manifest_version": 3,
+   "name": "KLAS Helper",
+   "permissions": [ "storage" ],
+   "update_url": "https://clients2.google.com/service/update2/crx",
+   "version": "2.2.1.0",
+   "web_accessible_resources": [ {
+      "matches": [ "https://klas.kw.ac.kr/*", "https://kwcommons.kw.ac.kr/*" ],
+      "resources": [ "assets/js/jszip.min.js", "assets/js/FileSaver.js", "assets/js/Chart.min.js", "assets/js/jquery.modal.min.js", "assets/css/jquery.modal.min.css", "dark.css", "app.js", "app.css", "data/everytime-lectures.json" ]
+   }, {
+      "matches": [ "https://kwcommons.kw.ac.kr/*" ],
+      "resources": [ "video-viewer.js" ]
+   } ]
+}

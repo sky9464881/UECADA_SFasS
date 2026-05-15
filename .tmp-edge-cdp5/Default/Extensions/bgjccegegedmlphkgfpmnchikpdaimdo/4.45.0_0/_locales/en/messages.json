@@ -1,0 +1,890 @@
+{
+   "Ai_chat_Button_caption_save_definition_loop_cancel": {
+      "message": "Don't need a definition"
+   },
+   "Ai_chat_Button_caption_save_definition_loop_definition_saved": {
+      "message": "Definition saved"
+   },
+   "Ai_chat_Button_caption_save_definition_loop_save_definition_and_end": {
+      "message": "Sounds good, save"
+   },
+   "Ai_chat_Button_caption_save_definition_loop_start": {
+      "message": "Save to vocabulary"
+   },
+   "Ai_chat_Button_caption_save_definition_loop_wrong": {
+      "message": "Not quite right"
+   },
+   "Ai_chat_Definition_preview": {
+      "message": "Definition preview"
+   },
+   "Ai_chat_Header_text": {
+      "message": "Language buddy"
+   },
+   "Ai_chat_Unavailable_in_fullscreen": {
+      "message": "Chat is not available in full-screen mode on this site."
+   },
+   "Ai_chat_input_field_placeholder": {
+      "message": "Write a question"
+   },
+   "Ai_chat_input_field_send_button_hint": {
+      "message": "Ctrl+Enter / ⌘+Enter"
+   },
+   "Big_banner_Close": {
+      "message": "Close"
+   },
+   "Big_banner_Seconds_left": {
+      "message": "_seconds_ seconds left"
+   },
+   "Big_banner_description_part_1": {
+      "message": "You can always turn off the ads by switching to one of the "
+   },
+   "Big_banner_description_part_3": {
+      "message": "paid plans"
+   },
+   "Bubble_Auto_pause_disabled_message": {
+      "message": "Auto-pausing has been turned off."
+   },
+   "Bubble_Auto_pause_enabled_message": {
+      "message": "Auto-pausing on cursor activity is ON. You can switch it off in the settings."
+   },
+   "Bubble_Choose_ads_text": {
+      "message": "Or you can choose to continue using InterSub with ads"
+   },
+   "Bubble_Choose_plan": {
+      "message": "Choose plan"
+   },
+   "Bubble_Continue_with_ads_button_caption": {
+      "message": "Continue with ads"
+   },
+   "Bubble_Days_left": {
+      "message": "Days left"
+   },
+   "Bubble_Error": {
+      "message": "Error"
+   },
+   "Bubble_Error_machine_translating_subtitles_Failed_to_fetch": {
+      "message": "Try changing your IP address, for example by enabling (disabling) VPN or changing the server/country in its settings."
+   },
+   "Bubble_Error_machine_translating_subtitles_Failed_to_parse_response": {
+      "message": "Try refreshing the page or wait for some time. If this doesn't work please reach out at $supportEmail$.",
+      "placeholders": {
+         "supportEmail": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Error_machine_translating_subtitles_Main": {
+      "message": "Subtitles translation error."
+   },
+   "Bubble_Extra_subtitles_service_unsupported": {
+      "message": "Dual subtitles are not supported on this site yet. Please, follow the updates."
+   },
+   "Bubble_Failed_to_load_subtitles_in_language": {
+      "message": "We couldn't download subtitles in $lang$ for some reason, try to reload the page to fix it.",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Force_machine_translating_subtitles_free": {
+      "message": "Forced subtitle AI translation is only available on paid plans. The original $lang$ subtitles will continue to be used.",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Force_machine_translating_subtitles_paid": {
+      "message": "Replacing the existing $lang$ subtitles with AI translation.",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Get_trial": {
+      "message": "Get your trial"
+   },
+   "Bubble_Language_Auto": {
+      "message": "Auto ($detectedLanguageName$)",
+      "placeholders": {
+         "detectedLanguageName": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Language_selector_Choose_a_language_to_translate_into": {
+      "message": "Choose a language to translate into"
+   },
+   "Bubble_Language_selector_Placeholder_Search_for_a_language": {
+      "message": "Search for a language"
+   },
+   "Bubble_Language_selector_Save": {
+      "message": "Save"
+   },
+   "Bubble_Limit_Days_Extend": {
+      "message": "To extend unlimited access please subscribe."
+   },
+   "Bubble_Limits_Days": {
+      "message": "Days of your Trial/Promo plan left: $daysLeft$.",
+      "placeholders": {
+         "daysLeft": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Limits_Logged_out_day": {
+      "message": "You have $lookupLimit$ free requests per day because you were logged out.",
+      "placeholders": {
+         "lookupLimit": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Limits_Logged_out_month": {
+      "message": "You have $lookupLimit$ free requests per month because you were logged out.",
+      "placeholders": {
+         "lookupLimit": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Limits_Lookups_pack": {
+      "message": "You have a pack of $lookupLimit$ requests. You can upgrade it to a bigger pack or to a Premium subscription.",
+      "placeholders": {
+         "lookupLimit": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Limits_Please_login": {
+      "message": "To increase or remove limits, please login."
+   },
+   "Bubble_Limits_Please_subscribe": {
+      "message": " To have it unlimited please subscribe."
+   },
+   "Bubble_Limits_Unregistered_Please_register": {
+      "message": " To remove the limit, please register."
+   },
+   "Bubble_Limits_inquiry_consented_to_ads_Description": {
+      "message": "You can always turn off the ads by switching to one of the paid plans"
+   },
+   "Bubble_Limits_inquiry_consented_to_ads_Title": {
+      "message": "You've chosen to use InterSub with ads"
+   },
+   "Bubble_Limits_per_period_day": {
+      "message": "You have $lookupLimit$ free requests per day.",
+      "placeholders": {
+         "lookupLimit": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Limits_per_period_month": {
+      "message": "You have $lookupLimit$ free requests per month.",
+      "placeholders": {
+         "lookupLimit": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Loading_subtitles": {
+      "message": "Loading subtitles in $lang$...",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Loading_subtitles_progress": {
+      "message": "Loading subtitles in $lang$ ($progress$%)",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         },
+         "progress": {
+            "content": "$2"
+         }
+      }
+   },
+   "Bubble_Login": {
+      "message": "Login"
+   },
+   "Bubble_Lookups_daily_limit_reached": {
+      "message": "You've reached your daily limit of requests"
+   },
+   "Bubble_Lookups_did_not_receive_trial_get_trial": {
+      "message": "You can get 14-day trial access to the Premium plan"
+   },
+   "Bubble_Lookups_free_finished_day": {
+      "message": "You've run out of your free requests. Subscribe for unlimited access or wait for the next day."
+   },
+   "Bubble_Lookups_free_finished_month": {
+      "message": "You've run out of your free requests. Subscribe for unlimited access or wait for the next month."
+   },
+   "Bubble_Lookups_left": {
+      "message": "Requests left"
+   },
+   "Bubble_Lookups_left_of": {
+      "message": "of"
+   },
+   "Bubble_Lookups_logged_out_finished_day": {
+      "message": "You've run out of your free requests. Please, login to get more, subscribe to have unlimited access, or wait for the next day."
+   },
+   "Bubble_Lookups_logged_out_finished_month": {
+      "message": "You've run out of your free requests. Please, login to get more, subscribe to have unlimited access, or wait for the next month."
+   },
+   "Bubble_Lookups_logged_out_please_login": {
+      "message": "To continue using your purchased plan, please login. If you don't have a paid plan yet, you can subscribe (starting at $2.5)"
+   },
+   "Bubble_Lookups_montly_limit_reached": {
+      "message": "You've reached your monthly limit of requests"
+   },
+   "Bubble_Lookups_received_trial_subscribe_to_continue": {
+      "message": "To continue, you can subscribe for a paid plan (from $2.5)"
+   },
+   "Bubble_Lookups_unregistered_finished_day": {
+      "message": "You've run out of your free requests. Register for unlimited access or wait for the next day."
+   },
+   "Bubble_Lookups_unregistered_finished_month": {
+      "message": "You've run out of your free requests. Register for unlimited access or wait for the next month."
+   },
+   "Bubble_Machine_translating_subtitles": {
+      "message": "This video doesn't have original subtitles in $lang$. We'll do translation using AI.",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Machine_translating_subtitles_unavailable": {
+      "message": "This video doesn't have original subtitles in $lang$, double subtitles are not available. AI-generated subtitles are available only on paid plans.",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_No_double_subtitles": {
+      "message": "This video doesn't have subtitles in $lang$, dual subtitles are not available.",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_No_subtitles_in_language": {
+      "message": "This video doesn't have subtitles in $lang$.",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Bubble_Nothing_found": {
+      "message": "Nothing found"
+   },
+   "Bubble_Player_is_too_small": {
+      "message": "To see the word translations in this video, please switch the player to full screen mode."
+   },
+   "Bubble_Please_login_to_continue_using_translation": {
+      "message": "Please login to continue using translation"
+   },
+   "Bubble_Previous_subtitle_hidden_message": {
+      "message": "Showing previous subtitles is disabled. You can always turn it back on in Settings."
+   },
+   "Bubble_Receiving_translation": {
+      "message": "Receiving translation"
+   },
+   "Bubble_Register": {
+      "message": "Register"
+   },
+   "Bubble_Subscribe": {
+      "message": "Buy a subscription"
+   },
+   "Bubble_Text_too_Long": {
+      "message": "The word or phrase is too long. Try choosing a shorter one."
+   },
+   "Bubble_Translation_timed_out": {
+      "message": "Something went wrong. Please try again."
+   },
+   "Bubble_Translation_timed_out_reload_page": {
+      "message": "Something went wrong. Try reloading the page."
+   },
+   "Bubble_Upgrade_your_plan": {
+      "message": "Upgrade your plan"
+   },
+   "Bubble_header_Ai_icon_title": {
+      "message": "Ask our language buddy"
+   },
+   "Bubble_machine_translating_subtitles_no_subs_paid": {
+      "message": "Original subtitles on $target_lang$ are not available. Will translate subtitles from $original_lang$ with AI.",
+      "placeholders": {
+         "original_lang": {
+            "content": "$2"
+         },
+         "target_lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Language_list_auto": {
+      "message": "Auto"
+   },
+   "OK_button_caption": {
+      "message": "OK"
+   },
+   "Onboarding_Back_button_text": {
+      "message": "Back"
+   },
+   "Onboarding_Before_Sample_Video_Now_we_will_open_video": {
+      "message": "Next, we'll guide you through using InterSub with videos on one of the platforms below. Click any to proceed."
+   },
+   "Onboarding_Before_Sample_Video_Supported_platforms": {
+      "message": "We are on:"
+   },
+   "Onboarding_Before_Sample_Video_Where_Plugin_works": {
+      "message": "InterSub Supports"
+   },
+   "Onboarding_Extra_subtitles_Description_1": {
+      "message": "Works for videos when subtitles in both languages are available."
+   },
+   "Onboarding_Extra_subtitles_Description_2": {
+      "message": "Turn it on or off in Settings or using hotkey D."
+   },
+   "Onboarding_Extra_subtitles_Title": {
+      "message": "Dual Subtitles"
+   },
+   "Onboarding_Finish_button_text": {
+      "message": "Done!"
+   },
+   "Onboarding_Flowplayer_1": {
+      "message": "Select video version with subtitles"
+   },
+   "Onboarding_How_to_use_Description_part_1": {
+      "message": "Click the InterSub icon to access Settings."
+   },
+   "Onboarding_How_to_use_Description_part_2_after_link": {
+      "message": "\" link."
+   },
+   "Onboarding_How_to_use_Description_part_2_before_link": {
+      "message": "Tips on how to use InterSub are always available via the \""
+   },
+   "Onboarding_How_to_use_Description_part_2_link_text": {
+      "message": "How to use"
+   },
+   "Onboarding_How_to_use_Description_part_link_url": {
+      "message": "https://intersub.cc/"
+   },
+   "Onboarding_How_to_use_Title": {
+      "message": "Just in Case"
+   },
+   "Onboarding_Instructions_Enable_subtitles": {
+      "message": "Switch on subtitles"
+   },
+   "Onboarding_Instructions_How_to_lookup": {
+      "message": "How to Look Up Words in Subtitles"
+   },
+   "Onboarding_Instructions_Move_mouse_away_from_subtitles": {
+      "message": "Move the cursor away to continue playback"
+   },
+   "Onboarding_Instructions_Move_mouse_over_word": {
+      "message": "Move the cursor over a word in the subtitles"
+   },
+   "Onboarding_Instructions_Select_language_for_audio": {
+      "message": "Select $lang$ for audio",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Onboarding_Instructions_Select_language_for_audio_and_subtitles": {
+      "message": "Select $lang$ for dubbing and subtitles",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Onboarding_Instructions_Select_language_for_subtitles": {
+      "message": "Select $lang$ for subtitles",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Onboarding_Instructions_Select_original_audio": {
+      "message": "Select Original dubbing"
+   },
+   "Onboarding_Instructions_Turn_off_auto_translation": {
+      "message": "Check if $lang$ is selected and automatic translation is off",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Onboarding_Language_Selector_Translate_From": {
+      "message": "What language are you learning? We'll show subtitles in this language."
+   },
+   "Onboarding_Language_Selector_Translate_To": {
+      "message": "Select your native language. We'll show translation in this language."
+   },
+   "Onboarding_Next_button_text": {
+      "message": "Next"
+   },
+   "Onboarding_Pin_Plugin_Icon_Description": {
+      "message": "This will give you quick access to Settings, Useful links, Recently and Most frequently looked-up words."
+   },
+   "Onboarding_Pin_Plugin_Icon_Title": {
+      "message": "Pin Extension on Browser Panel"
+   },
+   "Onboarding_Playback_is_paused": {
+      "message": "Playback Paused"
+   },
+   "Onboarding_Plugin_Installed_A_couple_of_steps": {
+      "message": "A couple of important steps and you're good to go."
+   },
+   "Onboarding_Plugin_Installed_Congratulations": {
+      "message": "Congratulations on the Installation of InterSub!"
+   },
+   "Onboarding_Plugin_Installed_Hooray": {
+      "message": "Hooray!"
+   },
+   "Onboarding_Plugin_Installed_Now_you_can_lookup_words": {
+      "message": "Now you can quickly check unfamiliar words in subtitles on popular video, educational platforms, and web sites."
+   },
+   "Onboarding_Plugin_Settings_were_reset_Text": {
+      "message": "We need to adjust some settings. A couple of clicks and you're good to go."
+   },
+   "Onboarding_Plugin_Settings_were_reset_Title": {
+      "message": "Hey, this is InterSub!"
+   },
+   "Onboarding_Remote_control_Description": {
+      "message": "Use your smartphone to control video playback and look up words without touching your computer."
+   },
+   "Onboarding_Remote_control_Title": {
+      "message": "Remote Control"
+   },
+   "Onboarding_Sample_video_url": {
+      "message": "https://www.youtube.com/watch?v=Nn7xwfKZSxQ"
+   },
+   "Onboarding_Sample_video_url2": {
+      "message": "https://www.netflix.com/watch/80223961?trackId=14170286"
+   },
+   "Onboarding_Sample_video_url3": {
+      "message": "https://www.coursera.org/learn/google-introduction-to-ai/lecture/kk6MS/introduction-to-google-ai-essentials"
+   },
+   "Onboarding_Text_on_websites_translation_Description_1": {
+      "message": "Select word or phrase and click IS icon."
+   },
+   "Onboarding_Text_on_websites_translation_Description_2": {
+      "message": "You can always switch it off or on in Settings."
+   },
+   "Onboarding_Text_on_websites_translation_Title": {
+      "message": "How to Look Up Words on Sites"
+   },
+   "Onboarding_Text_on_websites_translation_Title_on_websites": {
+      "message": "How to Look Up Words on Sites with InterSub"
+   },
+   "Onboarding_This_service_is_supported_Description": {
+      "message": "Check out the short tutorial on how to set everything up."
+   },
+   "Onboarding_This_service_is_supported_Next_button_text": {
+      "message": "Watch the tutorial"
+   },
+   "Onboarding_This_service_is_supported_Title": {
+      "message": "Yay, InterSub is Working Here Too!"
+   },
+   "Onboarding_Translate_to_the_same_language_warning": {
+      "message": "You are going to translate words $lang$ → $lang$. Are you sure?",
+      "placeholders": {
+         "lang": {
+            "content": "$1"
+         }
+      }
+   },
+   "Onboarding_We_pause_playback": {
+      "message": "The video pauses when your cursor is over the subtitles for easy lookup."
+   },
+   "Onboarding_You_can_disable_auto_pause": {
+      "message": "You can disable auto-pausing or wide background mode in Settings."
+   },
+   "Popup_Add_to_user_dictionary": {
+      "message": "Auto-marking words as favorite"
+   },
+   "Popup_Auto_pausing_Mode_At_the_end_of_current_subtitle": {
+      "message": "Delayed"
+   },
+   "Popup_Auto_pausing_Mode_Right_away": {
+      "message": "Right away"
+   },
+   "Popup_Auto_pausing_folder_name": {
+      "message": "Auto pause"
+   },
+   "Popup_Auto_pausing_on_cursor_activity": {
+      "message": "Any mouse activity in full-screen"
+   },
+   "Popup_Auto_pausing_on_hovering_subtitles_background": {
+      "message": "Hovering over subtitles background"
+   },
+   "Popup_Auto_pausing_on_hovering_subtitles_words": {
+      "message": "Hovering over words in subs"
+   },
+   "Popup_Bubble_font_size": {
+      "message": "Translation window size"
+   },
+   "Popup_Bubble_subtitles_vertical_shift": {
+      "message": "Subs vertical position"
+   },
+   "Popup_Contact_support": {
+      "message": "Contact support"
+   },
+   "Popup_Dashboard": {
+      "message": "Dashboard"
+   },
+   "Popup_Discord_text": {
+      "message": "Our Discord"
+   },
+   "Popup_Extension_work_is_paused": {
+      "message": "Extension work is paused"
+   },
+   "Popup_Give_us_feedback": {
+      "message": "Give us feedback"
+   },
+   "Popup_Hide_subtitles_when_native_audio": {
+      "message": "Do not show subs in videos in native language"
+   },
+   "Popup_Hotkeys_button_caption": {
+      "message": "Hot keys"
+   },
+   "Popup_How_to_use": {
+      "message": "How to use"
+   },
+   "Popup_Icon_New_version_available_Badge_text": {
+      "message": "new"
+   },
+   "Popup_Icon_New_version_available_Badge_text_background_color": {
+      "message": "#ff9c11"
+   },
+   "Popup_Icon_New_version_available_Badge_text_color": {
+      "message": "#ffffff"
+   },
+   "Popup_Icon_New_version_available_Tooltip": {
+      "message": "New version is available: $version$. Restart your browser to update.",
+      "placeholders": {
+         "version": {
+            "content": "$1"
+         }
+      }
+   },
+   "Popup_Login": {
+      "message": "Login"
+   },
+   "Popup_Memorize_words_button_caption": {
+      "message": "Learn words"
+   },
+   "Popup_Nothing_found": {
+      "message": "Nothing found"
+   },
+   "Popup_Off": {
+      "message": "Off"
+   },
+   "Popup_On": {
+      "message": "On"
+   },
+   "Popup_Paused": {
+      "message": "Paused"
+   },
+   "Popup_Recent": {
+      "message": "Recent"
+   },
+   "Popup_Recent_lookups": {
+      "message": "Recent lookups"
+   },
+   "Popup_Settings": {
+      "message": "Settings"
+   },
+   "Popup_Settings_Extra_subtitles": {
+      "message": "Dual subtitles"
+   },
+   "Popup_Settings_Force_translate_second_subs_live": {
+      "message": "Translate 2nd subtitles (live)"
+   },
+   "Popup_Settings_Force_translate_second_subs_live_tooltip": {
+      "message": "Replaces existing 2nd subtitles with live translation from the original track.\nDepends on external services, may be unavailable."
+   },
+   "Popup_Settings_Lookup_on_websites_only_when_page_language_does_not_match_native": {
+      "message": "Look up words only on sites in learning language ($sourceLanguageName$)",
+      "placeholders": {
+         "sourceLanguageName": {
+            "content": "$1"
+         }
+      }
+   },
+   "Popup_Settings_Lookup_words_in_subtitles_on_hover_enabled": {
+      "message": "Translate words in sub on hover"
+   },
+   "Popup_Settings_New_version_available_Description": {
+      "message": "You're on version $version$. Restart your browser to update and get the latest platforms support and fixes.",
+      "placeholders": {
+         "version": {
+            "content": "$1"
+         }
+      }
+   },
+   "Popup_Settings_New_version_available_Title": {
+      "message": "New version is available ($version$)",
+      "placeholders": {
+         "version": {
+            "content": "$1"
+         }
+      }
+   },
+   "Popup_Settings_Remote_control": {
+      "message": "Remote control"
+   },
+   "Popup_Settings_Rewind_to_next_prev_subtitles_enabled": {
+      "message": "Seek by subtitles"
+   },
+   "Popup_Settings_Shadowing_duration": {
+      "message": "Shadowing delay"
+   },
+   "Popup_Settings_Shadowing_enabled": {
+      "message": "Pause after each sub (shadowing)"
+   },
+   "Popup_Settings_Show_extra_subtitles_always": {
+      "message": "Always"
+   },
+   "Popup_Settings_Show_extra_subtitles_only_on_pause": {
+      "message": "On pause"
+   },
+   "Popup_Settings_Text_translation_on_websites_enabled": {
+      "message": "Words translation on sites"
+   },
+   "Popup_Show_previous_subtitle_on_pause": {
+      "message": "Show previous sub on pause"
+   },
+   "Popup_Show_subtitles_only_on_pause": {
+      "message": "Display subtitles only when paused"
+   },
+   "Popup_Sorry_you_have_been_logged_out_Please_login_to_your_profile": {
+      "message": "Sorry, you have been logged out. Please login to your profile"
+   },
+   "Popup_Subtitles_background_mode": {
+      "message": "Subtitles background"
+   },
+   "Popup_Subtitles_background_mode_narrow": {
+      "message": "Narrow"
+   },
+   "Popup_Subtitles_background_mode_wide": {
+      "message": "Wide"
+   },
+   "Popup_Subtitles_size_extra": {
+      "message": "My language size"
+   },
+   "Popup_Subtitles_size_main": {
+      "message": "Target language size"
+   },
+   "Popup_Telegram_community_text": {
+      "message": "Telegram community"
+   },
+   "Popup_Top": {
+      "message": "Top"
+   },
+   "Popup_Top_lookups": {
+      "message": "Top lookups"
+   },
+   "Popup_Translate_from": {
+      "message": "Translate from"
+   },
+   "Popup_Translate_to": {
+      "message": "Translate to"
+   },
+   "Popup_View_all": {
+      "message": "View all"
+   },
+   "Popup_Watch_video": {
+      "message": "Watch video"
+   },
+   "Popup_You_can_start_with_current_video": {
+      "message": "There is nothing to show here yet because you have not looked up words yet. You can start with the current video, for example."
+   },
+   "Popup_You_can_start_with_this_video_on_YouTube_for_example": {
+      "message": "You can start with this video on YouTube, for example"
+   },
+   "Popup_You_havent_looked_up_any_words_yet": {
+      "message": "You haven't looked up any words yet."
+   },
+   "Rate_Text": {
+      "message": "Rate us"
+   },
+   "Rate_link": {
+      "message": "https://microsoftedge.microsoft.com/addons/detail/intersub-learn-languages/bgjccegegedmlphkgfpmnchikpdaimdo"
+   },
+   "Remote_control_QR_code_description": {
+      "message": "Scan with your phone to enable remote control"
+   },
+   "Remote_control_Stop_remote_control_button_caption": {
+      "message": "Cancel"
+   },
+   "Remote_control_Stop_remote_control_text": {
+      "message": "Do you want to cancel a remote control session?"
+   },
+   "Remote_control_closed_note_Description": {
+      "message": "Click on Remote control icon to show QR code again. You can switch Remote control off/on in Settings."
+   },
+   "Remote_control_closed_note_Title": {
+      "message": "Remote Control"
+   },
+   "Shadowing_toggled_off": {
+      "message": "Pause after each subtitle (shadowing) has been turned off.\nYou can toggle it using hotkey S or in the settings."
+   },
+   "Shadowing_toggled_on": {
+      "message": "Pause after each subtitle (shadowing) has been turned on.\nYou can control it using hotkey S or in the settings."
+   },
+   "Special_offer_review_Description_1_link_text": {
+      "message": "Chrome Web store"
+   },
+   "Special_offer_review_Description_1_link_url": {
+      "message": "https://microsoftedge.microsoft.com/addons/detail/intersub-learn-languages/bgjccegegedmlphkgfpmnchikpdaimdo"
+   },
+   "Special_offer_review_Description_1_prefix": {
+      "message": "Leave your review on InterSub in "
+   },
+   "Special_offer_review_Description_1_suffix": {
+      "message": ""
+   },
+   "Special_offer_review_Description_2_link_text": {
+      "message": "welcome@intersub.cc"
+   },
+   "Special_offer_review_Description_2_link_url": {
+      "message": "mailto=welcome@intersub.cc?subject=10-day Premium for the review"
+   },
+   "Special_offer_review_Description_2_prefix": {
+      "message": "Send a screenshot of your review to "
+   },
+   "Special_offer_review_Description_2_suffix": {
+      "message": ""
+   },
+   "Special_offer_review_Description_3": {
+      "message": "Apply a promo code we will send you"
+   },
+   "Special_offer_review_Description_4": {
+      "message": "Enjoy your 10-day Premium access!"
+   },
+   "Special_offer_review_Main_button_caption": {
+      "message": "Done"
+   },
+   "Special_offer_review_Title": {
+      "message": "Reached requests limit? Write a review and get 10-day Premium!"
+   },
+   "Subtitle_bar_Prev_prefix": {
+      "message": "Prev"
+   },
+   "Subtitle_bar_settings_popup_Background_color": {
+      "message": "Background color"
+   },
+   "Subtitle_bar_settings_popup_Shadow_alpha": {
+      "message": "Shadow opacity"
+   },
+   "Subtitle_bar_settings_popup_Shadow_outline_alpha": {
+      "message": "Outline opacity"
+   },
+   "Subtitle_bar_settings_popup_Shadow_outline_width": {
+      "message": "Outline width"
+   },
+   "Subtitle_bar_settings_popup_Shadow_shift_x": {
+      "message": "Horizontal offset"
+   },
+   "Subtitle_bar_settings_popup_Shadow_shift_y": {
+      "message": "Vertical offset"
+   },
+   "Subtitle_bar_settings_popup_Text_color_extra": {
+      "message": "My language"
+   },
+   "Subtitle_bar_settings_popup_Text_color_main": {
+      "message": "Target language"
+   },
+   "Subtitle_bar_settings_popup_Text_color_title": {
+      "message": "Font color"
+   },
+   "Subtitle_bar_settings_popup_Text_shadow_title": {
+      "message": "Text outline"
+   },
+   "Subtitle_bar_settings_popup_Text_size_title": {
+      "message": "Font size"
+   },
+   "Subtitles_failed_to_load_Button_caption": {
+      "message": "Reload"
+   },
+   "Subtitles_failed_to_load_Description": {
+      "message": "We couldn't download subtitles in $languageName$ for some reason, try to reload the page to fix it.",
+      "placeholders": {
+         "languageName": {
+            "content": "$1"
+         }
+      }
+   },
+   "Subtitles_failed_to_load_Title": {
+      "message": "Houston, we have a problem"
+   },
+   "Subtitles_failed_to_load_Too_many_requests_Button_caption": {
+      "message": "Got it"
+   },
+   "Subtitles_failed_to_load_Too_many_requests_Description": {
+      "message": "We couldn't download subtitles because video service banned your IP address. Try again in 10-15 mins."
+   },
+   "Subtitles_force_translated_by_hint": {
+      "message": "This is forced live AI translation $translatedFromLanguage$ → $translatedIntoLanguage$ done by $translatedBy$.",
+      "placeholders": {
+         "translatedBy": {
+            "content": "$3"
+         },
+         "translatedFromLanguage": {
+            "content": "$2"
+         },
+         "translatedIntoLanguage": {
+            "content": "$1"
+         }
+      }
+   },
+   "Subtitles_hidden_audio_language_matches_native": {
+      "message": "We've hidden subtitles because the video is in your native language. You can disable this mode in Settings."
+   },
+   "Subtitles_translated_by_hint": {
+      "message": "This video doesn't have subtitles in $translatedIntoLanguage$, this is an AI translation\n$translatedFromLanguage$ → $translatedIntoLanguage$ done by $translatedBy$.",
+      "placeholders": {
+         "translatedBy": {
+            "content": "$3"
+         },
+         "translatedFromLanguage": {
+            "content": "$2"
+         },
+         "translatedIntoLanguage": {
+            "content": "$1"
+         }
+      }
+   },
+   "Support_email": {
+      "message": "support@intersub.cc"
+   },
+   "actionDefaultTitle": {
+      "message": "InterSub: interactive subtitles for videos"
+   },
+   "appDescription": {
+      "message": "Use dual subtitle AI translation dualsub for language learning, immersive translate meaning of words: Spanish to English to Japanese"
+   },
+   "appName": {
+      "message": "Dual Subtitles & AI Translation - InterSub"
+   },
+   "browserName": {
+      "message": "MICROSOFT_EDGE"
+   },
+   "pluginLocaleId": {
+      "message": "en"
+   }
+}
