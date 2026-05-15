@@ -1,33 +1,25 @@
-<script setup>
+<script setup lang="ts">
 import { ref } from 'vue'
+import { RouterLink } from 'vue-router'
 import {
   Activity,
-  Bell,
   CalendarDays,
   CheckCircle2,
   Factory,
   Gauge,
-  LayoutDashboard,
   LogOut,
-  MapPinned,
-  MessageSquare,
-  Users,
   Wrench,
   X,
 } from 'lucide-vue-next'
+import { useAppNav } from '@/composables/useAppNav'
+import { useLogout } from '@/composables/useLogout'
 
-const navItems = [
-  { label: '대시보드', icon: LayoutDashboard, href: '#/dashboard' },
-  { label: '레이아웃', icon: MapPinned, href: '#/layout' },
-  { label: '설비 제어', icon: Wrench, href: '#/equipment' },
-  { label: '알람 및 이력', icon: Bell, href: '#/alarms' },
-  { label: '사용자·권한', icon: Users, href: '#/users' },
-  { label: '커뮤니티', icon: MessageSquare, href: '#/community' },
-  { label: 'SWMP 테스트', icon: Wrench, href: '#/swmp-test', active: true },
-]
+const { navItems } = useAppNav()
+const logout = useLogout()
 
+const defaultSwmp = import.meta.env.VITE_SWMP_DEFAULT_URL ?? ''
 // SWMP 주소를 받으면 여기에 넣어 웹스카다 팝업으로 표시할 수 있습니다.
-const swmpUrl = ref('http://192.168.0.100:11005/?Pro=myseo_260430#LDV')
+const swmpUrl = ref(defaultSwmp)
 const connectionMessage = ref('SWMP URL 등록 완료')
 const isSwmpPopupOpen = ref(false)
 
@@ -63,24 +55,19 @@ const checklist = [
 <template>
   <main class="dashboard-shell">
     <aside class="dashboard-sidebar" aria-label="주요 메뉴">
-      <a class="dashboard-brand" href="#/dashboard">
+      <RouterLink class="dashboard-brand" :to="{ name: 'dashboard' }">
         <span class="brand-symbol">U</span>
         <span>
           <strong>UECADA</strong>
           <small>우리들의 스카다</small>
         </span>
-      </a>
+      </RouterLink>
 
       <nav class="dashboard-nav">
-        <a
-          v-for="item in navItems"
-          :key="item.label"
-          :class="{ active: item.active }"
-          :href="item.href"
-        >
+        <RouterLink v-for="item in navItems" :key="item.label" :to="item.to">
           <component :is="item.icon" :size="18" />
           <span>{{ item.label }}</span>
-        </a>
+        </RouterLink>
       </nav>
 
       <div class="sidebar-status">
@@ -92,7 +79,7 @@ const checklist = [
 
     <section class="dashboard-main">
       <header class="dashboard-header">
-        <div>
+        <div class="dashboard-header-titles">
           <p class="dashboard-kicker">SWMP Integration Test</p>
           <h1>SWMP 연동 테스트</h1>
         </div>
@@ -101,10 +88,10 @@ const checklist = [
             <CalendarDays :size="16" />
             2026-05-12 12:40
           </span>
-          <a class="icon-link" href="#/login">
+          <button type="button" class="icon-link" @click="logout">
             <LogOut :size="16" />
-            <span>로그인 화면</span>
-          </a>
+            <span>로그아웃</span>
+          </button>
         </div>
       </header>
 

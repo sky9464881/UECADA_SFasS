@@ -1,290 +1,124 @@
-<script setup>
-import { computed, ref } from 'vue'
+<script setup lang="ts">
+import { computed, ref, watch } from 'vue'
+import { RouterLink } from 'vue-router'
 import {
   Activity,
   AlertTriangle,
-  Bell,
   CalendarDays,
+  Cog,
+  Droplets,
   Factory,
+  Flame,
   Gauge,
-  LayoutDashboard,
   LogOut,
   MapPinned,
-  MessageSquare,
   Play,
+  Printer,
+  Search,
   Square,
-  Users,
   Wrench,
   X,
 } from 'lucide-vue-next'
+import { useAppNav } from '@/composables/useAppNav'
+import { useLogout } from '@/composables/useLogout'
+import { useEquipmentCatalog } from '@/composables/useEquipmentCatalog'
+import type { EquipmentCategory, EquipmentSpecificMetric } from '@/composables/useEquipmentCatalog'
+import type { Component } from 'vue'
+import EquipmentCategoryGrid from '@/components/equipment/EquipmentCategoryGrid.vue'
+import CategorySummaryPanel from '@/components/equipment/CategorySummaryPanel.vue'
+import CategoryEquipmentList from '@/components/equipment/CategoryEquipmentList.vue'
 
-const navItems = [
-  { label: '대시보드', icon: LayoutDashboard, href: '#/dashboard' },
-  { label: '레이아웃', icon: MapPinned, href: '#/layout' },
-  { label: '설비 제어', icon: Wrench, href: '#/equipment', active: true },
-  { label: '알람 및 이력', icon: Bell, href: '#/alarms' },
-  { label: '사용자·권한', icon: Users, href: '#/users' },
-  { label: '커뮤니티', icon: MessageSquare, href: '#/community' },
-  { label: 'SWMP 테스트', icon: Wrench, href: '#/swmp-test' },
-]
+const { navItems } = useAppNav()
+const logout = useLogout()
+const { categories: backendCategories } = useEquipmentCatalog()
 
-const categories = [
-  {
-    id: 'casting',
-    name: '주조기',
-    status: '경고',
-    count: 22,
-    running: 20,
-    stopped: 1,
-    waiting: 1,
-    avgRate: 94,
-    defectCount: 18,
-    description: '압력, 용탕온도, 금형온도 중심 모니터링',
-    equipment: [
-      {
-        id: 'CAST-02',
-        name: '주조기 2호',
-        line: 'Line A 주조',
-        state: '운전',
-        rate: 94,
-        defects: 18,
-        operator: 'OP-1042',
-        cycle: '42.1s',
-        common: [
-          { label: '운전 상태', value: '운전' },
-          { label: '작업자 코드', value: 'OP-1042' },
-          { label: '싸이클 타임', value: '42.1s' },
-          { label: 'OK', value: '12,840' },
-          { label: 'NG', value: '18' },
-          { label: '가동률', value: '94%' },
-          { label: '전류', value: '42A' },
-          { label: '전압', value: '380V' },
-          { label: '온도', value: '68℃' },
-          { label: '습도', value: '42%' },
-          { label: '진동', value: '1.2mm/s' },
-        ],
-        specific: [
-          { label: '압력', value: '18.2bar', status: '정상 16~19bar' },
-          { label: '용탕온도', value: '681℃', status: '상한 680℃ 초과' },
-          { label: '금형온도', value: '216℃', status: '정상 190~220℃' },
-        ],
-      },
-      {
-        id: 'CAST-04',
-        name: '주조기 4호',
-        line: 'Line A 주조',
-        state: '운전',
-        rate: 96,
-        defects: 7,
-        operator: 'OP-1038',
-        cycle: '40.7s',
-        common: [
-          { label: '운전 상태', value: '운전' },
-          { label: '작업자 코드', value: 'OP-1038' },
-          { label: '싸이클 타임', value: '40.7s' },
-          { label: 'OK', value: '12,120' },
-          { label: 'NG', value: '7' },
-          { label: '가동률', value: '96%' },
-          { label: '전류', value: '39A' },
-          { label: '전압', value: '380V' },
-          { label: '온도', value: '65℃' },
-          { label: '습도', value: '41%' },
-          { label: '진동', value: '0.9mm/s' },
-        ],
-        specific: [
-          { label: '압력', value: '17.6bar', status: '정상' },
-          { label: '용탕온도', value: '665℃', status: '정상' },
-          { label: '금형온도', value: '208℃', status: '정상' },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'machining',
-    name: '가공기',
-    status: '정상',
-    count: 38,
-    running: 35,
-    stopped: 1,
-    waiting: 2,
-    avgRate: 92,
-    defectCount: 9,
-    description: '스핀들속도, 스핀들 진동, 공구사용시간 중심 모니터링',
-    equipment: [
-      {
-        id: 'MACH-07',
-        name: '가공기 7호',
-        line: 'Line B 가공',
-        state: '운전',
-        rate: 92,
-        defects: 9,
-        operator: 'OP-1130',
-        cycle: '36.8s',
-        common: [
-          { label: '운전 상태', value: '운전' },
-          { label: '작업자 코드', value: 'OP-1130' },
-          { label: '싸이클 타임', value: '36.8s' },
-          { label: 'OK', value: '10,220' },
-          { label: 'NG', value: '9' },
-          { label: '가동률', value: '92%' },
-          { label: '전류', value: '38A' },
-          { label: '전압', value: '380V' },
-          { label: '온도', value: '54℃' },
-          { label: '습도', value: '39%' },
-          { label: '진동', value: '1.8mm/s' },
-        ],
-        specific: [
-          { label: '스핀들 속도', value: '7,200rpm', status: '정상' },
-          { label: '절삭속도', value: '180m/min', status: '목표 범위' },
-          { label: '공구사용시간', value: '68h', status: '교체 기준 80h' },
-          { label: '진동', value: '1.8mm/s', status: '정상 2.0 이하' },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'washing',
-    name: '세척기',
-    status: '정상',
-    count: 16,
-    running: 14,
-    stopped: 0,
-    waiting: 2,
-    avgRate: 89,
-    defectCount: 6,
-    description: '세척수 온도, 압력, 농도, 건조온도 중심 모니터링',
-    equipment: [
-      {
-        id: 'WASH-03',
-        name: '세척기 3호',
-        line: 'Line C 조립',
-        state: '운전',
-        rate: 89,
-        defects: 6,
-        operator: 'OP-0921',
-        cycle: '58.4s',
-        common: [
-          { label: '운전 상태', value: '운전' },
-          { label: '작업자 코드', value: 'OP-0921' },
-          { label: '싸이클 타임', value: '58.4s' },
-          { label: 'OK', value: '8,911' },
-          { label: 'NG', value: '6' },
-          { label: '가동률', value: '89%' },
-          { label: '전류', value: '31A' },
-          { label: '전압', value: '220V' },
-          { label: '온도', value: '49℃' },
-          { label: '습도', value: '47%' },
-          { label: '진동', value: '0.7mm/s' },
-        ],
-        specific: [
-          { label: '세척수 온도', value: '62℃', status: '정상' },
-          { label: '세척입력', value: '3.8bar', status: '정상' },
-          { label: '세척농도', value: '4.2%', status: '목표 4.0~4.5%' },
-          { label: '건조온도', value: '84℃', status: '정상' },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'assembly',
-    name: '조립기',
-    status: '이상',
-    count: 31,
-    running: 26,
-    stopped: 3,
-    waiting: 2,
-    avgRate: 76,
-    defectCount: 22,
-    description: '체결토크, 체결각도, 압입하중 중심 모니터링',
-    equipment: [
-      {
-        id: 'ASM-05',
-        name: '조립기 5호',
-        line: 'Line C 조립',
-        state: '정지',
-        rate: 76,
-        defects: 22,
-        operator: 'OP-1008',
-        cycle: '44.5s',
-        common: [
-          { label: '운전 상태', value: '정지' },
-          { label: '작업자 코드', value: 'OP-1008' },
-          { label: '싸이클 타임', value: '44.5s' },
-          { label: 'OK', value: '9,144' },
-          { label: 'NG', value: '22' },
-          { label: '가동률', value: '76%' },
-          { label: '전류', value: '27A' },
-          { label: '전압', value: '220V' },
-          { label: '온도', value: '45℃' },
-          { label: '습도', value: '41%' },
-          { label: '진동', value: '1.5mm/s' },
-        ],
-        specific: [
-          { label: '체결토크', value: '42Nm', status: '편차 확인' },
-          { label: '체결각도', value: '118deg', status: '정상' },
-          { label: '압입하중', value: '5.6kN', status: '상한 접근' },
-        ],
-      },
-    ],
-  },
-  {
-    id: 'inspection',
-    name: '검사기',
-    status: '경고',
-    count: 21,
-    running: 18,
-    stopped: 1,
-    waiting: 2,
-    avgRate: 82,
-    defectCount: 31,
-    description: '목표 물체 치수와 현재 물체 치수 중심 모니터링',
-    equipment: [
-      {
-        id: 'INSP-02',
-        name: '검사기 2호',
-        line: 'Line D 검사',
-        state: '운전',
-        rate: 82,
-        defects: 31,
-        operator: 'OP-1187',
-        cycle: '31.2s',
-        common: [
-          { label: '운전 상태', value: '운전' },
-          { label: '작업자 코드', value: 'OP-1187' },
-          { label: '싸이클 타임', value: '31.2s' },
-          { label: 'OK', value: '13,012' },
-          { label: 'NG', value: '31' },
-          { label: '가동률', value: '82%' },
-          { label: '전류', value: '18A' },
-          { label: '전압', value: '220V' },
-          { label: '온도', value: '39℃' },
-          { label: '습도', value: '44%' },
-          { label: '진동', value: '0.4mm/s' },
-        ],
-        specific: [
-          { label: '목표 물체 치수', value: '24.00mm', status: '기준값' },
-          { label: '현재 물체 치수', value: '24.18mm', status: '허용범위 이탈' },
-        ],
-      },
-    ],
-  },
-]
+const CATEGORY_ICON_MAP: Record<string, Component> = {
+  casting: Flame,
+  machining: Cog,
+  washing: Droplets,
+  assembly: Wrench,
+  inspection: Search,
+}
+
+interface CategoryWithIcon extends EquipmentCategory {
+  icon: Component
+}
+
+// 백엔드 데이터 + 카테고리별 아이콘 매핑.
+const categories = computed<CategoryWithIcon[]>(() =>
+  backendCategories.value.map((c) => ({
+    ...c,
+    icon: CATEGORY_ICON_MAP[c.id] ?? Factory,
+  })),
+)
 
 const selectedCategoryId = ref('casting')
 const selectedEquipmentId = ref('CAST-02')
 const isEquipmentPopupOpen = ref(false)
 
+const EMPTY_CATEGORY = Object.freeze({
+  id: '',
+  name: '-',
+  icon: Factory,
+  status: '-',
+  count: 0,
+  running: 0,
+  stopped: 0,
+  waiting: 0,
+  avgRate: 0,
+  defectCount: 0,
+  description: '데이터 로딩 중',
+  equipment: [],
+})
+
 const selectedCategory = computed(() =>
-  categories.find((category) => category.id === selectedCategoryId.value),
+  categories.value.find((category) => category.id === selectedCategoryId.value)
+    ?? categories.value[0]
+    ?? EMPTY_CATEGORY,
 )
 
-const selectedEquipment = computed(() =>
-  selectedCategory.value.equipment.find((equipment) => equipment.id === selectedEquipmentId.value),
+const EMPTY_EQUIPMENT = Object.freeze({
+  id: '-',
+  name: '-',
+  line: '-',
+  state: '대기',
+  rate: 0,
+  defects: 0,
+  operator: '-',
+  cycle: '-',
+  common: [],
+  specific: [],
+})
+
+const selectedEquipment = computed(() => {
+  const cat = selectedCategory.value
+  if (!cat) return EMPTY_EQUIPMENT
+  return (
+    cat.equipment.find((equipment) => equipment.id === selectedEquipmentId.value)
+    ?? cat.equipment[0]
+    ?? EMPTY_EQUIPMENT
+  )
+})
+
+// 백엔드 데이터 로드 후, 비어있던 selection 을 첫 카테고리/첫 설비로 자동 보정.
+watch(
+  categories,
+  (list) => {
+    if (!list.length) return
+    const cat = list.find((c) => c.id === selectedCategoryId.value) ?? list[0]
+    if (cat.id !== selectedCategoryId.value) {
+      selectedCategoryId.value = cat.id
+    }
+    if (!cat.equipment.find((e) => e.id === selectedEquipmentId.value)) {
+      selectedEquipmentId.value = cat.equipment[0]?.id ?? ''
+    }
+  },
+  { immediate: true },
 )
 
-const selectCategory = (category) => {
+const selectCategory = (category: CategoryWithIcon) => {
   selectedCategoryId.value = category.id
-  selectedEquipmentId.value = category.equipment[0].id
+  selectedEquipmentId.value = category.equipment[0]?.id ?? ''
   isEquipmentPopupOpen.value = false
 }
 
@@ -296,15 +130,15 @@ const closeEquipmentPopup = () => {
   isEquipmentPopupOpen.value = false
 }
 
-const metricNumber = (value) => {
+const metricNumber = (value: unknown) => {
   const match = String(value).replace(/,/g, '').match(/\d+(\.\d+)?/)
   return match ? Number(match[0]) : 0
 }
 
-const getCommonMetric = (label) =>
+const getCommonMetric = (label: string): string =>
   selectedEquipment.value.common.find((metric) => metric.label === label)?.value ?? '-'
 
-const clampPercent = (value) => Math.max(0, Math.min(100, Math.round(value)))
+const clampPercent = (value: number) => Math.max(0, Math.min(100, Math.round(value)))
 
 const qualityPercent = computed(() => {
   const ok = metricNumber(getCommonMetric('OK'))
@@ -333,7 +167,60 @@ const sensorChart = computed(() => [
   { label: '진동', value: getCommonMetric('진동'), percent: clampPercent((metricNumber(getCommonMetric('진동')) / 3) * 100) },
 ])
 
-const specificMetricPercent = (metric) => {
+/** 인쇄용: 전 설비 목록 (카테고리·요약 KPI) */
+const equipmentReportRows = computed(() =>
+  categories.value.flatMap((category) =>
+    category.equipment.map((equipment) => ({
+      categoryName: category.name,
+      id: equipment.id,
+      name: equipment.name,
+      line: equipment.line,
+      state: equipment.state,
+      rate: equipment.rate,
+      defects: equipment.defects,
+      cycle: equipment.cycle,
+      operator: equipment.operator,
+    })),
+  ),
+)
+
+const reportGeneratedAt = ref('')
+
+/** 인쇄 레포트 상단 요약 KPI */
+const printReportSummary = computed(() => {
+  const list = categories.value
+  const totalUnits = list.reduce((sum, c) => sum + c.count, 0)
+  const totalNg = list.reduce((sum, c) => sum + c.defectCount, 0)
+  const avgCategoryRate = list.length
+    ? Math.round(list.reduce((sum, c) => sum + c.avgRate, 0) / list.length)
+    : 0
+  return {
+    categoryCount: list.length,
+    equipmentRowCount: equipmentReportRows.value.length,
+    totalUnits,
+    totalNg,
+    avgCategoryRate,
+  }
+})
+
+function printCategoryStatusClass(status: string) {
+  if (status === '경고') return 'equipment-print-status--warn'
+  if (status === '이상') return 'equipment-print-status--bad'
+  return 'equipment-print-status--ok'
+}
+
+function printEquipmentReport() {
+  reportGeneratedAt.value = new Date().toLocaleString('ko-KR', {
+    dateStyle: 'long',
+    timeStyle: 'short',
+  })
+  isEquipmentPopupOpen.value = false
+  requestAnimationFrame(() => {
+    window.print()
+  })
+}
+
+const specificMetricPercent = (metric: EquipmentSpecificMetric) => {
   const value = metricNumber(metric.value)
   const label = metric.label
 
@@ -359,25 +246,20 @@ const specificMetricPercent = (metric) => {
 
 <template>
   <main class="dashboard-shell">
-    <aside class="dashboard-sidebar" aria-label="주요 메뉴">
-      <a class="dashboard-brand" href="#/dashboard">
+    <aside class="dashboard-sidebar no-print" aria-label="주요 메뉴">
+      <RouterLink class="dashboard-brand" :to="{ name: 'dashboard' }">
         <span class="brand-symbol">U</span>
         <span>
           <strong>UECADA</strong>
           <small>우리들의 스카다</small>
         </span>
-      </a>
+      </RouterLink>
 
       <nav class="dashboard-nav">
-        <a
-          v-for="item in navItems"
-          :key="item.label"
-          :class="{ active: item.active }"
-          :href="item.href"
-        >
+        <RouterLink v-for="item in navItems" :key="item.label" :to="item.to">
           <component :is="item.icon" :size="18" />
           <span>{{ item.label }}</span>
-        </a>
+        </RouterLink>
       </nav>
 
       <div class="sidebar-status">
@@ -388,28 +270,33 @@ const specificMetricPercent = (metric) => {
     </aside>
 
     <section class="dashboard-main">
-      <header class="dashboard-header">
-        <div>
-          <p class="dashboard-kicker">Equipment Monitoring</p>
-          <h1>설비별 화면</h1>
-        </div>
-        <div class="header-actions">
-          <span class="current-time">
-            <CalendarDays :size="16" />
-            2026-05-11 12:40
-          </span>
-          <a class="ghost-button" href="#/layout">
-            <MapPinned :size="16" />
-            <span>위치 보기</span>
-          </a>
-          <a class="icon-link" href="#/login">
-            <LogOut :size="16" />
-            <span>로그인 화면</span>
-          </a>
-        </div>
-      </header>
+      <div class="no-print">
+        <header class="dashboard-header">
+          <div class="dashboard-header-titles">
+            <p class="dashboard-kicker">Equipment Monitoring</p>
+            <h1>설비별 화면</h1>
+          </div>
+          <div class="header-actions">
+            <span class="current-time">
+              <CalendarDays :size="16" />
+              2026-05-11 12:40
+            </span>
+            <button type="button" class="ghost-button equipment-print-trigger" @click="printEquipmentReport">
+              <Printer :size="16" />
+              <span>종합 레포트 인쇄</span>
+            </button>
+            <RouterLink class="ghost-button" :to="{ name: 'layout' }">
+              <MapPinned :size="16" />
+              <span>위치 보기</span>
+            </RouterLink>
+            <button type="button" class="icon-link" @click="logout">
+              <LogOut :size="16" />
+              <span>로그아웃</span>
+            </button>
+          </div>
+        </header>
 
-      <section class="dashboard-panel equipment-category-panel">
+        <section class="dashboard-panel equipment-category-panel">
         <div class="section-title-row">
           <div>
             <p class="panel-kicker">Equipment Category</p>
@@ -418,83 +305,20 @@ const specificMetricPercent = (metric) => {
           <Factory :size="22" />
         </div>
 
-        <div class="equipment-category-grid">
-          <button
-            v-for="category in categories"
-            :key="category.id"
-            :class="{ active: category.id === selectedCategoryId }"
-            type="button"
-            @click="selectCategory(category)"
-          >
-            <Factory :size="20" />
-            <strong>{{ category.name }}</strong>
-            <span>{{ category.count }}대 · {{ category.status }}</span>
-            <p>{{ category.description }}</p>
-          </button>
-        </div>
+        <EquipmentCategoryGrid
+          :categories="categories"
+          :selected-category-id="selectedCategoryId"
+          @select="selectCategory"
+        />
       </section>
 
       <section class="equipment-monitor-grid">
-        <article class="dashboard-panel category-monitor-panel">
-          <div class="section-title-row">
-            <div>
-              <p class="panel-kicker">Category Summary</p>
-              <h2>{{ selectedCategory.name }} 주요 데이터 모니터링</h2>
-            </div>
-            <Gauge :size="22" />
-          </div>
-
-          <div class="category-summary-cards">
-            <article>
-              <span>운전 상태</span>
-              <strong>{{ selectedCategory.status }}</strong>
-              <p>가동 {{ selectedCategory.running }} · 정지 {{ selectedCategory.stopped }} · 대기 {{ selectedCategory.waiting }}</p>
-            </article>
-            <article>
-              <span>평균 가동률</span>
-              <strong>{{ selectedCategory.avgRate }}%</strong>
-              <p>{{ selectedCategory.count }}대 설비 기준</p>
-            </article>
-            <article>
-              <span>불량수량</span>
-              <strong>{{ selectedCategory.defectCount }}</strong>
-              <p>금일 누적 NG 수량</p>
-            </article>
-          </div>
-
-          <div class="category-status-bar">
-            <i class="run" :style="{ width: `${(selectedCategory.running / selectedCategory.count) * 100}%` }"></i>
-            <i class="stop" :style="{ width: `${(selectedCategory.stopped / selectedCategory.count) * 100}%` }"></i>
-            <i class="wait" :style="{ width: `${(selectedCategory.waiting / selectedCategory.count) * 100}%` }"></i>
-          </div>
-        </article>
-
-        <aside class="dashboard-panel category-equipment-panel">
-          <div class="section-title-row">
-            <div>
-              <p class="panel-kicker">Equipment Select</p>
-              <h2>특정 설비 선택</h2>
-            </div>
-            <Activity :size="22" />
-          </div>
-
-          <div class="category-equipment-list">
-            <button
-              v-for="equipment in selectedCategory.equipment"
-              :key="equipment.id"
-              :class="{ active: equipment.id === selectedEquipmentId }"
-              type="button"
-              @click="selectedEquipmentId = equipment.id"
-            >
-              <span :class="['equipment-state-dot', equipment.state === '정지' ? 'stop' : equipment.state === '대기' ? 'warn' : 'run']"></span>
-              <div>
-                <strong>{{ equipment.id }}</strong>
-                <p>{{ equipment.name }} · {{ equipment.line }}</p>
-              </div>
-              <b>{{ equipment.rate }}%</b>
-            </button>
-          </div>
-        </aside>
+        <CategorySummaryPanel :category="selectedCategory" />
+        <CategoryEquipmentList
+          :category="selectedCategory"
+          :selected-equipment-id="selectedEquipmentId"
+          @select="(id) => (selectedEquipmentId = id)"
+        />
       </section>
 
       <section class="dashboard-panel selected-equipment-panel">
@@ -567,13 +391,13 @@ const specificMetricPercent = (metric) => {
             </div>
           </article>
         </div>
-      </section>
+        </section>
 
-      <div
-        v-if="selectedEquipment && isEquipmentPopupOpen"
-        class="equipment-modal-backdrop"
-        @click.self="closeEquipmentPopup"
-      >
+        <div
+          v-if="selectedEquipment && isEquipmentPopupOpen"
+          class="equipment-modal-backdrop"
+          @click.self="closeEquipmentPopup"
+        >
         <article
           class="equipment-detail-modal"
           role="dialog"
@@ -737,7 +561,711 @@ const specificMetricPercent = (metric) => {
             </div>
           </section>
         </article>
+        </div>
       </div>
+
+      <Teleport to="body">
+        <div class="equipment-report-portal">
+      <div class="equipment-print-only equipment-print-report" role="document" aria-label="설비 종합 모니터링 레포트">
+        <div class="equipment-print-sheet">
+          <header class="equipment-print-cover">
+            <div class="equipment-print-cover-top">
+              <div class="equipment-print-brand">
+                <span class="equipment-print-brand-mark">UECADA</span>
+                <span class="equipment-print-brand-line" aria-hidden="true" />
+                <span class="equipment-print-brand-sub">설비 모니터링 · PHM</span>
+              </div>
+              <dl class="equipment-print-doc-meta">
+                <div>
+                  <dt>발행</dt>
+                  <dd>{{ reportGeneratedAt }}</dd>
+                </div>
+                <div>
+                  <dt>문서</dt>
+                  <dd>EQUIP-SUM-01</dd>
+                </div>
+              </dl>
+            </div>
+            <h1 class="equipment-print-doc-title">설비 종합 모니터링 레포트</h1>
+            <p class="equipment-print-doc-lead">
+              카테고리 단위 요약, 전 설비 가동·품질 스냅샷, 화면에서 선택한 설비의 상세 항목을 한 장에 정리합니다.
+            </p>
+          </header>
+
+          <section class="equipment-print-kpi-strip" aria-label="요약 지표">
+            <article class="equipment-print-kpi">
+              <span class="equipment-print-kpi-label">관리 카테고리</span>
+              <strong class="equipment-print-kpi-value">{{ printReportSummary.categoryCount }}</strong>
+              <span class="equipment-print-kpi-unit">개 구역</span>
+            </article>
+            <article class="equipment-print-kpi">
+              <span class="equipment-print-kpi-label">등록 설비</span>
+              <strong class="equipment-print-kpi-value">{{ printReportSummary.totalUnits }}</strong>
+              <span class="equipment-print-kpi-unit">대 (표시 {{ printReportSummary.equipmentRowCount }}행)</span>
+            </article>
+            <article class="equipment-print-kpi">
+              <span class="equipment-print-kpi-label">카테고리 평균 가동률</span>
+              <strong class="equipment-print-kpi-value">{{ printReportSummary.avgCategoryRate }}<span class="pct">%</span></strong>
+              <span class="equipment-print-kpi-unit">산술 평균</span>
+            </article>
+            <article class="equipment-print-kpi">
+              <span class="equipment-print-kpi-label">금일 누적 NG</span>
+              <strong class="equipment-print-kpi-value">{{ printReportSummary.totalNg }}</strong>
+              <span class="equipment-print-kpi-unit">건 · 전 카테고리 합</span>
+            </article>
+          </section>
+
+          <section class="equipment-print-block">
+            <header class="equipment-print-block-head">
+              <span class="equipment-print-step" aria-hidden="true">01</span>
+              <div class="equipment-print-block-titles">
+                <h2>카테고리별 요약</h2>
+                <p>대수·상태·운전·정지·대기·평균 가동률·불량 누적을 구역별로 정리합니다.</p>
+              </div>
+            </header>
+            <div class="equipment-print-table-shell">
+              <table class="equipment-print-table">
+                <thead>
+                  <tr>
+                    <th scope="col">카테고리</th>
+                    <th scope="col" class="num">대수</th>
+                    <th scope="col">상태</th>
+                    <th scope="col" class="num">운전</th>
+                    <th scope="col" class="num">정지</th>
+                    <th scope="col" class="num">대기</th>
+                    <th scope="col" class="num">평균 가동률</th>
+                    <th scope="col" class="num">불량(NG)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="cat in categories" :key="`print-cat-${cat.id}`">
+                    <td class="equipment-print-td-strong">{{ cat.name }}</td>
+                    <td class="num">{{ cat.count }}</td>
+                    <td :class="['equipment-print-status', printCategoryStatusClass(cat.status)]">{{ cat.status }}</td>
+                    <td class="num">{{ cat.running }}</td>
+                    <td class="num">{{ cat.stopped }}</td>
+                    <td class="num">{{ cat.waiting }}</td>
+                    <td class="num">{{ cat.avgRate }}%</td>
+                    <td class="num">{{ cat.defectCount }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="equipment-print-block">
+            <header class="equipment-print-block-head">
+              <span class="equipment-print-step" aria-hidden="true">02</span>
+              <div class="equipment-print-block-titles">
+                <h2>설비별 현황</h2>
+                <p>표에 포함된 모든 설비의 식별·라인·운전·가동률·불량·싸이클·작업자 코드입니다.</p>
+              </div>
+            </header>
+            <div class="equipment-print-table-shell">
+              <table class="equipment-print-table equipment-print-table--dense">
+                <colgroup>
+                  <col class="col-cat" />
+                  <col class="col-id" />
+                  <col class="col-name" />
+                  <col class="col-line" />
+                  <col class="col-state" />
+                  <col class="col-num" />
+                  <col class="col-num" />
+                  <col class="col-cycle" />
+                  <col class="col-op" />
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th scope="col">카테고리</th>
+                    <th scope="col">설비 ID</th>
+                    <th scope="col">설비명</th>
+                    <th scope="col">라인</th>
+                    <th scope="col">운전</th>
+                    <th scope="col" class="num">가동률</th>
+                    <th scope="col" class="num">불량</th>
+                    <th scope="col" class="nowrap">싸이클</th>
+                    <th scope="col" class="nowrap">작업자</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="row in equipmentReportRows" :key="`print-eq-${row.id}`">
+                    <td>{{ row.categoryName }}</td>
+                    <td class="mono">{{ row.id }}</td>
+                    <td class="equipment-print-td-strong">{{ row.name }}</td>
+                    <td>{{ row.line }}</td>
+                    <td>{{ row.state }}</td>
+                    <td class="num">{{ row.rate }}%</td>
+                    <td class="num">{{ row.defects }}</td>
+                    <td class="nowrap mono">{{ row.cycle }}</td>
+                    <td class="nowrap mono">{{ row.operator }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="equipment-print-block equipment-print-block--detail">
+            <header class="equipment-print-block-head">
+              <span class="equipment-print-step" aria-hidden="true">03</span>
+              <div class="equipment-print-block-titles">
+                <h2>선택 설비 상세</h2>
+                <p>인쇄 시점 화면에서 선택된 설비 기준입니다. 카테고리·라인·상태·핵심 KPI를 먼저 확인한 뒤 항목별 값을 참고하세요.</p>
+              </div>
+            </header>
+
+            <div class="equipment-print-focus-card">
+              <div class="equipment-print-focus-main">
+                <span class="equipment-print-focus-id mono">{{ selectedEquipment.id }}</span>
+                <span class="equipment-print-focus-name">{{ selectedEquipment.name }}</span>
+              </div>
+              <div class="equipment-print-focus-meta">
+                <span>{{ selectedEquipment.line }}</span>
+                <span class="equipment-print-focus-dot" aria-hidden="true">·</span>
+                <span>{{ selectedCategory.name }}</span>
+                <span class="equipment-print-focus-dot" aria-hidden="true">·</span>
+                <span class="equipment-print-focus-state">{{ selectedEquipment.state }}</span>
+              </div>
+              <ul class="equipment-print-focus-kpis" aria-label="선택 설비 핵심 지표">
+                <li><span>가동률</span><strong>{{ selectedEquipment.rate }}%</strong></li>
+                <li><span>불량</span><strong>{{ selectedEquipment.defects }}</strong></li>
+                <li><span>싸이클</span><strong class="mono">{{ selectedEquipment.cycle }}</strong></li>
+                <li><span>작업자</span><strong class="mono">{{ selectedEquipment.operator }}</strong></li>
+              </ul>
+            </div>
+
+            <div class="equipment-print-detail-grid">
+              <div class="equipment-print-detail-panel">
+                <h3 class="equipment-print-panel-title">공통 운전 정보</h3>
+                <div class="equipment-print-table-shell">
+                  <table class="equipment-print-table equipment-print-table--kv">
+                    <tbody>
+                      <tr v-for="metric in selectedEquipment.common" :key="`print-cm-${metric.label}`">
+                        <th scope="row">{{ metric.label }}</th>
+                        <td class="mono">{{ metric.value }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div class="equipment-print-detail-panel">
+                <h3 class="equipment-print-panel-title">{{ selectedCategory.name }} 상세</h3>
+                <div class="equipment-print-table-shell">
+                  <table class="equipment-print-table">
+                    <thead>
+                      <tr>
+                        <th scope="col">항목</th>
+                        <th scope="col" class="nowrap">값</th>
+                        <th scope="col">판정</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="metric in selectedEquipment.specific" :key="`print-sp-${metric.label}`">
+                        <td>{{ metric.label }}</td>
+                        <td class="nowrap mono equipment-print-td-value">{{ metric.value }}</td>
+                        <td>{{ metric.status }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <footer class="equipment-print-footer">
+            <p>
+              본 문서는 조회 화면의 샘플 데이터를 기준으로 생성된 스냅샷이며, 실제 MES·SCADA 연동 시 API 응답 시각과 항목이 달라질 수 있습니다.
+            </p>
+          </footer>
+        </div>
+      </div>
+        </div>
+      </Teleport>
     </section>
   </main>
 </template>
+
+<style scoped>
+.equipment-print-only {
+  display: none;
+}
+
+.equipment-print-trigger {
+  white-space: nowrap;
+}
+
+@media print {
+  @page {
+    margin: 11mm 12mm 14mm;
+    size: A4 portrait;
+  }
+
+  .equipment-print-only {
+    display: block !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .equipment-print-report {
+    font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', 'Segoe UI', sans-serif;
+    color: #0f172a;
+    font-size: 9.25pt;
+    line-height: 1.48;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .equipment-print-sheet {
+    max-width: 100%;
+  }
+
+  /* 표지형 헤더 */
+  .equipment-print-cover {
+    margin-bottom: 14pt;
+    padding-bottom: 12pt;
+    border-bottom: 1.25pt solid #0f1f38;
+  }
+
+  .equipment-print-cover-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12pt;
+    margin-bottom: 10pt;
+  }
+
+  .equipment-print-brand {
+    display: flex;
+    align-items: center;
+    gap: 8pt;
+    flex-wrap: wrap;
+  }
+
+  .equipment-print-brand-mark {
+    font-size: 11pt;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    color: #002c5f;
+  }
+
+  .equipment-print-brand-line {
+    width: 1pt;
+    height: 11pt;
+    background: #cbd5e1;
+  }
+
+  .equipment-print-brand-sub {
+    font-size: 8.25pt;
+    font-weight: 700;
+    color: #64748b;
+    letter-spacing: 0.04em;
+  }
+
+  .equipment-print-doc-meta {
+    display: flex;
+    gap: 14pt;
+    margin: 0;
+    font-size: 8.25pt;
+    color: #475569;
+  }
+
+  .equipment-print-doc-meta div {
+    display: grid;
+    gap: 1pt;
+    text-align: right;
+  }
+
+  .equipment-print-doc-meta dt {
+    margin: 0;
+    font-size: 7.25pt;
+    font-weight: 800;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .equipment-print-doc-meta dd {
+    margin: 0;
+    font-weight: 700;
+    color: #334155;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .equipment-print-doc-title {
+    margin: 0 0 5pt;
+    font-size: 17pt;
+    font-weight: 900;
+    letter-spacing: -0.03em;
+    color: #0f1f38;
+    line-height: 1.2;
+  }
+
+  .equipment-print-doc-lead {
+    margin: 0;
+    max-width: 52em;
+    font-size: 8.75pt;
+    color: #475569;
+    line-height: 1.55;
+  }
+
+  /* 상단 KPI 띠 */
+  .equipment-print-kpi-strip {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8pt;
+    margin-bottom: 16pt;
+  }
+
+  .equipment-print-kpi {
+    border: 0.5pt solid #e2e8f0;
+    border-radius: 4pt;
+    padding: 7pt 8pt 8pt;
+    background: linear-gradient(180deg, #fafbfc 0%, #f4f7f9 100%);
+    break-inside: avoid;
+  }
+
+  .equipment-print-kpi-label {
+    display: block;
+    font-size: 7.25pt;
+    font-weight: 800;
+    color: #64748b;
+    letter-spacing: 0.02em;
+    margin-bottom: 3pt;
+  }
+
+  .equipment-print-kpi-value {
+    display: block;
+    font-size: 14pt;
+    font-weight: 900;
+    letter-spacing: -0.03em;
+    color: #0f1f38;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+  }
+
+  .equipment-print-kpi-value .pct {
+    font-size: 0.72em;
+    font-weight: 800;
+    margin-left: 1px;
+  }
+
+  .equipment-print-kpi-unit {
+    display: block;
+    margin-top: 3pt;
+    font-size: 7pt;
+    font-weight: 600;
+    color: #94a3b8;
+  }
+
+  /* 섹션 공통 */
+  .equipment-print-block {
+    margin-bottom: 15pt;
+    break-inside: avoid;
+  }
+
+  .equipment-print-block--detail {
+    break-inside: auto;
+  }
+
+  .equipment-print-block-head {
+    display: flex;
+    gap: 10pt;
+    align-items: flex-start;
+    margin-bottom: 8pt;
+    padding-bottom: 6pt;
+    border-bottom: 0.5pt solid #e2e8f0;
+  }
+
+  .equipment-print-step {
+    flex-shrink: 0;
+    width: 22pt;
+    height: 22pt;
+    display: grid;
+    place-items: center;
+    font-size: 8pt;
+    font-weight: 900;
+    color: #fff;
+    background: #002c5f;
+    border-radius: 4pt;
+    letter-spacing: 0.02em;
+  }
+
+  .equipment-print-block-titles h2 {
+    margin: 0 0 3pt;
+    font-size: 11pt;
+    font-weight: 900;
+    color: #0f1f38;
+    letter-spacing: -0.02em;
+  }
+
+  .equipment-print-block-titles p {
+    margin: 0;
+    font-size: 8pt;
+    font-weight: 600;
+    color: #64748b;
+    line-height: 1.45;
+    max-width: 48em;
+  }
+
+  .equipment-print-table-shell {
+    border: 0.5pt solid #cbd5e1;
+    border-radius: 3pt;
+    overflow: hidden;
+  }
+
+  .equipment-print-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 8.5pt;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .equipment-print-table thead {
+    display: table-header-group;
+  }
+
+  .equipment-print-table th,
+  .equipment-print-table td {
+    border-bottom: 0.5pt solid #e2e8f0;
+    padding: 4.5pt 6pt;
+    text-align: left;
+    vertical-align: middle;
+  }
+
+  .equipment-print-table tr:last-child td,
+  .equipment-print-table tr:last-child th {
+    border-bottom: none;
+  }
+
+  .equipment-print-table thead th {
+    background: #f1f5f9;
+    font-weight: 800;
+    font-size: 7.75pt;
+    color: #334155;
+    letter-spacing: 0.02em;
+  }
+
+  .equipment-print-table tbody tr:nth-child(even) td,
+  .equipment-print-table tbody tr:nth-child(even) th {
+    background: #fafbfc;
+  }
+
+  .equipment-print-table .num {
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .equipment-print-table .nowrap {
+    white-space: nowrap;
+  }
+
+  .equipment-print-table .mono {
+    font-family: ui-monospace, 'Cascadia Mono', 'Consolas', monospace;
+    font-size: 0.96em;
+  }
+
+  .equipment-print-td-strong {
+    font-weight: 800;
+    color: #0f1f38;
+  }
+
+  .equipment-print-td-value {
+    text-align: right;
+    font-weight: 700;
+  }
+
+  .equipment-print-table--dense {
+    font-size: 7.85pt;
+  }
+
+  .equipment-print-table--dense th,
+  .equipment-print-table--dense td {
+    padding: 3.5pt 4pt;
+  }
+
+  .equipment-print-table--dense .col-cat {
+    width: 11%;
+  }
+
+  .equipment-print-table--dense .col-id {
+    width: 9%;
+  }
+
+  .equipment-print-table--dense .col-name {
+    width: 14%;
+  }
+
+  .equipment-print-table--dense .col-line {
+    width: 18%;
+  }
+
+  .equipment-print-table--dense .col-state {
+    width: 8%;
+  }
+
+  .equipment-print-table--dense .col-num {
+    width: 7%;
+  }
+
+  .equipment-print-table--dense .col-cycle {
+    width: 10%;
+  }
+
+  .equipment-print-table--dense .col-op {
+    width: 9%;
+  }
+
+  .equipment-print-table--kv tbody th {
+    width: 38%;
+    font-weight: 700;
+    color: #475569;
+    background: #f8fafc;
+    font-size: 8pt;
+  }
+
+  .equipment-print-table--kv tbody td {
+    font-size: 8.25pt;
+  }
+
+  .equipment-print-status {
+    font-weight: 800;
+  }
+
+  .equipment-print-status--ok {
+    color: #0f766e;
+  }
+
+  .equipment-print-status--warn {
+    color: #b45309;
+  }
+
+  .equipment-print-status--bad {
+    color: #b91c1c;
+  }
+
+  /* 선택 설비 카드 */
+  .equipment-print-focus-card {
+    border: 0.5pt solid #cbd5e1;
+    border-radius: 4pt;
+    padding: 9pt 10pt 8pt;
+    margin-bottom: 10pt;
+    background: #fff;
+    box-shadow: 0 1pt 0 rgba(15, 23, 42, 0.04);
+    break-inside: avoid;
+  }
+
+  .equipment-print-focus-main {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6pt 10pt;
+    margin-bottom: 4pt;
+  }
+
+  .equipment-print-focus-id {
+    font-size: 11pt;
+    font-weight: 900;
+    color: #002c5f;
+    letter-spacing: 0.02em;
+  }
+
+  .equipment-print-focus-name {
+    font-size: 10.5pt;
+    font-weight: 900;
+    color: #0f1f38;
+  }
+
+  .equipment-print-focus-meta {
+    font-size: 8.25pt;
+    font-weight: 600;
+    color: #64748b;
+    margin-bottom: 8pt;
+  }
+
+  .equipment-print-focus-dot {
+    margin: 0 3pt;
+    color: #cbd5e1;
+  }
+
+  .equipment-print-focus-state {
+    font-weight: 800;
+    color: #0f1f38;
+  }
+
+  .equipment-print-focus-kpis {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6pt 10pt;
+    margin: 0;
+    padding: 8pt 0 0;
+    border-top: 0.5pt solid #e2e8f0;
+    list-style: none;
+  }
+
+  .equipment-print-focus-kpis li {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2pt;
+  }
+
+  .equipment-print-focus-kpis span {
+    font-size: 7.25pt;
+    font-weight: 800;
+    color: #94a3b8;
+    letter-spacing: 0.02em;
+  }
+
+  .equipment-print-focus-kpis strong {
+    font-size: 10pt;
+    font-weight: 900;
+    color: #0f1f38;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .equipment-print-detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10pt;
+    align-items: start;
+  }
+
+  .equipment-print-panel-title {
+    margin: 0 0 6pt;
+    font-size: 9pt;
+    font-weight: 900;
+    color: #334155;
+    letter-spacing: -0.01em;
+  }
+
+  .equipment-print-footer {
+    margin-top: 12pt;
+    padding-top: 8pt;
+    border-top: 0.5pt dashed #cbd5e1;
+    break-inside: avoid;
+  }
+
+  .equipment-print-footer p {
+    margin: 0;
+    font-size: 7.5pt;
+    font-weight: 600;
+    color: #94a3b8;
+    line-height: 1.5;
+    max-width: 58em;
+  }
+
+  .dashboard-main {
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #fff !important;
+    max-width: none !important;
+  }
+
+  .dashboard-shell {
+    display: block !important;
+    min-height: 0 !important;
+    background: #fff !important;
+  }
+}
+</style>

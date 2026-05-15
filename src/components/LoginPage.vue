@@ -1,20 +1,37 @@
-<script setup>
+<script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { X } from 'lucide-vue-next'
+import { useAuthStore } from '@/stores/auth'
+import type { UserRole } from '@/types/auth'
 
-const goDashboard = () => {
-  window.location.hash = '#/dashboard'
-}
-
-const activeModal = ref(null)
+const router = useRouter()
+const route = useRoute()
+const auth = useAuthStore()
 
 const modalTitle = {
   findId: '아이디 찾기',
   findPw: '비밀번호 찾기',
   signup: '회원가입',
+} as const
+
+type ModalId = keyof typeof modalTitle
+
+const activeModal = ref<ModalId | null>(null)
+const selectedRole = ref<UserRole>('operator')
+
+async function submitLogin() {
+  auth.login(selectedRole.value)
+  const raw = route.query.redirect
+  const redirect = Array.isArray(raw) ? raw[0] : raw
+  if (redirect && typeof redirect === 'string') {
+    await router.push(redirect)
+    return
+  }
+  await router.push({ name: 'dashboard' })
 }
 
-const openModal = (id) => {
+const openModal = (id: ModalId) => {
   activeModal.value = id
 }
 
@@ -22,7 +39,7 @@ const closeModal = () => {
   activeModal.value = null
 }
 
-const onKeydown = (e) => {
+const onKeydown = (e: KeyboardEvent) => {
   if (e.key === 'Escape') closeModal()
 }
 
@@ -106,15 +123,23 @@ onBeforeUnmount(() => {
           <h2>로그인</h2>
         </div>
 
-        <form class="login-form">
+        <form class="login-form" @submit.prevent="submitLogin">
           <label>
             <span>아이디</span>
-            <input type="text" placeholder="아이디를 입력하세요" />
+            <input type="text" placeholder="아이디를 입력하세요" autocomplete="username" />
           </label>
 
           <label>
             <span>비밀번호</span>
-            <input type="password" placeholder="비밀번호를 입력하세요" />
+            <input type="password" placeholder="비밀번호를 입력하세요" autocomplete="current-password" />
+          </label>
+
+          <label>
+            <span>역할 (데모)</span>
+            <select v-model="selectedRole" class="login-role-select">
+              <option value="operator">운영자</option>
+              <option value="admin">관리자</option>
+            </select>
           </label>
 
           <div class="form-options">
@@ -125,7 +150,7 @@ onBeforeUnmount(() => {
             <a href="#">보안접속</a>
           </div>
 
-          <button type="button" class="login-button" @click="goDashboard">로그인</button>
+          <button type="submit" class="login-button">로그인</button>
         </form>
 
         <nav class="account-links" aria-label="계정 메뉴">
@@ -152,7 +177,7 @@ onBeforeUnmount(() => {
           aria-labelledby="login-auth-dialog-title"
         >
           <header class="login-auth-modal-head">
-            <h2 id="login-auth-dialog-title">{{ modalTitle[activeModal] }}</h2>
+            <h2 id="login-auth-dialog-title">{{ activeModal ? modalTitle[activeModal] : '' }}</h2>
             <button type="button" class="login-auth-close" aria-label="닫기" @click="closeModal">
               <X :size="18" />
             </button>
@@ -221,3 +246,16 @@ onBeforeUnmount(() => {
     </Teleport>
   </main>
 </template>
+
+<style scoped>
+.login-role-select {
+  width: 100%;
+  margin-top: 6px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid #d0d7de;
+  font: inherit;
+  background: #fff;
+  box-sizing: border-box;
+}
+</style>
