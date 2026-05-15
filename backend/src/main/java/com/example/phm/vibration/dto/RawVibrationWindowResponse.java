@@ -15,7 +15,6 @@ public record RawVibrationWindowResponse(
         Integer rpm,
         Integer windowSize,
         Long windowIndex,
-        String rawFilePath,
         List<Double> values
 ) {
 
@@ -38,7 +37,6 @@ public record RawVibrationWindowResponse(
                 vibrationWindow.getRpm(),
                 vibrationWindow.getWindowSize(),
                 vibrationWindow.getWindowIndex(),
-                vibrationWindow.getRawFilePath(),
                 includeValues ? message.getValues() : List.of()
         );
     }

@@ -1,8 +1,5 @@
 package com.example.phm.vibration.controller;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -14,6 +11,8 @@ import com.example.phm.vibration.dto.RawVibrationWindowResponse;
 import com.example.phm.vibration.dto.VibrationWindowMessage;
 import com.example.phm.vibration.entity.VibrationWindow;
 import com.example.phm.vibration.repository.VibrationWindowRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -41,7 +40,7 @@ public class RawVibrationWindowController {
     public ResponseEntity<RawVibrationWindowResponse> latestRaw(
             @PathVariable String equipmentCode,
             @RequestParam(defaultValue = "true") boolean includeValues
-    ) throws IOException {
+    ) {
         return vibrationWindowRepository.findTopByEquipmentCodeOrderByMeasuredAtDescIdDesc(equipmentCode)
                 .map(window -> readRawWindow(window, includeValues))
                 .map(ResponseEntity::ok)
@@ -109,12 +108,23 @@ public class RawVibrationWindowController {
         return RawVibrationWindowResponse.from(vibrationWindow, message, includeValues);
     }
 
-    private VibrationWindowMessage readRawWindowMessage(VibrationWindow vibrationWindow) {
+    private VibrationWindowMessage readRawWindowMessage(VibrationWindow window) {
         try {
-            String payload = Files.readString(Path.of(vibrationWindow.getRawFilePath()));
-            return objectMapper.readValue(payload, VibrationWindowMessage.class);
-        } catch (IOException exception) {
-            throw new IllegalStateException("Failed to read raw vibration window file", exception);
+            String json = window.getValuesJson();
+            List<Double> values = json != null
+                    ? objectMapper.readValue(json, new TypeReference<List<Double>>() {})
+                    : List.of();
+            return new VibrationWindowMessage(
+                    window.getEquipmentCode(),
+                    window.getMeasuredAt() != null ? window.getMeasuredAt().toString() : null,
+                    window.getSamplingRate(),
+                    window.getRpm(),
+                    window.getWindowSize(),
+                    window.getWindowIndex() != null ? window.getWindowIndex().intValue() : 0,
+                    values
+            );
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("Failed to parse vibration values_json", exception);
         }
     }
 

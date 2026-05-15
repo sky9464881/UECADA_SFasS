@@ -1,4 +1,7 @@
 annotated-types==0.7.0
+cryptography==43.0.3
+pymysql==1.1.1
+sqlalchemy==2.0.36
 anyio==4.12.1
 click==8.1.8
 colorama==0.4.6

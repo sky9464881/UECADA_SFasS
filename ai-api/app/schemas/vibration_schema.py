@@ -38,6 +38,7 @@ class FftResponse(BaseModel):
 
 
 class AnalyzeResponse(BaseModel):
+    analysisResultId: int
     equipmentId: str
     timestamp: str
     samplingRate: int

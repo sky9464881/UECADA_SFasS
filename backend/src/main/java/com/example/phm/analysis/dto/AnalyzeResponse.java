@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class AnalyzeResponse {
 
+    private Long analysisResultId;
     private String equipmentId;
     private String timestamp;
     private Integer samplingRate;
@@ -23,6 +24,14 @@ public class AnalyzeResponse {
     private Integer modelExpectedInputSize;
     private String modelInputStrategy;
     private String modelStatus;
+
+    public Long getAnalysisResultId() {
+        return analysisResultId;
+    }
+
+    public void setAnalysisResultId(Long analysisResultId) {
+        this.analysisResultId = analysisResultId;
+    }
 
     public String getEquipmentId() {
         return equipmentId;

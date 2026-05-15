@@ -1,22 +1,30 @@
 services:
   mysql:
-    image: mysql:8.4
-    container_name: smart-factory-mysql
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-smart_factory}
-      MYSQL_USER: ${MYSQL_USER:-smart_factory}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-smart_factory}
+    image: mysql:8.0
+    container_name: uecada_mysql
+    restart: always
     ports:
-      - "${MYSQL_PORT:-3306}:3306"
+      - "8600:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root1234
+      MYSQL_DATABASE: uecada
+      MYSQL_USER: uecada_user
+      MYSQL_PASSWORD: uecada1234
+      TZ: Asia/Seoul
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=+09:00
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./database/init:/docker-entrypoint-initdb.d:ro
+      - ./database/init/init.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
+      - ./database/init/02_seed.sql:/docker-entrypoint-initdb.d/02_seed.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u$${MYSQL_USER} -p$${MYSQL_PASSWORD} --silent"]
+      test: ["CMD", "mysql", "-h", "localhost", "-uuecada_user", "-puecada1234", "-e", "SELECT 1 FROM uecada.analysis_result LIMIT 1"]
       interval: 10s
       timeout: 5s
-      retries: 10
+      retries: 20
+      start_period: 30s
 
   mosquitto:
     image: eclipse-mosquitto:2
@@ -35,6 +43,7 @@ services:
     container_name: smart-factory-ai-api
     environment:
       APP_NAME: Smart Factory Vibration AI API
+      DATABASE_URL: mysql+pymysql://uecada_user:uecada1234@mysql:3306/uecada
       FAULT_MODEL_PATH: ${FAULT_MODEL_PATH:-app/models/model.pkl}
       FAULT_MODEL_VERSION: ${FAULT_MODEL_VERSION:-spectrogram-pca-rf-v1}
       FAULT_MODEL_INPUT_TYPE: ${FAULT_MODEL_INPUT_TYPE:-spectrogram}
@@ -48,6 +57,9 @@ services:
       FFT_MAX_BINS: ${FFT_MAX_BINS:-2048}
     ports:
       - "${AI_API_PORT:-8001}:8001"
+    depends_on:
+      mysql:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
       interval: 10s
@@ -59,10 +71,9 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: smart-factory-backend
+    restart: on-failure
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      MYSQL_USER: ${MYSQL_USER:-smart_factory}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-smart_factory}
       MQTT_VIBRATION_TOPIC: ${MQTT_VIBRATION_TOPIC:-factory/motor/1/vibration/window}
       MQTT_QOS: ${MQTT_QOS:-1}
     ports:
@@ -86,9 +97,11 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: http://localhost:8080
     container_name: smart-factory-frontend
     ports:
-      - "${FRONTEND_PORT:-5173}:80"
+      - "3000:80"
     depends_on:
       backend:
         condition: service_healthy
@@ -102,10 +115,7 @@ services:
       - ./node-red:/data
       - ./data:/project-data:ro
     depends_on:
-      mosquitto:
-        condition: service_started
-      backend:
-        condition: service_healthy
+      - mosquitto
 
 volumes:
   mysql_data:

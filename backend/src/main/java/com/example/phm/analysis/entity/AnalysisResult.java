@@ -21,8 +21,8 @@ public class AnalysisResult {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "vibration_window_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "vibration_window_id", nullable = true)
     private VibrationWindow vibrationWindow;
 
     @Column(name = "equipment_code", nullable = false, length = 50)
@@ -72,6 +72,12 @@ public class AnalysisResult {
 
     @Column(name = "alarm_level", length = 20)
     private String alarmLevel;
+
+    @Column(name = "analysis_type", length = 50)
+    private String analysisType;
+
+    @Column(name = "result_json", columnDefinition = "json")
+    private String resultJson;
 
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -215,6 +221,12 @@ public class AnalysisResult {
     public void setAlarmLevel(String alarmLevel) {
         this.alarmLevel = alarmLevel;
     }
+
+    public String getAnalysisType() { return analysisType; }
+    public void setAnalysisType(String analysisType) { this.analysisType = analysisType; }
+
+    public String getResultJson() { return resultJson; }
+    public void setResultJson(String resultJson) { this.resultJson = resultJson; }
 
     public LocalDateTime getCreatedAt() {
         return createdAt;

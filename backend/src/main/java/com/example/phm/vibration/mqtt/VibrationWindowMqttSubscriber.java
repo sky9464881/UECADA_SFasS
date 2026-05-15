@@ -71,7 +71,7 @@ public class VibrationWindowMqttSubscriber {
             AnalysisFeatures features = analysis.getFeatures();
             log.info(
                     "Persisted vibration pipeline: vibrationWindowId={}, analysisResultId={}, alarmCreated={}, rawFilePath={}",
-                    ingestionResult.vibrationWindow().getId(),
+                    ingestionResult.vibrationWindow() != null ? ingestionResult.vibrationWindow().getId() : null,
                     ingestionResult.analysisResult().getId(),
                     ingestionResult.alarmCreated(),
                     ingestionResult.rawFilePath()

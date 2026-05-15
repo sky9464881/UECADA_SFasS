@@ -1,5 +1,7 @@
 package com.example.phm.equipment.entity;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 import jakarta.persistence.Column;
@@ -23,41 +25,52 @@ public class Equipment {
     @Column(name = "equipment_name", nullable = false, length = 100)
     private String equipmentName;
 
+    @Column(name = "process_type", length = 50)
+    private String processType;
+
+    @Column(name = "model", length = 100)
+    private String model;
+
+    @Column(name = "install_date")
+    private LocalDate installDate;
+
     @Column(name = "location", length = 100)
     private String location;
+
+    @Column(name = "location_x", precision = 10, scale = 4)
+    private BigDecimal locationX;
+
+    @Column(name = "location_y", precision = 10, scale = 4)
+    private BigDecimal locationY;
 
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    public Long getId() {
-        return id;
-    }
+    public Long getId() { return id; }
 
-    public String getEquipmentCode() {
-        return equipmentCode;
-    }
+    public String getEquipmentCode() { return equipmentCode; }
+    public void setEquipmentCode(String equipmentCode) { this.equipmentCode = equipmentCode; }
 
-    public void setEquipmentCode(String equipmentCode) {
-        this.equipmentCode = equipmentCode;
-    }
+    public String getEquipmentName() { return equipmentName; }
+    public void setEquipmentName(String equipmentName) { this.equipmentName = equipmentName; }
 
-    public String getEquipmentName() {
-        return equipmentName;
-    }
+    public String getProcessType() { return processType; }
+    public void setProcessType(String processType) { this.processType = processType; }
 
-    public void setEquipmentName(String equipmentName) {
-        this.equipmentName = equipmentName;
-    }
+    public String getModel() { return model; }
+    public void setModel(String model) { this.model = model; }
 
-    public String getLocation() {
-        return location;
-    }
+    public LocalDate getInstallDate() { return installDate; }
+    public void setInstallDate(LocalDate installDate) { this.installDate = installDate; }
 
-    public void setLocation(String location) {
-        this.location = location;
-    }
+    public String getLocation() { return location; }
+    public void setLocation(String location) { this.location = location; }
 
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
+    public BigDecimal getLocationX() { return locationX; }
+    public void setLocationX(BigDecimal locationX) { this.locationX = locationX; }
+
+    public BigDecimal getLocationY() { return locationY; }
+    public void setLocationY(BigDecimal locationY) { this.locationY = locationY; }
+
+    public LocalDateTime getCreatedAt() { return createdAt; }
 }

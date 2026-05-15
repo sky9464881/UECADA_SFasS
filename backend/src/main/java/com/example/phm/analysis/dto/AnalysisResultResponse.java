@@ -3,11 +3,14 @@ package com.example.phm.analysis.dto;
 import java.time.LocalDateTime;
 
 import com.example.phm.analysis.entity.AnalysisResult;
+import com.example.phm.vibration.entity.VibrationWindow;
 
 public record AnalysisResultResponse(
         Long id,
         Long vibrationWindowId,
         String equipmentCode,
+        String analysisType,
+        String resultJson,
         LocalDateTime measuredAt,
         Double rms,
         Double peakFrequency,
@@ -27,28 +30,31 @@ public record AnalysisResultResponse(
         LocalDateTime createdAt
 ) {
 
-    public static AnalysisResultResponse from(AnalysisResult analysisResult) {
+    public static AnalysisResultResponse from(AnalysisResult r) {
+        VibrationWindow w = r.getVibrationWindow();
         return new AnalysisResultResponse(
-                analysisResult.getId(),
-                analysisResult.getVibrationWindow().getId(),
-                analysisResult.getEquipmentCode(),
-                analysisResult.getVibrationWindow().getMeasuredAt(),
-                analysisResult.getRms(),
-                analysisResult.getPeakFrequency(),
-                analysisResult.getPeakToPeak(),
-                analysisResult.getCrestFactor(),
-                analysisResult.getKurtosis(),
-                analysisResult.getPrediction(),
-                analysisResult.getConfidence(),
-                analysisResult.getModelVersion(),
-                analysisResult.getModelInputType(),
-                analysisResult.getModelInputSize(),
-                analysisResult.getModelExpectedInputSize(),
-                analysisResult.getModelInputStrategy(),
-                analysisResult.getModelStatus(),
-                analysisResult.getAnomalyScore(),
-                analysisResult.getAlarmLevel(),
-                analysisResult.getCreatedAt()
+                r.getId(),
+                w != null ? w.getId() : null,
+                r.getEquipmentCode(),
+                r.getAnalysisType(),
+                r.getResultJson(),
+                w != null ? w.getMeasuredAt() : null,
+                r.getRms(),
+                r.getPeakFrequency(),
+                r.getPeakToPeak(),
+                r.getCrestFactor(),
+                r.getKurtosis(),
+                r.getPrediction(),
+                r.getConfidence(),
+                r.getModelVersion(),
+                r.getModelInputType(),
+                r.getModelInputSize(),
+                r.getModelExpectedInputSize(),
+                r.getModelInputStrategy(),
+                r.getModelStatus(),
+                r.getAnomalyScore(),
+                r.getAlarmLevel(),
+                r.getCreatedAt()
         );
     }
 }

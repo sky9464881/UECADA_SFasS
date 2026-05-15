@@ -5,6 +5,11 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     app_name: str = "Smart Factory Vibration AI API"
+
+    # Database
+    database_url: str = "mysql+pymysql://uecada_user:uecada1234@localhost:8600/uecada"
+
+    # Fault model
     fault_model_path: str = "app/models/model.pkl"
     fault_model_version: str = "spectrogram-pca-rf-v1"
     fault_model_input_type: str = "spectrogram"

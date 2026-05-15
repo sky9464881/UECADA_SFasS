@@ -1,15 +1,15 @@
 package com.example.phm.vibration.service;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
-import java.time.Duration;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.Locale;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.example.phm.alarm.entity.AlarmHistory;
 import com.example.phm.alarm.repository.AlarmHistoryRepository;
-import com.example.phm.analysis.dto.AnalysisFeatures;
 import com.example.phm.analysis.dto.AnalyzeResponse;
 import com.example.phm.analysis.entity.AnalysisResult;
 import com.example.phm.analysis.repository.AnalysisResultRepository;
@@ -19,32 +19,38 @@ import com.example.phm.equipment.repository.EquipmentRepository;
 import com.example.phm.vibration.dto.VibrationWindowMessage;
 import com.example.phm.vibration.entity.VibrationWindow;
 import com.example.phm.vibration.repository.VibrationWindowRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 
 @Service
 public class VibrationIngestionService {
 
-    private final RawWindowFileStorageService rawWindowFileStorageService;
+    private static final Duration RAW_WINDOW_SAVE_INTERVAL = Duration.ofMinutes(10);
+
+    private final ConcurrentHashMap<String, LocalDateTime> lastWindowSavedAt = new ConcurrentHashMap<>();
+
     private final VibrationWindowRepository vibrationWindowRepository;
     private final AnalysisResultRepository analysisResultRepository;
     private final AlarmHistoryRepository alarmHistoryRepository;
     private final EquipmentRepository equipmentRepository;
     private final AiAnalysisClient aiAnalysisClient;
+    private final ObjectMapper objectMapper;
 
     public VibrationIngestionService(
-            RawWindowFileStorageService rawWindowFileStorageService,
             VibrationWindowRepository vibrationWindowRepository,
             AnalysisResultRepository analysisResultRepository,
             AlarmHistoryRepository alarmHistoryRepository,
             EquipmentRepository equipmentRepository,
-            AiAnalysisClient aiAnalysisClient
+            AiAnalysisClient aiAnalysisClient,
+            ObjectMapper objectMapper
     ) {
-        this.rawWindowFileStorageService = rawWindowFileStorageService;
         this.vibrationWindowRepository = vibrationWindowRepository;
         this.analysisResultRepository = analysisResultRepository;
         this.alarmHistoryRepository = alarmHistoryRepository;
         this.equipmentRepository = equipmentRepository;
         this.aiAnalysisClient = aiAnalysisClient;
+        this.objectMapper = objectMapper;
     }
 
     public VibrationIngestionResult ingest(VibrationWindowMessage message, String rawPayload) {
@@ -53,14 +59,27 @@ public class VibrationIngestionService {
         LocalDateTime measuredAt = parseMeasuredAt(message.getTimestamp());
         ensureEquipmentExists(message.getEquipmentId());
 
-        String rawFilePath = rawWindowFileStorageService.save(message, rawPayload, measuredAt);
-        VibrationWindow vibrationWindow = saveVibrationWindow(message, rawFilePath, measuredAt);
-
         AnalyzeResponse analysis = aiAnalysisClient.analyze(message);
-        AnalysisResult analysisResult = saveAnalysisResult(vibrationWindow, analysis);
-        boolean alarmCreated = saveAlarmIfNeeded(analysisResult, analysis);
+        AnalysisResult analysisResultRef = analysisResultRepository.getReferenceById(analysis.getAnalysisResultId());
 
-        return new VibrationIngestionResult(vibrationWindow, analysisResult, alarmCreated, rawFilePath, analysis);
+        boolean alarmCreated = saveAlarmIfNeeded(analysisResultRef, analysis, measuredAt);
+
+        VibrationWindow vibrationWindow = null;
+        if (shouldSaveRawWindow(message.getEquipmentId(), measuredAt)) {
+            vibrationWindow = saveVibrationWindow(message, measuredAt);
+            recordWindowSaveTime(message.getEquipmentId(), measuredAt);
+        }
+
+        return new VibrationIngestionResult(vibrationWindow, analysisResultRef, alarmCreated, null, analysis);
+    }
+
+    private boolean shouldSaveRawWindow(String equipmentCode, LocalDateTime measuredAt) {
+        LocalDateTime last = lastWindowSavedAt.get(equipmentCode);
+        return last == null || !measuredAt.isBefore(last.plus(RAW_WINDOW_SAVE_INTERVAL));
+    }
+
+    private void recordWindowSaveTime(String equipmentCode, LocalDateTime measuredAt) {
+        lastWindowSavedAt.put(equipmentCode, measuredAt);
     }
 
     private void validate(VibrationWindowMessage message) {
@@ -93,11 +112,7 @@ public class VibrationIngestionService {
         equipmentRepository.save(equipment);
     }
 
-    private VibrationWindow saveVibrationWindow(
-            VibrationWindowMessage message,
-            String rawFilePath,
-            LocalDateTime measuredAt
-    ) {
+    private VibrationWindow saveVibrationWindow(VibrationWindowMessage message, LocalDateTime measuredAt) {
         VibrationWindow vibrationWindow = new VibrationWindow();
         vibrationWindow.setEquipmentCode(message.getEquipmentId());
         vibrationWindow.setMeasuredAt(measuredAt);
@@ -105,74 +120,56 @@ public class VibrationIngestionService {
         vibrationWindow.setRpm(message.getRpm());
         vibrationWindow.setWindowSize(message.getWindowSize());
         vibrationWindow.setWindowIndex(message.getWindowIndex().longValue());
-        vibrationWindow.setRawFilePath(rawFilePath);
+        vibrationWindow.setValuesJson(serializeValues(message));
         return vibrationWindowRepository.save(vibrationWindow);
     }
 
-    private AnalysisResult saveAnalysisResult(VibrationWindow vibrationWindow, AnalyzeResponse analysis) {
-        AnalysisFeatures features = analysis.getFeatures();
-
-        AnalysisResult analysisResult = new AnalysisResult();
-        analysisResult.setVibrationWindow(vibrationWindow);
-        analysisResult.setEquipmentCode(vibrationWindow.getEquipmentCode());
-        analysisResult.setRms(features == null ? null : features.getRms());
-        analysisResult.setPeakFrequency(features == null ? null : features.getPeakFrequency());
-        analysisResult.setPeakToPeak(features == null ? null : features.getPeakToPeak());
-        analysisResult.setCrestFactor(features == null ? null : features.getCrestFactor());
-        analysisResult.setKurtosis(features == null ? null : features.getKurtosis());
-        analysisResult.setPrediction(analysis.getPrediction());
-        analysisResult.setConfidence(analysis.getConfidence());
-        analysisResult.setModelVersion(analysis.getModelVersion());
-        analysisResult.setModelInputType(analysis.getModelInputType());
-        analysisResult.setModelInputSize(analysis.getModelInputSize());
-        analysisResult.setModelExpectedInputSize(analysis.getModelExpectedInputSize());
-        analysisResult.setModelInputStrategy(analysis.getModelInputStrategy());
-        analysisResult.setModelStatus(analysis.getModelStatus());
-        analysisResult.setAnomalyScore(analysis.getAnomalyScore());
-        analysisResult.setAlarmLevel(analysis.getAlarmLevel());
-        return analysisResultRepository.save(analysisResult);
+    private String serializeValues(VibrationWindowMessage message) {
+        try {
+            return objectMapper.writeValueAsString(message.getValues());
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Failed to serialize vibration values", e);
+        }
     }
 
-    private boolean saveAlarmIfNeeded(AnalysisResult analysisResult, AnalyzeResponse analysis) {
+    private boolean saveAlarmIfNeeded(AnalysisResult analysisResultRef, AnalyzeResponse analysis, LocalDateTime measuredAt) {
         if (isAlarmLevel(analysis.getAlarmLevel())) {
-            return openOrUpdateAlarm(analysisResult, analysis);
+            return openOrUpdateAlarm(analysisResultRef, analysis, measuredAt);
         }
-
-        closeOpenAlarmIfNeeded(analysisResult);
+        closeOpenAlarmIfNeeded(analysis.getEquipmentId(), measuredAt);
         return false;
     }
 
-    private boolean openOrUpdateAlarm(AnalysisResult analysisResult, AnalyzeResponse analysis) {
+    private boolean openOrUpdateAlarm(AnalysisResult analysisResultRef, AnalyzeResponse analysis, LocalDateTime measuredAt) {
         return alarmHistoryRepository
-                .findTopByEquipmentCodeAndStatusOrderByOccurredAtDesc(analysisResult.getEquipmentCode(), "open")
+                .findTopByEquipmentCodeAndStatusOrderByOccurredAtDesc(analysis.getEquipmentId(), "open")
                 .map(alarm -> {
                     alarm.setAlarmLevel(worseAlarmLevel(alarm.getAlarmLevel(), analysis.getAlarmLevel()));
-                    alarm.setAnalysisResult(analysisResult);
-                    alarm.setMessage(buildAlarmMessage(analysisResult, analysis, alarm.getOccurredAt(), null));
+                    alarm.setAnalysisResult(analysisResultRef);
+                    alarm.setMessage(buildAlarmMessage(analysis, alarm.getOccurredAt()));
                     alarmHistoryRepository.save(alarm);
                     return false;
                 })
                 .orElseGet(() -> {
                     AlarmHistory alarm = new AlarmHistory();
-                    alarm.setEquipmentCode(analysisResult.getEquipmentCode());
-                    alarm.setAnalysisResult(analysisResult);
+                    alarm.setEquipmentCode(analysis.getEquipmentId());
+                    alarm.setAnalysisResult(analysisResultRef);
                     alarm.setAlarmLevel(analysis.getAlarmLevel());
                     alarm.setStatus("open");
-                    alarm.setOccurredAt(analysisResult.getVibrationWindow().getMeasuredAt());
-                    alarm.setMessage(buildAlarmMessage(analysisResult, analysis, alarm.getOccurredAt(), null));
+                    alarm.setOccurredAt(measuredAt);
+                    alarm.setMessage(buildAlarmMessage(analysis, measuredAt));
                     alarmHistoryRepository.save(alarm);
                     return true;
                 });
     }
 
-    private void closeOpenAlarmIfNeeded(AnalysisResult analysisResult) {
+    private void closeOpenAlarmIfNeeded(String equipmentCode, LocalDateTime measuredAt) {
         alarmHistoryRepository
-                .findTopByEquipmentCodeAndStatusOrderByOccurredAtDesc(analysisResult.getEquipmentCode(), "open")
+                .findTopByEquipmentCodeAndStatusOrderByOccurredAtDesc(equipmentCode, "open")
                 .ifPresent(alarm -> {
-                    LocalDateTime endedAt = analysisResult.getVibrationWindow().getMeasuredAt();
-                    long durationSeconds = Math.max(0L, Duration.between(alarm.getOccurredAt(), endedAt).getSeconds());
+                    long durationSeconds = Math.max(0L, Duration.between(alarm.getOccurredAt(), measuredAt).getSeconds());
                     alarm.setStatus("closed");
-                    alarm.setEndedAt(endedAt);
+                    alarm.setEndedAt(measuredAt);
                     alarm.setDurationSeconds(durationSeconds);
                     alarm.setMessage(buildAlarmClosedMessage(alarm, durationSeconds));
                     alarmHistoryRepository.save(alarm);
@@ -194,20 +191,14 @@ public class VibrationIngestionService {
         return "warning";
     }
 
-    private String buildAlarmMessage(
-            AnalysisResult analysisResult,
-            AnalyzeResponse analysis,
-            LocalDateTime startedAt,
-            LocalDateTime endedAt
-    ) {
-        return "Vibration anomaly active: equipmentCode=%s, alarmLevel=%s, anomalyScore=%s, prediction=%s, startedAt=%s, endedAt=%s"
+    private String buildAlarmMessage(AnalyzeResponse analysis, LocalDateTime startedAt) {
+        return "Vibration anomaly active: equipmentCode=%s, alarmLevel=%s, anomalyScore=%s, prediction=%s, startedAt=%s"
                 .formatted(
-                        analysisResult.getEquipmentCode(),
+                        analysis.getEquipmentId(),
                         analysis.getAlarmLevel(),
                         analysis.getAnomalyScore(),
                         analysis.getPrediction(),
-                        startedAt,
-                        endedAt
+                        startedAt
                 );
     }
 

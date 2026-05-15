@@ -17,7 +17,7 @@ public class AlarmHistoryController {
         this.alarmHistoryRepository = alarmHistoryRepository;
     }
 
-    @GetMapping("/api/alarms")
+    @GetMapping("/api/alarm-histories")
     public List<AlarmHistoryResponse> findRecent(@RequestParam(defaultValue = "100") int limit) {
         int safeLimit = Math.max(1, Math.min(limit, 100));
         return alarmHistoryRepository.findTop100ByOrderByOccurredAtDesc().stream()

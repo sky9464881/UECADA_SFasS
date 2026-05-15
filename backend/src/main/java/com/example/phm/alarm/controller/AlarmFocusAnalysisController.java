@@ -17,7 +17,7 @@ public class AlarmFocusAnalysisController {
         this.alarmFocusAnalysisService = alarmFocusAnalysisService;
     }
 
-    @GetMapping("/api/alarms/{alarmId}/focus-analysis")
+    @GetMapping("/api/alarm-histories/{alarmId}/focus-analysis")
     public AlarmFocusAnalysisResponse findFocusAnalysis(
             @PathVariable Long alarmId,
             @RequestParam(defaultValue = "10") int paddingSeconds,
@@ -26,7 +26,7 @@ public class AlarmFocusAnalysisController {
         return alarmFocusAnalysisService.findFocusAnalysis(alarmId, paddingSeconds, maxPoints);
     }
 
-    @GetMapping("/api/alarms/{alarmId}/focus-analysis/selection")
+    @GetMapping("/api/alarm-histories/{alarmId}/focus-analysis/selection")
     public AlarmFocusSelectionResponse analyzeSelection(
             @PathVariable Long alarmId,
             @RequestParam long startMillis,

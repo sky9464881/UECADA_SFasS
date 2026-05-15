@@ -35,8 +35,8 @@ public class VibrationWindow {
     @Column(name = "window_index", nullable = false)
     private Long windowIndex;
 
-    @Column(name = "raw_file_path", length = 500)
-    private String rawFilePath;
+    @Column(name = "values_json", columnDefinition = "LONGTEXT")
+    private String valuesJson;
 
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -93,12 +93,12 @@ public class VibrationWindow {
         this.windowIndex = windowIndex;
     }
 
-    public String getRawFilePath() {
-        return rawFilePath;
+    public String getValuesJson() {
+        return valuesJson;
     }
 
-    public void setRawFilePath(String rawFilePath) {
-        this.rawFilePath = rawFilePath;
+    public void setValuesJson(String valuesJson) {
+        this.valuesJson = valuesJson;
     }
 
     public LocalDateTime getCreatedAt() {

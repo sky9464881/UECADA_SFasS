@@ -1,8 +1,5 @@
 package com.example.phm.alarm.service;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -23,6 +20,8 @@ import com.example.phm.analysis.service.AiAnalysisClient;
 import com.example.phm.vibration.dto.VibrationWindowMessage;
 import com.example.phm.vibration.entity.VibrationWindow;
 import com.example.phm.vibration.repository.VibrationWindowRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -164,7 +163,10 @@ public class AlarmFocusAnalysisService {
         LocalDateTime occurredAt = alarm.getOccurredAt();
         LocalDateTime endedAt = alarm.getEndedAt();
         if (endedAt == null) {
-            endedAt = alarm.getAnalysisResult().getVibrationWindow().getMeasuredAt();
+            VibrationWindow window = alarm.getAnalysisResult() != null
+                    ? alarm.getAnalysisResult().getVibrationWindow()
+                    : null;
+            endedAt = window != null ? window.getMeasuredAt() : occurredAt;
         }
         if (endedAt.isBefore(occurredAt)) {
             endedAt = occurredAt;
@@ -214,10 +216,21 @@ public class AlarmFocusAnalysisService {
 
     private VibrationWindowMessage readRawWindowMessage(VibrationWindow window) {
         try {
-            String payload = Files.readString(Path.of(window.getRawFilePath()));
-            return objectMapper.readValue(payload, VibrationWindowMessage.class);
-        } catch (IOException exception) {
-            throw new IllegalStateException("Failed to read raw vibration window file", exception);
+            String json = window.getValuesJson();
+            List<Double> values = json != null
+                    ? objectMapper.readValue(json, new TypeReference<List<Double>>() {})
+                    : List.of();
+            return new VibrationWindowMessage(
+                    window.getEquipmentCode(),
+                    window.getMeasuredAt() != null ? window.getMeasuredAt().toString() : null,
+                    window.getSamplingRate(),
+                    window.getRpm(),
+                    window.getWindowSize(),
+                    window.getWindowIndex() != null ? window.getWindowIndex().intValue() : 0,
+                    values
+            );
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("Failed to parse vibration values_json", exception);
         }
     }
 

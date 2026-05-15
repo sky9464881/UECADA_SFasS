@@ -21,6 +21,10 @@ public interface AnalysisResultRepository extends JpaRepository<AnalysisResult, 
     @EntityGraph(attributePaths = "vibrationWindow")
     List<AnalysisResult> findByEquipmentCodeOrderByCreatedAtDesc(String equipmentCode, Pageable pageable);
 
+    @EntityGraph(attributePaths = "vibrationWindow")
+    List<AnalysisResult> findByEquipmentCodeAndAnalysisTypeOrderByCreatedAtDesc(
+            String equipmentCode, String analysisType, Pageable pageable);
+
     List<AnalysisResult> findTop100ByOrderByCreatedAtDesc();
 
     @EntityGraph(attributePaths = "vibrationWindow")
