@@ -2,7 +2,7 @@
 
 SCADA 통합 대시보드 및 관리 화면을 위한 Vue 기반 프론트엔드 저장소입니다.
 
-실행·빌드는 저장소 루트의 **`UECADA/`** 폴더에서 진행합니다 (`package.json`, `vite.config.js`, `src/` 위치).
+이 디렉터리가 Vite/Vue 앱 루트입니다 (`npm install`, `npm run dev`, `npm run build`).
 
 ## 주요 수정 사항 (`feat/frontend`)
 
@@ -31,7 +31,6 @@ SCADA 통합 대시보드 및 관리 화면을 위한 Vue 기반 프론트엔드
 ## 로컬 실행
 
 ```bash
-cd UECADA
 npm install
 npm run dev
 ```
@@ -39,7 +38,6 @@ npm run dev
 ## 프로덕션 빌드
 
 ```bash
-cd UECADA
 npm run build
 ```
 
