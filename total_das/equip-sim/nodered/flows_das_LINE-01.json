@@ -1,0 +1,7165 @@
+[
+  {
+    "id": "5db7d1d1fc5a48f5",
+    "type": "tab",
+    "label": "LINE-01 DAS",
+    "disabled": false,
+    "info": ""
+  },
+  {
+    "id": "774e5f977246468c",
+    "type": "comment",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "LINE-01 라인 DAS",
+    "info": "라인 LINE-01 9개 설비 폴링 -> 1초마다 통합 페이로드 발행\nOPC UA Server :4860 로 노출 (endpoint=line-das/LINE-01)\n\npayload schema: docs/integration_spec.md §5\nhost_mode: docker\n\nreader -> [AGGREGATE TAGS] -> flow context\npoll 1s -> [EMIT PAYLOAD] -> [DEBUG] + [PUBLISH OPC UA]\n",
+    "x": 180,
+    "y": 30,
+    "wires": []
+  },
+  {
+    "id": "b045666dc3984688",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "AGGREGATE TAGS",
+    "func": "// 각 설비 reader 가 보낸 부분 dict 를 flow context 에 누적.\n// parser 는 msg.payload = {equipment_id, tags} 형태로 전달한다.\nconst p = msg.payload || {};\nconst eq = p.equipment_id;\nif (!eq) return null;\nconst buf = flow.get('equipments') || {};\nconst prev = buf[eq] || { data: {} };\nprev.data = Object.assign(prev.data || {}, p.tags || {});\nprev.last_update_ms = Date.now();\nbuf[eq] = prev;\nflow.set('equipments', buf);\nreturn null;\n",
+    "outputs": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 1000,
+    "y": 600,
+    "wires": []
+  },
+  {
+    "id": "6fdb8911d2c64a28",
+    "type": "debug",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "payload",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 1400,
+    "y": 100,
+    "wires": []
+  },
+  {
+    "id": "ca74f352bf724ab1",
+    "type": "OpcUa-Server",
+    "z": "5db7d1d1fc5a48f5",
+    "port": 4860,
+    "endpoint": "line-das/LINE-01",
+    "acceptExternalCommands": true,
+    "maxNodesPerBrowse": 0,
+    "maxNodesPerHistoryReadData": 0,
+    "maxNodesPerHistoryReadEvents": 0,
+    "maxNodesPerWrite": 0,
+    "maxNodesPerMethodCall": 0,
+    "maxNodesPerRegisterNodes": 0,
+    "maxNodesPerNodeManagement": 0,
+    "maxMonitoredItemsPerCall": 0,
+    "maxNodesPerHistoryUpdateData": 0,
+    "maxNodesPerHistoryUpdateEvents": 0,
+    "maxNodesPerRead": 0,
+    "maxNodesPerTranslateBrowsePathsToNodeIds": 0,
+    "name": "DAS Server LINE-01 :4860",
+    "usersFile": "",
+    "nodesetDir": "",
+    "autoAcceptUnknownCertificate": true,
+    "registerToDiscovery": false,
+    "constructDefaultAddressSpace": true,
+    "allowAnonymous": true,
+    "endpointNone": true,
+    "endpointSign": false,
+    "endpointSignEncrypt": false,
+    "endpointBasic128Rsa15": false,
+    "endpointBasic256": false,
+    "endpointBasic256Sha256": false,
+    "isAuditing": false,
+    "serverDiscovery": true,
+    "maxConnectionsPerEndpoint": 20,
+    "maxMessageSize": "10485760",
+    "maxBufferSize": "10485760",
+    "maxSessions": 20,
+    "users": [],
+    "xmlsetname": "",
+    "xmlsetname2": "",
+    "x": 1700,
+    "y": 200,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "67f94ca1f1c8449c",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "PUBLISH -> OPC UA Server",
+    "func": "// payload 를 OPC UA Server 변수로 발행\n//\n// node-red-contrib-opcua 의 OpcUa-Server 는 2단계 프로토콜:\n//   1) addVariable 명령으로 주소공간에 노드 등록\n//      msg.topic   = 'ns=2;s=<name>;datatype=<DT>'\n//      msg.payload = { opcuaCommand: 'addVariable' }\n//   2) 이후 Variable 명령으로 값 갱신\n//      msg.payload = { messageType:'Variable', namespace:2,\n//                      variableName:<name>, variableValue:<val>, datatype:<DT> }\n//\n// addVariable 과 Variable 을 같은 tick 의 연속된 msg 로 보내면\n// OpcUa-Server 가 주소공간 등록을 끝내기 전에 Variable 갱신이 들어와서\n// \"Variable not found\" 에러가 다수 발생한다.\n//\n// 근본 해결책 (race 완전 제거):\n//   1) 변수별 상태를 3단계로 관리: 'new' -> 'pending' -> 'ready'\n//      - 처음 만난 변수는 addVariable 만 보내고 'pending' 으로 표시\n//      - 다음 tick 부터 'pending' 인 변수는 Variable update SKIP 하고 'ready' 로 승격\n//      - 'ready' 부터 실제 Variable update 전송\n//   2) 즉 addVariable 보낸 tick (1초 간격) + 2 tick 뒤부터 update 시작\n//      → OpcUa-Server 가 등록을 끝낼 약 1초 이상 확보\n//   3) Variable update 는 contrib-opcua array payload 형식으로 한번에 묶어 전송\nconst EXPECTED_TYPES = {\"CAST-01\": {\"power\": \"bool\", \"injection_pressure_sp\": \"float\", \"mold_temperature_sp\": \"float\", \"cooling_flow_sp\": \"float\", \"injection_pressure\": \"float\", \"mold_temperature\": \"float\", \"cooling_flow\": \"float\", \"progress\": \"float\"}, \"CNC-01\": {\"power\": \"bool\", \"spindle_speed_sp\": \"int\", \"tool_usage_sp\": \"float\", \"coolant_flow_sp\": \"float\", \"spindle_speed\": \"int\", \"tool_usage\": \"float\", \"coolant_flow\": \"float\", \"progress\": \"float\"}, \"CNC-02\": {\"power\": \"bool\", \"spindle_speed_sp\": \"int\", \"tool_usage_sp\": \"float\", \"coolant_flow_sp\": \"float\", \"spindle_speed\": \"int\", \"tool_usage\": \"float\", \"coolant_flow\": \"float\", \"progress\": \"float\"}, \"CNC-03\": {\"power\": \"bool\", \"spindle_speed_sp\": \"int\", \"tool_usage_sp\": \"float\", \"coolant_flow_sp\": \"float\", \"spindle_speed\": \"int\", \"tool_usage\": \"float\", \"coolant_flow\": \"float\", \"progress\": \"float\"}, \"WASH-01\": {\"power\": \"bool\", \"cleaning_concentration_sp\": \"float\", \"cleaning_temperature_sp\": \"float\", \"cleaning_pressure_sp\": \"float\", \"cleaning_concentration\": \"float\", \"cleaning_temperature\": \"float\", \"cleaning_pressure\": \"float\", \"progress\": \"float\"}, \"ASSY-01\": {\"power\": \"bool\", \"tightening_torque_sp\": \"float\", \"tightening_angle_sp\": \"float\", \"press_force_sp\": \"float\", \"tightening_torque\": \"float\", \"tightening_angle\": \"float\", \"press_force\": \"float\", \"progress\": \"float\"}, \"ASSY-02\": {\"power\": \"bool\", \"tightening_torque_sp\": \"float\", \"tightening_angle_sp\": \"float\", \"press_force_sp\": \"float\", \"tightening_torque\": \"float\", \"tightening_angle\": \"float\", \"press_force\": \"float\", \"progress\": \"float\"}, \"TEST-01\": {\"power\": \"bool\", \"bore_dimension_sp\": \"float\", \"hole_dimension_sp\": \"float\", \"bore_dimension\": \"float\", \"hole_dimension\": \"float\", \"result_ok\": \"bool\", \"progress\": \"float\"}, \"TEST-02\": {\"power\": \"bool\", \"bore_dimension_sp\": \"float\", \"hole_dimension_sp\": \"float\", \"bore_dimension\": \"float\", \"hole_dimension\": \"float\", \"result_ok\": \"bool\", \"progress\": \"float\"}};\nconst p = msg.payload;\nif (!p) return null;\nconst lineId = p.line_id;\n// state['name'] = 'pending' | 'ready'\nconst state = flow.get('opcua_state') || {};\nconst addMsgs = [];\nconst varList = [];\n\nfunction coerce(value, dtype) {\n  if (value === null || value === undefined) {\n    if (dtype === 'Boolean') return false;\n    if (dtype === 'Int32') return 0;\n    if (dtype === 'Double' || dtype === 'Float') return 0.0;\n    return '';\n  }\n  return value;\n}\n\nfunction publish(name, value, dtype) {\n  const v = coerce(value, dtype);\n  const s = state[name];\n  if (!s) {\n    // 첫 발견: addVariable 만 보냄\n    addMsgs.push({\n      topic: `ns=2;s=${name};datatype=${dtype}`,\n      payload: { opcuaCommand: 'addVariable' },\n    });\n    state[name] = 'pending';\n    return;\n  }\n  if (s === 'pending') {\n    // 한 tick 더 기다림 -> ready 로 승격, 이번 tick 도 update skip\n    state[name] = 'ready';\n    return;\n  }\n  // ready: 실제 update\n  varList.push({\n    messageType: 'Variable',\n    namespace: 2,\n    variableName: name,\n    variableValue: v,\n    datatype: dtype,\n  });\n}\n\npublish(`${lineId}.payload`,         JSON.stringify(p),     'String');\npublish(`${lineId}.line_ts`,         p.ts,                   'String');\npublish(`${lineId}.schema_version`,  p.schema_version,       'String');\nfor (const [eq, slot] of Object.entries(p.equipments || {})) {\n  publish(`${lineId}.${eq}.status`,  slot.status,            'String');\n  publish(`${lineId}.${eq}.ts`,      slot.ts,                'String');\n  publish(`${lineId}.${eq}.quality`, slot.quality,           'String');\n  const typeMap = (EXPECTED_TYPES[eq] || {});\n  for (const [tag, val] of Object.entries(slot.data || {})) {\n    let dtype;\n    const declared = typeMap[tag];\n    if (declared === 'bool') dtype = 'Boolean';\n    else if (declared === 'int') dtype = 'Int32';\n    else if (declared === 'float') dtype = 'Double';\n    else {\n      // 알려지지 않은 동적 tag (cycle_time, progress 등) — 무조건 Double 로 등록.\n      if (typeof val === 'boolean') dtype = 'Boolean';\n      else if (typeof val === 'number') dtype = 'Double';\n      else dtype = 'String';\n    }\n    publish(`${lineId}.${eq}.data.${tag}`, val, dtype);\n  }\n}\nflow.set('opcua_state', state);\n\n// 단계 1: addVariable msg 들 즉시 전송 (array-of-messages 출력 형식)\nif (addMsgs.length > 0) {\n  node.send([addMsgs]);\n}\n\n// 단계 2: Variable update 는 array payload 로 한번에 전송 (state='ready' 인 것만)\n//   addMsgs 가 있는 tick (새 변수 발견된 tick) 은 800ms 지연으로 안전 마진,\n//   안정 상태에선 50ms 정도 지연으로 send 순서만 보장.\nif (varList.length > 0) {\n  const delay = (addMsgs.length > 0) ? 800 : 50;\n  setTimeout(() => {\n    node.send({ payload: varList });\n  }, delay);\n}\n\nreturn null;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 1400,
+    "y": 200,
+    "wires": [
+      [
+        "ca74f352bf724ab1"
+      ]
+    ]
+  },
+  {
+    "id": "b8efa9cac92a4ec0",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "EMIT PAYLOAD",
+    "func": "// 1초마다 라인 페이로드 발행 + cycle_time 산출\nconst LINE_ID = \"LINE-01\";\nconst SCHEMA_VERSION = \"1.0\";\nconst EQUIPMENTS = [\"CAST-01\", \"CNC-01\", \"CNC-02\", \"CNC-03\", \"WASH-01\", \"ASSY-01\", \"ASSY-02\", \"TEST-01\", \"TEST-02\"];\n// 설비별 기대 tag 맵: { eq_id: { tag_name: data_type } }\n// 아직 읽히지 않은 값은 data_type 기본값으로 채워 서\n// 통합 DAS 가 OPC UA 변수 누락 에러를 내지 않도록 보장.\nconst EXPECTED_TAGS = {\"CAST-01\": {\"power\": \"bool\", \"injection_pressure_sp\": \"float\", \"mold_temperature_sp\": \"float\", \"cooling_flow_sp\": \"float\", \"injection_pressure\": \"float\", \"mold_temperature\": \"float\", \"cooling_flow\": \"float\", \"progress\": \"float\"}, \"CNC-01\": {\"power\": \"bool\", \"spindle_speed_sp\": \"int\", \"tool_usage_sp\": \"float\", \"coolant_flow_sp\": \"float\", \"spindle_speed\": \"int\", \"tool_usage\": \"float\", \"coolant_flow\": \"float\", \"progress\": \"float\"}, \"CNC-02\": {\"power\": \"bool\", \"spindle_speed_sp\": \"int\", \"tool_usage_sp\": \"float\", \"coolant_flow_sp\": \"float\", \"spindle_speed\": \"int\", \"tool_usage\": \"float\", \"coolant_flow\": \"float\", \"progress\": \"float\"}, \"CNC-03\": {\"power\": \"bool\", \"spindle_speed_sp\": \"int\", \"tool_usage_sp\": \"float\", \"coolant_flow_sp\": \"float\", \"spindle_speed\": \"int\", \"tool_usage\": \"float\", \"coolant_flow\": \"float\", \"progress\": \"float\"}, \"WASH-01\": {\"power\": \"bool\", \"cleaning_concentration_sp\": \"float\", \"cleaning_temperature_sp\": \"float\", \"cleaning_pressure_sp\": \"float\", \"cleaning_concentration\": \"float\", \"cleaning_temperature\": \"float\", \"cleaning_pressure\": \"float\", \"progress\": \"float\"}, \"ASSY-01\": {\"power\": \"bool\", \"tightening_torque_sp\": \"float\", \"tightening_angle_sp\": \"float\", \"press_force_sp\": \"float\", \"tightening_torque\": \"float\", \"tightening_angle\": \"float\", \"press_force\": \"float\", \"progress\": \"float\"}, \"ASSY-02\": {\"power\": \"bool\", \"tightening_torque_sp\": \"float\", \"tightening_angle_sp\": \"float\", \"press_force_sp\": \"float\", \"tightening_torque\": \"float\", \"tightening_angle\": \"float\", \"press_force\": \"float\", \"progress\": \"float\"}, \"TEST-01\": {\"power\": \"bool\", \"bore_dimension_sp\": \"float\", \"hole_dimension_sp\": \"float\", \"bore_dimension\": \"float\", \"hole_dimension\": \"float\", \"result_ok\": \"bool\", \"progress\": \"float\"}, \"TEST-02\": {\"power\": \"bool\", \"bore_dimension_sp\": \"float\", \"hole_dimension_sp\": \"float\", \"bore_dimension\": \"float\", \"hole_dimension\": \"float\", \"result_ok\": \"bool\", \"progress\": \"float\"}};\n// 설비별 nominal cycle_sec (첫 사이클 완료 전 cycle_time 기본값 및 표시용)\nconst NOMINAL_CYCLE = {\"CAST-01\": 60, \"CNC-01\": 180, \"CNC-02\": 180, \"CNC-03\": 180, \"WASH-01\": 60, \"ASSY-01\": 120, \"ASSY-02\": 120, \"TEST-01\": 120, \"TEST-02\": 120};\nfunction defaultForType(t) {\n  if (t === 'bool') return false;\n  if (t === 'int') return 0;\n  if (t === 'float') return 0.0;\n  return '';\n}\nconst STALE_MS = 3000;  // 3초 이상 미갱신 -> UNCERTAIN\n\nconst buf = flow.get('equipments') || {};\nconst cyc = flow.get('cycle_state') || {};  // { eq: { acc, last_cycle_time } }\nconst now = Date.now();\nconst nowIso = new Date(now).toISOString();\n\nfunction classify(data, last_update_ms) {\n  if (!data || Object.keys(data).length === 0) {\n    return { status: 'OFF', quality: 'BAD' };\n  }\n  // status (시모에서는 OFF / RUN 두 개만 생성. WARNING/DANGER 는 향후 확장)\n  const status = data.power === false ? 'OFF' : 'RUN';\n  // quality\n  let quality;\n  if (!last_update_ms) quality = 'BAD';\n  else if (now - last_update_ms > STALE_MS) quality = 'UNCERTAIN';\n  else quality = 'GOOD';\n  return { status, quality };\n}\n\nconst equipments = {};\nfor (const eq_id of EQUIPMENTS) {\n  const slot = buf[eq_id] || {};\n  const data = Object.assign({}, slot.data || {});\n  // 기대 tag 중 아직 안 온 것은 data_type 기본값으로 미리 박아서\n  // PUBLISH 가 제대로 된 dtype 으로 addVariable 하게 함.\n  const expected = EXPECTED_TAGS[eq_id] || {};\n  for (const [tagName, tagType] of Object.entries(expected)) {\n    if (!(tagName in data)) data[tagName] = defaultForType(tagType);\n  }\n  const { status, quality } = classify(data, slot.last_update_ms);\n\n  // ----- cycle_time 산출 -----\n  // 한 사이클(progress 누적이 1.0 도달) 이 끝난 시점의 경과시간을 측정해\n  // \"마지막으로 완료된 사이클의 cycle_time\" 으로 저장하고,\n  // 다음 사이클이 끝날 때까지 매 tick 같은 값을 반환 (hold).\n  // 첫 사이클이 끝나기 전까지는 설비 명세의 cycle_sec(60/180/120)을 기본값으로.\n  const NOMINAL = (NOMINAL_CYCLE[eq_id] || 60);\n  let st = cyc[eq_id] || {\n    acc: 0.0,\n    last_cycle_time: NOMINAL,   // 부팅 직후 기본값\n    start_ms: now,\n  };\n  if (status === 'RUN' && typeof data.progress === 'number') {\n    st.acc += data.progress;\n    if (st.acc >= 1.0) {\n      const dt = (now - (st.start_ms || now)) / 1000.0;\n      st.last_cycle_time = +dt.toFixed(2);   // 다음 100% 도달 전까지 hold\n      st.acc = 0.0;\n      st.start_ms = now;\n    }\n  }\n  // OFF 일 때는 acc / start_ms 유지 (다음 RUN 에서 이어 계산).\n  cyc[eq_id] = st;\n  data.cycle_time = st.last_cycle_time;  // 항상 hold 된 값을 전달\n\n  equipments[eq_id] = {\n    status: status,\n    ts: slot.last_update_ms ? new Date(slot.last_update_ms).toISOString() : nowIso,\n    quality: quality,\n    data: data,\n  };\n}\n\nflow.set('cycle_state', cyc);\n\nconst payload = {\n  ts: nowIso,\n  line_id: LINE_ID,\n  schema_version: SCHEMA_VERSION,\n  equipments: equipments,\n};\n\nreturn { payload: payload };\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 1100,
+    "y": 160,
+    "wires": [
+      [
+        "6fdb8911d2c64a28",
+        "67f94ca1f1c8449c"
+      ]
+    ]
+  },
+  {
+    "id": "bbb80f752bf74a8a",
+    "type": "inject",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "tick 1s",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "1",
+    "crontab": "",
+    "once": true,
+    "onceDelay": "3",
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 900,
+    "y": 160,
+    "wires": [
+      [
+        "b8efa9cac92a4ec0"
+      ]
+    ]
+  },
+  {
+    "id": "9631c2ae8edc40fc",
+    "type": "debug",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "CAST-01 debug",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 900,
+    "y": 140,
+    "wires": []
+  },
+  {
+    "id": "76f5e574d70c42ac",
+    "type": "comment",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "CAST-01 (mcprotocol) :5001",
+    "info": "LINE-01_CAST-01 @ cast-01:5001",
+    "x": 300,
+    "y": 100,
+    "wires": []
+  },
+  {
+    "id": "740083a071bc47c7",
+    "type": "MC Protocol Connection",
+    "name": "LINE-01_CAST-01 @ cast-01:5001",
+    "host": "cast-01",
+    "port": "5001",
+    "protocol": "TCP",
+    "frame": "3E",
+    "plcType": "Q",
+    "ascii": false,
+    "PLCStation": "",
+    "PCStation": "",
+    "PLCModuleNo": "",
+    "network": "",
+    "octalInputOutput": false,
+    "timeout": "2000"
+  },
+  {
+    "id": "0a8eda24f55240aa",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "CAST-01 power",
+    "func": "// MC Read 결과 -> 평탄 dict\n// addressType=str, outputFormat=0(JSON object)인 경우 msg.payload 는\n// 단일값(스칼라/bool) 또는 객체일 수 있다. mcprotocol contrib 동작:\n//   - 단일 디바이스(M0, D0)   : 스칼라 또는 길이1 배열\n//   - DFLOAT0,N (N>=2)        : 배열\n//   - 단일 DFLOAT0            : 스칼라 float\nconst NAMES = [\"power\"];       // 이 read 가 커버하는 tag name 순서\nconst TYPE  = \"bit\";           // 'bit' | 'int' | 'float'\nconst p = msg.payload;\nconst arr = Array.isArray(p) ? p : [p];\nconst tags = {};\nif (TYPE === 'bit') {\n  NAMES.forEach((n, i) => { tags[n] = !!arr[i]; });\n} else if (TYPE === 'int') {\n  NAMES.forEach((n, i) => { tags[n] = (arr[i] | 0); });\n} else if (TYPE === 'float') {\n  NAMES.forEach((n, i) => { tags[n] = +Number(arr[i]).toFixed(3); });\n}\nmsg.payload = { equipment_id: \"CAST-01\", tags: tags };\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 700,
+    "y": 140,
+    "wires": [
+      [
+        "b045666dc3984688",
+        "9631c2ae8edc40fc"
+      ]
+    ]
+  },
+  {
+    "id": "382a695d14f747e3",
+    "type": "MC Read",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "CAST-01 read M0",
+    "topic": "",
+    "connection": "740083a071bc47c7",
+    "address": "M0",
+    "addressType": "str",
+    "outputFormat": 1,
+    "errorHandling": "throw",
+    "outputs": 1,
+    "x": 400,
+    "y": 140,
+    "wires": [
+      [
+        "0a8eda24f55240aa"
+      ]
+    ]
+  },
+  {
+    "id": "40845854b43144bf",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "CAST-01 injection_pressure_sp",
+    "func": "// MC Read 결과 -> 평탄 dict\n// addressType=str, outputFormat=0(JSON object)인 경우 msg.payload 는\n// 단일값(스칼라/bool) 또는 객체일 수 있다. mcprotocol contrib 동작:\n//   - 단일 디바이스(M0, D0)   : 스칼라 또는 길이1 배열\n//   - DFLOAT0,N (N>=2)        : 배열\n//   - 단일 DFLOAT0            : 스칼라 float\nconst NAMES = [\"injection_pressure_sp\"];       // 이 read 가 커버하는 tag name 순서\nconst TYPE  = \"float\";           // 'bit' | 'int' | 'float'\nconst p = msg.payload;\nconst arr = Array.isArray(p) ? p : [p];\nconst tags = {};\nif (TYPE === 'bit') {\n  NAMES.forEach((n, i) => { tags[n] = !!arr[i]; });\n} else if (TYPE === 'int') {\n  NAMES.forEach((n, i) => { tags[n] = (arr[i] | 0); });\n} else if (TYPE === 'float') {\n  NAMES.forEach((n, i) => { tags[n] = +Number(arr[i]).toFixed(3); });\n}\nmsg.payload = { equipment_id: \"CAST-01\", tags: tags };\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 700,
+    "y": 168,
+    "wires": [
+      [
+        "b045666dc3984688",
+        "9631c2ae8edc40fc"
+      ]
+    ]
+  },
+  {
+    "id": "97fddfadef744a6b",
+    "type": "MC Read",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "CAST-01 read DREAL0",
+    "topic": "",
+    "connection": "740083a071bc47c7",
+    "address": "DREAL0",
+    "addressType": "str",
+    "outputFormat": 1,
+    "errorHandling": "throw",
+    "outputs": 1,
+    "x": 400,
+    "y": 168,
+    "wires": [
+      [
+        "40845854b43144bf"
+      ]
+    ]
+  },
+  {
+    "id": "cbedfdcf71e74ef7",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "CAST-01 mold_temperature_sp",
+    "func": "// MC Read 결과 -> 평탄 dict\n// addressType=str, outputFormat=0(JSON object)인 경우 msg.payload 는\n// 단일값(스칼라/bool) 또는 객체일 수 있다. mcprotocol contrib 동작:\n//   - 단일 디바이스(M0, D0)   : 스칼라 또는 길이1 배열\n//   - DFLOAT0,N (N>=2)        : 배열\n//   - 단일 DFLOAT0            : 스칼라 float\nconst NAMES = [\"mold_temperature_sp\"];       // 이 read 가 커버하는 tag name 순서\nconst TYPE  = \"float\";           // 'bit' | 'int' | 'float'\nconst p = msg.payload;\nconst arr = Array.isArray(p) ? p : [p];\nconst tags = {};\nif (TYPE === 'bit') {\n  NAMES.forEach((n, i) => { tags[n] = !!arr[i]; });\n} else if (TYPE === 'int') {\n  NAMES.forEach((n, i) => { tags[n] = (arr[i] | 0); });\n} else if (TYPE === 'float') {\n  NAMES.forEach((n, i) => { tags[n] = +Number(arr[i]).toFixed(3); });\n}\nmsg.payload = { equipment_id: \"CAST-01\", tags: tags };\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 700,
+    "y": 196,
+    "wires": [
+      [
+        "b045666dc3984688",
+        "9631c2ae8edc40fc"
+      ]
+    ]
+  },
+  {
+    "id": "ac7cf836ff774ef3",
+    "type": "MC Read",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "CAST-01 read DREAL2",
+    "topic": "",
+    "connection": "740083a071bc47c7",
+    "address": "DREAL2",
+    "addressType": "str",
+    "outputFormat": 1,
+    "errorHandling": "throw",
+    "outputs": 1,
+    "x": 400,
+    "y": 196,
+    "wires": [
+      [
+        "cbedfdcf71e74ef7"
+      ]
+    ]
+  },
+  {
+    "id": "64deaa0a26624d4a",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "CAST-01 cooling_flow_sp",
+    "func": "// MC Read 결과 -> 평탄 dict\n// addressType=str, outputFormat=0(JSON object)인 경우 msg.payload 는\n// 단일값(스칼라/bool) 또는 객체일 수 있다. mcprotocol contrib 동작:\n//   - 단일 디바이스(M0, D0)   : 스칼라 또는 길이1 배열\n//   - DFLOAT0,N (N>=2)        : 배열\n//   - 단일 DFLOAT0            : 스칼라 float\nconst NAMES = [\"cooling_flow_sp\"];       // 이 read 가 커버하는 tag name 순서\nconst TYPE  = \"float\";           // 'bit' | 'int' | 'float'\nconst p = msg.payload;\nconst arr = Array.isArray(p) ? p : [p];\nconst tags = {};\nif (TYPE === 'bit') {\n  NAMES.forEach((n, i) => { tags[n] = !!arr[i]; });\n} else if (TYPE === 'int') {\n  NAMES.forEach((n, i) => { tags[n] = (arr[i] | 0); });\n} else if (TYPE === 'float') {\n  NAMES.forEach((n, i) => { tags[n] = +Number(arr[i]).toFixed(3); });\n}\nmsg.payload = { equipment_id: \"CAST-01\", tags: tags };\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 700,
+    "y": 224,
+    "wires": [
+      [
+        "b045666dc3984688",
+        "9631c2ae8edc40fc"
+      ]
+    ]
+  },
+  {
+    "id": "fc8fb629033a4ba7",
+    "type": "MC Read",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "CAST-01 read DREAL4",
+    "topic": "",
+    "connection": "740083a071bc47c7",
+    "address": "DREAL4",
+    "addressType": "str",
+    "outputFormat": 1,
+    "errorHandling": "throw",
+    "outputs": 1,
+    "x": 400,
+    "y": 224,
+    "wires": [
+      [
+        "64deaa0a26624d4a"
+      ]
+    ]
+  },
+  {
+    "id": "ed49037d02a14cb3",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "CAST-01 injection_pressure",
+    "func": "// MC Read 결과 -> 평탄 dict\n// addressType=str, outputFormat=0(JSON object)인 경우 msg.payload 는\n// 단일값(스칼라/bool) 또는 객체일 수 있다. mcprotocol contrib 동작:\n//   - 단일 디바이스(M0, D0)   : 스칼라 또는 길이1 배열\n//   - DFLOAT0,N (N>=2)        : 배열\n//   - 단일 DFLOAT0            : 스칼라 float\nconst NAMES = [\"injection_pressure\"];       // 이 read 가 커버하는 tag name 순서\nconst TYPE  = \"float\";           // 'bit' | 'int' | 'float'\nconst p = msg.payload;\nconst arr = Array.isArray(p) ? p : [p];\nconst tags = {};\nif (TYPE === 'bit') {\n  NAMES.forEach((n, i) => { tags[n] = !!arr[i]; });\n} else if (TYPE === 'int') {\n  NAMES.forEach((n, i) => { tags[n] = (arr[i] | 0); });\n} else if (TYPE === 'float') {\n  NAMES.forEach((n, i) => { tags[n] = +Number(arr[i]).toFixed(3); });\n}\nmsg.payload = { equipment_id: \"CAST-01\", tags: tags };\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 700,
+    "y": 252,
+    "wires": [
+      [
+        "b045666dc3984688",
+        "9631c2ae8edc40fc"
+      ]
+    ]
+  },
+  {
+    "id": "c70700e50a6a42d9",
+    "type": "MC Read",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "CAST-01 read DREAL100",
+    "topic": "",
+    "connection": "740083a071bc47c7",
+    "address": "DREAL100",
+    "addressType": "str",
+    "outputFormat": 1,
+    "errorHandling": "throw",
+    "outputs": 1,
+    "x": 400,
+    "y": 252,
+    "wires": [
+      [
+        "ed49037d02a14cb3"
+      ]
+    ]
+  },
+  {
+    "id": "1b1b39a18b1f461b",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "CAST-01 mold_temperature",
+    "func": "// MC Read 결과 -> 평탄 dict\n// addressType=str, outputFormat=0(JSON object)인 경우 msg.payload 는\n// 단일값(스칼라/bool) 또는 객체일 수 있다. mcprotocol contrib 동작:\n//   - 단일 디바이스(M0, D0)   : 스칼라 또는 길이1 배열\n//   - DFLOAT0,N (N>=2)        : 배열\n//   - 단일 DFLOAT0            : 스칼라 float\nconst NAMES = [\"mold_temperature\"];       // 이 read 가 커버하는 tag name 순서\nconst TYPE  = \"float\";           // 'bit' | 'int' | 'float'\nconst p = msg.payload;\nconst arr = Array.isArray(p) ? p : [p];\nconst tags = {};\nif (TYPE === 'bit') {\n  NAMES.forEach((n, i) => { tags[n] = !!arr[i]; });\n} else if (TYPE === 'int') {\n  NAMES.forEach((n, i) => { tags[n] = (arr[i] | 0); });\n} else if (TYPE === 'float') {\n  NAMES.forEach((n, i) => { tags[n] = +Number(arr[i]).toFixed(3); });\n}\nmsg.payload = { equipment_id: \"CAST-01\", tags: tags };\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 700,
+    "y": 280,
+    "wires": [
+      [
+        "b045666dc3984688",
+        "9631c2ae8edc40fc"
+      ]
+    ]
+  },
+  {
+    "id": "c16a654668a24726",
+    "type": "MC Read",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "CAST-01 read DREAL102",
+    "topic": "",
+    "connection": "740083a071bc47c7",
+    "address": "DREAL102",
+    "addressType": "str",
+    "outputFormat": 1,
+    "errorHandling": "throw",
+    "outputs": 1,
+    "x": 400,
+    "y": 280,
+    "wires": [
+      [
+        "1b1b39a18b1f461b"
+      ]
+    ]
+  },
+  {
+    "id": "4c3e4fc3b6d64390",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "CAST-01 cooling_flow",
+    "func": "// MC Read 결과 -> 평탄 dict\n// addressType=str, outputFormat=0(JSON object)인 경우 msg.payload 는\n// 단일값(스칼라/bool) 또는 객체일 수 있다. mcprotocol contrib 동작:\n//   - 단일 디바이스(M0, D0)   : 스칼라 또는 길이1 배열\n//   - DFLOAT0,N (N>=2)        : 배열\n//   - 단일 DFLOAT0            : 스칼라 float\nconst NAMES = [\"cooling_flow\"];       // 이 read 가 커버하는 tag name 순서\nconst TYPE  = \"float\";           // 'bit' | 'int' | 'float'\nconst p = msg.payload;\nconst arr = Array.isArray(p) ? p : [p];\nconst tags = {};\nif (TYPE === 'bit') {\n  NAMES.forEach((n, i) => { tags[n] = !!arr[i]; });\n} else if (TYPE === 'int') {\n  NAMES.forEach((n, i) => { tags[n] = (arr[i] | 0); });\n} else if (TYPE === 'float') {\n  NAMES.forEach((n, i) => { tags[n] = +Number(arr[i]).toFixed(3); });\n}\nmsg.payload = { equipment_id: \"CAST-01\", tags: tags };\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 700,
+    "y": 308,
+    "wires": [
+      [
+        "b045666dc3984688",
+        "9631c2ae8edc40fc"
+      ]
+    ]
+  },
+  {
+    "id": "15fc2c6e566e4949",
+    "type": "MC Read",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "CAST-01 read DREAL104",
+    "topic": "",
+    "connection": "740083a071bc47c7",
+    "address": "DREAL104",
+    "addressType": "str",
+    "outputFormat": 1,
+    "errorHandling": "throw",
+    "outputs": 1,
+    "x": 400,
+    "y": 308,
+    "wires": [
+      [
+        "4c3e4fc3b6d64390"
+      ]
+    ]
+  },
+  {
+    "id": "28f4c5ade89e42c4",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "CAST-01 progress",
+    "func": "// MC Read 결과 -> 평탄 dict\n// addressType=str, outputFormat=0(JSON object)인 경우 msg.payload 는\n// 단일값(스칼라/bool) 또는 객체일 수 있다. mcprotocol contrib 동작:\n//   - 단일 디바이스(M0, D0)   : 스칼라 또는 길이1 배열\n//   - DFLOAT0,N (N>=2)        : 배열\n//   - 단일 DFLOAT0            : 스칼라 float\nconst NAMES = [\"progress\"];       // 이 read 가 커버하는 tag name 순서\nconst TYPE  = \"float\";           // 'bit' | 'int' | 'float'\nconst p = msg.payload;\nconst arr = Array.isArray(p) ? p : [p];\nconst tags = {};\nif (TYPE === 'bit') {\n  NAMES.forEach((n, i) => { tags[n] = !!arr[i]; });\n} else if (TYPE === 'int') {\n  NAMES.forEach((n, i) => { tags[n] = (arr[i] | 0); });\n} else if (TYPE === 'float') {\n  NAMES.forEach((n, i) => { tags[n] = +Number(arr[i]).toFixed(3); });\n}\nmsg.payload = { equipment_id: \"CAST-01\", tags: tags };\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 700,
+    "y": 336,
+    "wires": [
+      [
+        "b045666dc3984688",
+        "9631c2ae8edc40fc"
+      ]
+    ]
+  },
+  {
+    "id": "c182b7ad919548f2",
+    "type": "MC Read",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "CAST-01 read DREAL106",
+    "topic": "",
+    "connection": "740083a071bc47c7",
+    "address": "DREAL106",
+    "addressType": "str",
+    "outputFormat": 1,
+    "errorHandling": "throw",
+    "outputs": 1,
+    "x": 400,
+    "y": 336,
+    "wires": [
+      [
+        "28f4c5ade89e42c4"
+      ]
+    ]
+  },
+  {
+    "id": "446eedcc7d51415b",
+    "type": "inject",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "CAST-01 poll 1s",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "1",
+    "crontab": "",
+    "once": true,
+    "onceDelay": "3",
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 180,
+    "y": 140,
+    "wires": [
+      [
+        "382a695d14f747e3",
+        "97fddfadef744a6b",
+        "ac7cf836ff774ef3",
+        "fc8fb629033a4ba7",
+        "c70700e50a6a42d9",
+        "c16a654668a24726",
+        "15fc2c6e566e4949",
+        "c182b7ad919548f2"
+      ]
+    ]
+  },
+  {
+    "id": "b64277d9c3644603",
+    "type": "debug",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "CNC-01 debug",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 900,
+    "y": 740,
+    "wires": []
+  },
+  {
+    "id": "aba9d913e0384344",
+    "type": "comment",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "CNC-01 (RTU-over-TCP) cnc-01:5101",
+    "info": "LINE-01_CNC-01 — RTU framing on TCP (Moxa NPort 스타일)\nhost = cnc-01:5101\nslave_id=1\nNode-RED clienttype=tcp / tcpType=TELNET (사용자 실측 OK)",
+    "x": 300,
+    "y": 700,
+    "wires": []
+  },
+  {
+    "id": "2d66b715ff1544a3",
+    "type": "modbus-client",
+    "name": "LINE-01_CNC-01 @ cnc-01:5101",
+    "clienttype": "tcp",
+    "bufferCommands": true,
+    "stateLogEnabled": false,
+    "queueLogEnabled": false,
+    "failureLogEnabled": true,
+    "tcpHost": "cnc-01",
+    "tcpPort": "5101",
+    "tcpType": "TELNET",
+    "serialPort": "/dev/ttyUSB0",
+    "serialType": "RTU-BUFFERD",
+    "serialBaudrate": "9600",
+    "serialDatabits": "8",
+    "serialStopbits": "1",
+    "serialParity": "none",
+    "serialConnectionDelay": "100",
+    "serialAsciiResponseStartDelimiter": "0x3A",
+    "unit_id": "1",
+    "commandDelay": "1",
+    "clientTimeout": "2000",
+    "reconnectOnTimeout": true,
+    "reconnectTimeout": "2000",
+    "parallelUnitIdsAllowed": true,
+    "showErrors": false,
+    "showWarnings": true,
+    "showLogs": false
+  },
+  {
+    "id": "c24510fb8b6549e1",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "CNC-01 parse coils",
+    "func": "// Modbus read 결과를 평탄 dict 로 묶어 aggregator 로 보냄.\n// payload 는 read 노드의 dataType 에 따라 배열(coil/HR).\nconst KIND = \"coil\";       // 'coil' | 'hr_int' | 'hr_float'\nconst NAMES = [\"power\"];  // 이 read 노드가 커버하는 tag name 순서\nconst ADR_BASE = 0;\nconst r = msg.payload || msg.responseBuffer && msg.responseBuffer.data || [];\nconst tags = {};\nif (KIND === 'coil') {\n  NAMES.forEach((n, i) => { tags[n] = !!r[i]; });\n} else if (KIND === 'hr_int') {\n  function s16(v){ v &= 0xFFFF; return v & 0x8000 ? v - 0x10000 : v; }\n  NAMES.forEach((n, i) => { tags[n] = s16(r[i]); });\n} else if (KIND === 'hr_float') {\n  // r 은 2*N word 배열 (big-endian)\n  const buf = Buffer.alloc(NAMES.length * 4);\n  for (let i = 0; i < NAMES.length * 2; i++) {\n    buf.writeUInt16BE((r[i] | 0) & 0xFFFF, i * 2);\n  }\n  NAMES.forEach((n, i) => {\n    tags[n] = +buf.readFloatBE(i * 4).toFixed(3);\n  });\n}\n// msg.payload 에 담아 반환 → aggregator + debug 둘 다 그대로 읽을 수 있음\nmsg.payload = { equipment_id: \"CNC-01\", tags: tags };\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 600,
+    "y": 740,
+    "wires": [
+      [
+        "b045666dc3984688",
+        "b64277d9c3644603"
+      ]
+    ]
+  },
+  {
+    "id": "af05b04720f64d25",
+    "type": "modbus-read",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "CNC-01 read coils[0..0]",
+    "topic": "",
+    "showStatusActivities": false,
+    "logIOActivities": false,
+    "showErrors": false,
+    "showWarnings": true,
+    "unitid": "",
+    "dataType": "Coil",
+    "adr": "0",
+    "quantity": "1",
+    "rate": "1",
+    "rateUnit": "s",
+    "delayOnStart": true,
+    "startDelayTime": "2",
+    "server": "2d66b715ff1544a3",
+    "useIOFile": false,
+    "ioFile": "",
+    "useIOForPayload": false,
+    "emptyMsgOnFail": false,
+    "x": 300,
+    "y": 740,
+    "wires": [
+      [
+        "c24510fb8b6549e1"
+      ],
+      []
+    ]
+  },
+  {
+    "id": "cbc9e3608cad44a2",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "CNC-01 parse int",
+    "func": "// Modbus read 결과를 평탄 dict 로 묶어 aggregator 로 보냄.\n// payload 는 read 노드의 dataType 에 따라 배열(coil/HR).\nconst KIND = \"hr_int\";       // 'coil' | 'hr_int' | 'hr_float'\nconst NAMES = [\"spindle_speed_sp\", \"spindle_speed\"];  // 이 read 노드가 커버하는 tag name 순서\nconst ADR_BASE = 0;\nconst r = msg.payload || msg.responseBuffer && msg.responseBuffer.data || [];\nconst tags = {};\nif (KIND === 'coil') {\n  NAMES.forEach((n, i) => { tags[n] = !!r[i]; });\n} else if (KIND === 'hr_int') {\n  function s16(v){ v &= 0xFFFF; return v & 0x8000 ? v - 0x10000 : v; }\n  NAMES.forEach((n, i) => { tags[n] = s16(r[i]); });\n} else if (KIND === 'hr_float') {\n  // r 은 2*N word 배열 (big-endian)\n  const buf = Buffer.alloc(NAMES.length * 4);\n  for (let i = 0; i < NAMES.length * 2; i++) {\n    buf.writeUInt16BE((r[i] | 0) & 0xFFFF, i * 2);\n  }\n  NAMES.forEach((n, i) => {\n    tags[n] = +buf.readFloatBE(i * 4).toFixed(3);\n  });\n}\n// msg.payload 에 담아 반환 → aggregator + debug 둘 다 그대로 읽을 수 있음\nmsg.payload = { equipment_id: \"CNC-01\", tags: tags };\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 600,
+    "y": 790,
+    "wires": [
+      [
+        "b045666dc3984688",
+        "b64277d9c3644603"
+      ]
+    ]
+  },
+  {
+    "id": "d42affa89ec64796",
+    "type": "modbus-read",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "CNC-01 HR[0..2] int",
+    "topic": "",
+    "showStatusActivities": false,
+    "logIOActivities": false,
+    "showErrors": false,
+    "showWarnings": true,
+    "unitid": "",
+    "dataType": "HoldingRegister",
+    "adr": "0",
+    "quantity": "3",
+    "rate": "1",
+    "rateUnit": "s",
+    "delayOnStart": true,
+    "startDelayTime": "2",
+    "server": "2d66b715ff1544a3",
+    "useIOFile": false,
+    "ioFile": "",
+    "useIOForPayload": false,
+    "emptyMsgOnFail": false,
+    "x": 300,
+    "y": 790,
+    "wires": [
+      [
+        "cbc9e3608cad44a2"
+      ],
+      []
+    ]
+  },
+  {
+    "id": "293aab35daa04b13",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "CNC-01 parse float (BE)",
+    "func": "// Modbus read 결과를 평탄 dict 로 묶어 aggregator 로 보냄.\n// payload 는 read 노드의 dataType 에 따라 배열(coil/HR).\nconst KIND = \"hr_float\";       // 'coil' | 'hr_int' | 'hr_float'\nconst NAMES = [\"tool_usage_sp\", \"tool_usage\", \"coolant_flow_sp\", \"coolant_flow\", \"progress\"];  // 이 read 노드가 커버하는 tag name 순서\nconst ADR_BASE = 1000;\nconst r = msg.payload || msg.responseBuffer && msg.responseBuffer.data || [];\nconst tags = {};\nif (KIND === 'coil') {\n  NAMES.forEach((n, i) => { tags[n] = !!r[i]; });\n} else if (KIND === 'hr_int') {\n  function s16(v){ v &= 0xFFFF; return v & 0x8000 ? v - 0x10000 : v; }\n  NAMES.forEach((n, i) => { tags[n] = s16(r[i]); });\n} else if (KIND === 'hr_float') {\n  // r 은 2*N word 배열 (big-endian)\n  const buf = Buffer.alloc(NAMES.length * 4);\n  for (let i = 0; i < NAMES.length * 2; i++) {\n    buf.writeUInt16BE((r[i] | 0) & 0xFFFF, i * 2);\n  }\n  NAMES.forEach((n, i) => {\n    tags[n] = +buf.readFloatBE(i * 4).toFixed(3);\n  });\n}\n// msg.payload 에 담아 반환 → aggregator + debug 둘 다 그대로 읽을 수 있음\nmsg.payload = { equipment_id: \"CNC-01\", tags: tags };\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 600,
+    "y": 840,
+    "wires": [
+      [
+        "b045666dc3984688",
+        "b64277d9c3644603"
+      ]
+    ]
+  },
+  {
+    "id": "805d79c37dca40e7",
+    "type": "modbus-read",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "CNC-01 HR[1000..1009] float",
+    "topic": "",
+    "showStatusActivities": false,
+    "logIOActivities": false,
+    "showErrors": false,
+    "showWarnings": true,
+    "unitid": "",
+    "dataType": "HoldingRegister",
+    "adr": "1000",
+    "quantity": "10",
+    "rate": "1",
+    "rateUnit": "s",
+    "delayOnStart": true,
+    "startDelayTime": "2",
+    "server": "2d66b715ff1544a3",
+    "useIOFile": false,
+    "ioFile": "",
+    "useIOForPayload": false,
+    "emptyMsgOnFail": false,
+    "x": 300,
+    "y": 840,
+    "wires": [
+      [
+        "293aab35daa04b13"
+      ],
+      []
+    ]
+  },
+  {
+    "id": "8c6fee2483ab4c9f",
+    "type": "debug",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "CNC-02 debug",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 900,
+    "y": 1340,
+    "wires": []
+  },
+  {
+    "id": "36c274e02caa4a51",
+    "type": "comment",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "CNC-02 (RTU-over-TCP) cnc-02:5102",
+    "info": "LINE-01_CNC-02 — RTU framing on TCP (Moxa NPort 스타일)\nhost = cnc-02:5102\nslave_id=1\nNode-RED clienttype=tcp / tcpType=TELNET (사용자 실측 OK)",
+    "x": 300,
+    "y": 1300,
+    "wires": []
+  },
+  {
+    "id": "5ce1038cd5754b32",
+    "type": "modbus-client",
+    "name": "LINE-01_CNC-02 @ cnc-02:5102",
+    "clienttype": "tcp",
+    "bufferCommands": true,
+    "stateLogEnabled": false,
+    "queueLogEnabled": false,
+    "failureLogEnabled": true,
+    "tcpHost": "cnc-02",
+    "tcpPort": "5102",
+    "tcpType": "TELNET",
+    "serialPort": "/dev/ttyUSB0",
+    "serialType": "RTU-BUFFERD",
+    "serialBaudrate": "9600",
+    "serialDatabits": "8",
+    "serialStopbits": "1",
+    "serialParity": "none",
+    "serialConnectionDelay": "100",
+    "serialAsciiResponseStartDelimiter": "0x3A",
+    "unit_id": "1",
+    "commandDelay": "1",
+    "clientTimeout": "2000",
+    "reconnectOnTimeout": true,
+    "reconnectTimeout": "2000",
+    "parallelUnitIdsAllowed": true,
+    "showErrors": false,
+    "showWarnings": true,
+    "showLogs": false
+  },
+  {
+    "id": "a9f2b65a1234412f",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "CNC-02 parse coils",
+    "func": "// Modbus read 결과를 평탄 dict 로 묶어 aggregator 로 보냄.\n// payload 는 read 노드의 dataType 에 따라 배열(coil/HR).\nconst KIND = \"coil\";       // 'coil' | 'hr_int' | 'hr_float'\nconst NAMES = [\"power\"];  // 이 read 노드가 커버하는 tag name 순서\nconst ADR_BASE = 0;\nconst r = msg.payload || msg.responseBuffer && msg.responseBuffer.data || [];\nconst tags = {};\nif (KIND === 'coil') {\n  NAMES.forEach((n, i) => { tags[n] = !!r[i]; });\n} else if (KIND === 'hr_int') {\n  function s16(v){ v &= 0xFFFF; return v & 0x8000 ? v - 0x10000 : v; }\n  NAMES.forEach((n, i) => { tags[n] = s16(r[i]); });\n} else if (KIND === 'hr_float') {\n  // r 은 2*N word 배열 (big-endian)\n  const buf = Buffer.alloc(NAMES.length * 4);\n  for (let i = 0; i < NAMES.length * 2; i++) {\n    buf.writeUInt16BE((r[i] | 0) & 0xFFFF, i * 2);\n  }\n  NAMES.forEach((n, i) => {\n    tags[n] = +buf.readFloatBE(i * 4).toFixed(3);\n  });\n}\n// msg.payload 에 담아 반환 → aggregator + debug 둘 다 그대로 읽을 수 있음\nmsg.payload = { equipment_id: \"CNC-02\", tags: tags };\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 600,
+    "y": 1340,
+    "wires": [
+      [
+        "b045666dc3984688",
+        "8c6fee2483ab4c9f"
+      ]
+    ]
+  },
+  {
+    "id": "0ae1627d4f8e4c23",
+    "type": "modbus-read",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "CNC-02 read coils[0..0]",
+    "topic": "",
+    "showStatusActivities": false,
+    "logIOActivities": false,
+    "showErrors": false,
+    "showWarnings": true,
+    "unitid": "",
+    "dataType": "Coil",
+    "adr": "0",
+    "quantity": "1",
+    "rate": "1",
+    "rateUnit": "s",
+    "delayOnStart": true,
+    "startDelayTime": "2",
+    "server": "5ce1038cd5754b32",
+    "useIOFile": false,
+    "ioFile": "",
+    "useIOForPayload": false,
+    "emptyMsgOnFail": false,
+    "x": 300,
+    "y": 1340,
+    "wires": [
+      [
+        "a9f2b65a1234412f"
+      ],
+      []
+    ]
+  },
+  {
+    "id": "53c604d0cbcb4b23",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "CNC-02 parse int",
+    "func": "// Modbus read 결과를 평탄 dict 로 묶어 aggregator 로 보냄.\n// payload 는 read 노드의 dataType 에 따라 배열(coil/HR).\nconst KIND = \"hr_int\";       // 'coil' | 'hr_int' | 'hr_float'\nconst NAMES = [\"spindle_speed_sp\", \"spindle_speed\"];  // 이 read 노드가 커버하는 tag name 순서\nconst ADR_BASE = 0;\nconst r = msg.payload || msg.responseBuffer && msg.responseBuffer.data || [];\nconst tags = {};\nif (KIND === 'coil') {\n  NAMES.forEach((n, i) => { tags[n] = !!r[i]; });\n} else if (KIND === 'hr_int') {\n  function s16(v){ v &= 0xFFFF; return v & 0x8000 ? v - 0x10000 : v; }\n  NAMES.forEach((n, i) => { tags[n] = s16(r[i]); });\n} else if (KIND === 'hr_float') {\n  // r 은 2*N word 배열 (big-endian)\n  const buf = Buffer.alloc(NAMES.length * 4);\n  for (let i = 0; i < NAMES.length * 2; i++) {\n    buf.writeUInt16BE((r[i] | 0) & 0xFFFF, i * 2);\n  }\n  NAMES.forEach((n, i) => {\n    tags[n] = +buf.readFloatBE(i * 4).toFixed(3);\n  });\n}\n// msg.payload 에 담아 반환 → aggregator + debug 둘 다 그대로 읽을 수 있음\nmsg.payload = { equipment_id: \"CNC-02\", tags: tags };\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 600,
+    "y": 1390,
+    "wires": [
+      [
+        "b045666dc3984688",
+        "8c6fee2483ab4c9f"
+      ]
+    ]
+  },
+  {
+    "id": "654e00dbef204c8e",
+    "type": "modbus-read",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "CNC-02 HR[0..2] int",
+    "topic": "",
+    "showStatusActivities": false,
+    "logIOActivities": false,
+    "showErrors": false,
+    "showWarnings": true,
+    "unitid": "",
+    "dataType": "HoldingRegister",
+    "adr": "0",
+    "quantity": "3",
+    "rate": "1",
+    "rateUnit": "s",
+    "delayOnStart": true,
+    "startDelayTime": "2",
+    "server": "5ce1038cd5754b32",
+    "useIOFile": false,
+    "ioFile": "",
+    "useIOForPayload": false,
+    "emptyMsgOnFail": false,
+    "x": 300,
+    "y": 1390,
+    "wires": [
+      [
+        "53c604d0cbcb4b23"
+      ],
+      []
+    ]
+  },
+  {
+    "id": "65350118bb694dbf",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "CNC-02 parse float (BE)",
+    "func": "// Modbus read 결과를 평탄 dict 로 묶어 aggregator 로 보냄.\n// payload 는 read 노드의 dataType 에 따라 배열(coil/HR).\nconst KIND = \"hr_float\";       // 'coil' | 'hr_int' | 'hr_float'\nconst NAMES = [\"tool_usage_sp\", \"tool_usage\", \"coolant_flow_sp\", \"coolant_flow\", \"progress\"];  // 이 read 노드가 커버하는 tag name 순서\nconst ADR_BASE = 1000;\nconst r = msg.payload || msg.responseBuffer && msg.responseBuffer.data || [];\nconst tags = {};\nif (KIND === 'coil') {\n  NAMES.forEach((n, i) => { tags[n] = !!r[i]; });\n} else if (KIND === 'hr_int') {\n  function s16(v){ v &= 0xFFFF; return v & 0x8000 ? v - 0x10000 : v; }\n  NAMES.forEach((n, i) => { tags[n] = s16(r[i]); });\n} else if (KIND === 'hr_float') {\n  // r 은 2*N word 배열 (big-endian)\n  const buf = Buffer.alloc(NAMES.length * 4);\n  for (let i = 0; i < NAMES.length * 2; i++) {\n    buf.writeUInt16BE((r[i] | 0) & 0xFFFF, i * 2);\n  }\n  NAMES.forEach((n, i) => {\n    tags[n] = +buf.readFloatBE(i * 4).toFixed(3);\n  });\n}\n// msg.payload 에 담아 반환 → aggregator + debug 둘 다 그대로 읽을 수 있음\nmsg.payload = { equipment_id: \"CNC-02\", tags: tags };\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 600,
+    "y": 1440,
+    "wires": [
+      [
+        "b045666dc3984688",
+        "8c6fee2483ab4c9f"
+      ]
+    ]
+  },
+  {
+    "id": "4d6b1a601955404d",
+    "type": "modbus-read",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "CNC-02 HR[1000..1009] float",
+    "topic": "",
+    "showStatusActivities": false,
+    "logIOActivities": false,
+    "showErrors": false,
+    "showWarnings": true,
+    "unitid": "",
+    "dataType": "HoldingRegister",
+    "adr": "1000",
+    "quantity": "10",
+    "rate": "1",
+    "rateUnit": "s",
+    "delayOnStart": true,
+    "startDelayTime": "2",
+    "server": "5ce1038cd5754b32",
+    "useIOFile": false,
+    "ioFile": "",
+    "useIOForPayload": false,
+    "emptyMsgOnFail": false,
+    "x": 300,
+    "y": 1440,
+    "wires": [
+      [
+        "65350118bb694dbf"
+      ],
+      []
+    ]
+  },
+  {
+    "id": "359af52378254e1d",
+    "type": "debug",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "CNC-03 debug",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 900,
+    "y": 1940,
+    "wires": []
+  },
+  {
+    "id": "fb61ad69a5094a55",
+    "type": "comment",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "CNC-03 (RTU-over-TCP) cnc-03:5103",
+    "info": "LINE-01_CNC-03 — RTU framing on TCP (Moxa NPort 스타일)\nhost = cnc-03:5103\nslave_id=1\nNode-RED clienttype=tcp / tcpType=TELNET (사용자 실측 OK)",
+    "x": 300,
+    "y": 1900,
+    "wires": []
+  },
+  {
+    "id": "df55ce5cca004b6f",
+    "type": "modbus-client",
+    "name": "LINE-01_CNC-03 @ cnc-03:5103",
+    "clienttype": "tcp",
+    "bufferCommands": true,
+    "stateLogEnabled": false,
+    "queueLogEnabled": false,
+    "failureLogEnabled": true,
+    "tcpHost": "cnc-03",
+    "tcpPort": "5103",
+    "tcpType": "TELNET",
+    "serialPort": "/dev/ttyUSB0",
+    "serialType": "RTU-BUFFERD",
+    "serialBaudrate": "9600",
+    "serialDatabits": "8",
+    "serialStopbits": "1",
+    "serialParity": "none",
+    "serialConnectionDelay": "100",
+    "serialAsciiResponseStartDelimiter": "0x3A",
+    "unit_id": "1",
+    "commandDelay": "1",
+    "clientTimeout": "2000",
+    "reconnectOnTimeout": true,
+    "reconnectTimeout": "2000",
+    "parallelUnitIdsAllowed": true,
+    "showErrors": false,
+    "showWarnings": true,
+    "showLogs": false
+  },
+  {
+    "id": "0868df38afc54722",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "CNC-03 parse coils",
+    "func": "// Modbus read 결과를 평탄 dict 로 묶어 aggregator 로 보냄.\n// payload 는 read 노드의 dataType 에 따라 배열(coil/HR).\nconst KIND = \"coil\";       // 'coil' | 'hr_int' | 'hr_float'\nconst NAMES = [\"power\"];  // 이 read 노드가 커버하는 tag name 순서\nconst ADR_BASE = 0;\nconst r = msg.payload || msg.responseBuffer && msg.responseBuffer.data || [];\nconst tags = {};\nif (KIND === 'coil') {\n  NAMES.forEach((n, i) => { tags[n] = !!r[i]; });\n} else if (KIND === 'hr_int') {\n  function s16(v){ v &= 0xFFFF; return v & 0x8000 ? v - 0x10000 : v; }\n  NAMES.forEach((n, i) => { tags[n] = s16(r[i]); });\n} else if (KIND === 'hr_float') {\n  // r 은 2*N word 배열 (big-endian)\n  const buf = Buffer.alloc(NAMES.length * 4);\n  for (let i = 0; i < NAMES.length * 2; i++) {\n    buf.writeUInt16BE((r[i] | 0) & 0xFFFF, i * 2);\n  }\n  NAMES.forEach((n, i) => {\n    tags[n] = +buf.readFloatBE(i * 4).toFixed(3);\n  });\n}\n// msg.payload 에 담아 반환 → aggregator + debug 둘 다 그대로 읽을 수 있음\nmsg.payload = { equipment_id: \"CNC-03\", tags: tags };\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 600,
+    "y": 1940,
+    "wires": [
+      [
+        "b045666dc3984688",
+        "359af52378254e1d"
+      ]
+    ]
+  },
+  {
+    "id": "bba316d7a3b642b9",
+    "type": "modbus-read",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "CNC-03 read coils[0..0]",
+    "topic": "",
+    "showStatusActivities": false,
+    "logIOActivities": false,
+    "showErrors": false,
+    "showWarnings": true,
+    "unitid": "",
+    "dataType": "Coil",
+    "adr": "0",
+    "quantity": "1",
+    "rate": "1",
+    "rateUnit": "s",
+    "delayOnStart": true,
+    "startDelayTime": "2",
+    "server": "df55ce5cca004b6f",
+    "useIOFile": false,
+    "ioFile": "",
+    "useIOForPayload": false,
+    "emptyMsgOnFail": false,
+    "x": 300,
+    "y": 1940,
+    "wires": [
+      [
+        "0868df38afc54722"
+      ],
+      []
+    ]
+  },
+  {
+    "id": "2820e1e763bf48d5",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "CNC-03 parse int",
+    "func": "// Modbus read 결과를 평탄 dict 로 묶어 aggregator 로 보냄.\n// payload 는 read 노드의 dataType 에 따라 배열(coil/HR).\nconst KIND = \"hr_int\";       // 'coil' | 'hr_int' | 'hr_float'\nconst NAMES = [\"spindle_speed_sp\", \"spindle_speed\"];  // 이 read 노드가 커버하는 tag name 순서\nconst ADR_BASE = 0;\nconst r = msg.payload || msg.responseBuffer && msg.responseBuffer.data || [];\nconst tags = {};\nif (KIND === 'coil') {\n  NAMES.forEach((n, i) => { tags[n] = !!r[i]; });\n} else if (KIND === 'hr_int') {\n  function s16(v){ v &= 0xFFFF; return v & 0x8000 ? v - 0x10000 : v; }\n  NAMES.forEach((n, i) => { tags[n] = s16(r[i]); });\n} else if (KIND === 'hr_float') {\n  // r 은 2*N word 배열 (big-endian)\n  const buf = Buffer.alloc(NAMES.length * 4);\n  for (let i = 0; i < NAMES.length * 2; i++) {\n    buf.writeUInt16BE((r[i] | 0) & 0xFFFF, i * 2);\n  }\n  NAMES.forEach((n, i) => {\n    tags[n] = +buf.readFloatBE(i * 4).toFixed(3);\n  });\n}\n// msg.payload 에 담아 반환 → aggregator + debug 둘 다 그대로 읽을 수 있음\nmsg.payload = { equipment_id: \"CNC-03\", tags: tags };\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 600,
+    "y": 1990,
+    "wires": [
+      [
+        "b045666dc3984688",
+        "359af52378254e1d"
+      ]
+    ]
+  },
+  {
+    "id": "bfe3da8584274c89",
+    "type": "modbus-read",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "CNC-03 HR[0..2] int",
+    "topic": "",
+    "showStatusActivities": false,
+    "logIOActivities": false,
+    "showErrors": false,
+    "showWarnings": true,
+    "unitid": "",
+    "dataType": "HoldingRegister",
+    "adr": "0",
+    "quantity": "3",
+    "rate": "1",
+    "rateUnit": "s",
+    "delayOnStart": true,
+    "startDelayTime": "2",
+    "server": "df55ce5cca004b6f",
+    "useIOFile": false,
+    "ioFile": "",
+    "useIOForPayload": false,
+    "emptyMsgOnFail": false,
+    "x": 300,
+    "y": 1990,
+    "wires": [
+      [
+        "2820e1e763bf48d5"
+      ],
+      []
+    ]
+  },
+  {
+    "id": "90b531a47d4a409a",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "CNC-03 parse float (BE)",
+    "func": "// Modbus read 결과를 평탄 dict 로 묶어 aggregator 로 보냄.\n// payload 는 read 노드의 dataType 에 따라 배열(coil/HR).\nconst KIND = \"hr_float\";       // 'coil' | 'hr_int' | 'hr_float'\nconst NAMES = [\"tool_usage_sp\", \"tool_usage\", \"coolant_flow_sp\", \"coolant_flow\", \"progress\"];  // 이 read 노드가 커버하는 tag name 순서\nconst ADR_BASE = 1000;\nconst r = msg.payload || msg.responseBuffer && msg.responseBuffer.data || [];\nconst tags = {};\nif (KIND === 'coil') {\n  NAMES.forEach((n, i) => { tags[n] = !!r[i]; });\n} else if (KIND === 'hr_int') {\n  function s16(v){ v &= 0xFFFF; return v & 0x8000 ? v - 0x10000 : v; }\n  NAMES.forEach((n, i) => { tags[n] = s16(r[i]); });\n} else if (KIND === 'hr_float') {\n  // r 은 2*N word 배열 (big-endian)\n  const buf = Buffer.alloc(NAMES.length * 4);\n  for (let i = 0; i < NAMES.length * 2; i++) {\n    buf.writeUInt16BE((r[i] | 0) & 0xFFFF, i * 2);\n  }\n  NAMES.forEach((n, i) => {\n    tags[n] = +buf.readFloatBE(i * 4).toFixed(3);\n  });\n}\n// msg.payload 에 담아 반환 → aggregator + debug 둘 다 그대로 읽을 수 있음\nmsg.payload = { equipment_id: \"CNC-03\", tags: tags };\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 600,
+    "y": 2040,
+    "wires": [
+      [
+        "b045666dc3984688",
+        "359af52378254e1d"
+      ]
+    ]
+  },
+  {
+    "id": "cf483e1fc67e4764",
+    "type": "modbus-read",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "CNC-03 HR[1000..1009] float",
+    "topic": "",
+    "showStatusActivities": false,
+    "logIOActivities": false,
+    "showErrors": false,
+    "showWarnings": true,
+    "unitid": "",
+    "dataType": "HoldingRegister",
+    "adr": "1000",
+    "quantity": "10",
+    "rate": "1",
+    "rateUnit": "s",
+    "delayOnStart": true,
+    "startDelayTime": "2",
+    "server": "df55ce5cca004b6f",
+    "useIOFile": false,
+    "ioFile": "",
+    "useIOForPayload": false,
+    "emptyMsgOnFail": false,
+    "x": 300,
+    "y": 2040,
+    "wires": [
+      [
+        "90b531a47d4a409a"
+      ],
+      []
+    ]
+  },
+  {
+    "id": "421232cfeae54a7c",
+    "type": "debug",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "WASH-01 debug",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 900,
+    "y": 2540,
+    "wires": []
+  },
+  {
+    "id": "15ce3aa68f1f4acc",
+    "type": "comment",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "WASH-01 (modbus) :5021",
+    "info": "LINE-01_WASH-01 @ wash-01:5021",
+    "x": 300,
+    "y": 2500,
+    "wires": []
+  },
+  {
+    "id": "68ddf82bc55945c4",
+    "type": "modbus-client",
+    "name": "LINE-01_WASH-01 @ wash-01:5021",
+    "clienttype": "tcp",
+    "bufferCommands": true,
+    "stateLogEnabled": false,
+    "queueLogEnabled": false,
+    "failureLogEnabled": true,
+    "tcpHost": "wash-01",
+    "tcpPort": "5021",
+    "tcpType": "DEFAULT",
+    "serialPort": "/dev/ttyUSB0",
+    "serialType": "RTU-BUFFERD",
+    "serialBaudrate": "9600",
+    "serialDatabits": "8",
+    "serialStopbits": "1",
+    "serialParity": "none",
+    "serialConnectionDelay": "100",
+    "serialAsciiResponseStartDelimiter": "0x3A",
+    "unit_id": "1",
+    "commandDelay": "1",
+    "clientTimeout": "2000",
+    "reconnectOnTimeout": true,
+    "reconnectTimeout": "2000",
+    "parallelUnitIdsAllowed": true,
+    "showErrors": false,
+    "showWarnings": true,
+    "showLogs": false
+  },
+  {
+    "id": "878a70783ada4484",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "WASH-01 parse coils",
+    "func": "// Modbus read 결과를 평탄 dict 로 묶어 aggregator 로 보냄.\n// payload 는 read 노드의 dataType 에 따라 배열(coil/HR).\nconst KIND = \"coil\";       // 'coil' | 'hr_int' | 'hr_float'\nconst NAMES = [\"power\"];  // 이 read 노드가 커버하는 tag name 순서\nconst ADR_BASE = 0;\nconst r = msg.payload || msg.responseBuffer && msg.responseBuffer.data || [];\nconst tags = {};\nif (KIND === 'coil') {\n  NAMES.forEach((n, i) => { tags[n] = !!r[i]; });\n} else if (KIND === 'hr_int') {\n  function s16(v){ v &= 0xFFFF; return v & 0x8000 ? v - 0x10000 : v; }\n  NAMES.forEach((n, i) => { tags[n] = s16(r[i]); });\n} else if (KIND === 'hr_float') {\n  // r 은 2*N word 배열 (big-endian)\n  const buf = Buffer.alloc(NAMES.length * 4);\n  for (let i = 0; i < NAMES.length * 2; i++) {\n    buf.writeUInt16BE((r[i] | 0) & 0xFFFF, i * 2);\n  }\n  NAMES.forEach((n, i) => {\n    tags[n] = +buf.readFloatBE(i * 4).toFixed(3);\n  });\n}\n// msg.payload 에 담아 반환 → aggregator + debug 둘 다 그대로 읽을 수 있음\nmsg.payload = { equipment_id: \"WASH-01\", tags: tags };\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 600,
+    "y": 2540,
+    "wires": [
+      [
+        "b045666dc3984688",
+        "421232cfeae54a7c"
+      ]
+    ]
+  },
+  {
+    "id": "b2463dc2c4024a6c",
+    "type": "modbus-read",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "WASH-01 read coils[0..0]",
+    "topic": "",
+    "showStatusActivities": false,
+    "logIOActivities": false,
+    "showErrors": false,
+    "showWarnings": true,
+    "unitid": "",
+    "dataType": "Coil",
+    "adr": "0",
+    "quantity": "1",
+    "rate": "1",
+    "rateUnit": "s",
+    "delayOnStart": true,
+    "startDelayTime": "2",
+    "server": "68ddf82bc55945c4",
+    "useIOFile": false,
+    "ioFile": "",
+    "useIOForPayload": false,
+    "emptyMsgOnFail": false,
+    "x": 300,
+    "y": 2540,
+    "wires": [
+      [
+        "878a70783ada4484"
+      ],
+      []
+    ]
+  },
+  {
+    "id": "1318416123d44556",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "WASH-01 parse float (BE)",
+    "func": "// Modbus read 결과를 평탄 dict 로 묶어 aggregator 로 보냄.\n// payload 는 read 노드의 dataType 에 따라 배열(coil/HR).\nconst KIND = \"hr_float\";       // 'coil' | 'hr_int' | 'hr_float'\nconst NAMES = [\"cleaning_concentration_sp\", \"cleaning_temperature_sp\", \"cleaning_pressure_sp\", \"cleaning_concentration\", \"cleaning_temperature\", \"cleaning_pressure\", \"progress\"];  // 이 read 노드가 커버하는 tag name 순서\nconst ADR_BASE = 1000;\nconst r = msg.payload || msg.responseBuffer && msg.responseBuffer.data || [];\nconst tags = {};\nif (KIND === 'coil') {\n  NAMES.forEach((n, i) => { tags[n] = !!r[i]; });\n} else if (KIND === 'hr_int') {\n  function s16(v){ v &= 0xFFFF; return v & 0x8000 ? v - 0x10000 : v; }\n  NAMES.forEach((n, i) => { tags[n] = s16(r[i]); });\n} else if (KIND === 'hr_float') {\n  // r 은 2*N word 배열 (big-endian)\n  const buf = Buffer.alloc(NAMES.length * 4);\n  for (let i = 0; i < NAMES.length * 2; i++) {\n    buf.writeUInt16BE((r[i] | 0) & 0xFFFF, i * 2);\n  }\n  NAMES.forEach((n, i) => {\n    tags[n] = +buf.readFloatBE(i * 4).toFixed(3);\n  });\n}\n// msg.payload 에 담아 반환 → aggregator + debug 둘 다 그대로 읽을 수 있음\nmsg.payload = { equipment_id: \"WASH-01\", tags: tags };\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 600,
+    "y": 2590,
+    "wires": [
+      [
+        "b045666dc3984688",
+        "421232cfeae54a7c"
+      ]
+    ]
+  },
+  {
+    "id": "3f10d0380994429a",
+    "type": "modbus-read",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "WASH-01 HR[1000..1013] float",
+    "topic": "",
+    "showStatusActivities": false,
+    "logIOActivities": false,
+    "showErrors": false,
+    "showWarnings": true,
+    "unitid": "",
+    "dataType": "HoldingRegister",
+    "adr": "1000",
+    "quantity": "14",
+    "rate": "1",
+    "rateUnit": "s",
+    "delayOnStart": true,
+    "startDelayTime": "2",
+    "server": "68ddf82bc55945c4",
+    "useIOFile": false,
+    "ioFile": "",
+    "useIOForPayload": false,
+    "emptyMsgOnFail": false,
+    "x": 300,
+    "y": 2590,
+    "wires": [
+      [
+        "1318416123d44556"
+      ],
+      []
+    ]
+  },
+  {
+    "id": "313af63860e34c65",
+    "type": "debug",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "ASSY-01 debug",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 900,
+    "y": 3140,
+    "wires": []
+  },
+  {
+    "id": "a24fdc7d18b84875",
+    "type": "comment",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "ASSY-01 (opcua) :4841",
+    "info": "LINE-01_ASSY-01 @ assy-01:4841",
+    "x": 300,
+    "y": 3100,
+    "wires": []
+  },
+  {
+    "id": "b284f1ec73514852",
+    "type": "OpcUa-Endpoint",
+    "endpoint": "opc.tcp://assy-01:4841/",
+    "secpol": "None",
+    "secmode": "None",
+    "none": true,
+    "login": false,
+    "usercert": false,
+    "usercertificate": "",
+    "userprivatekey": ""
+  },
+  {
+    "id": "e8f81ccd8cb9401a",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "ASSY-01 collect",
+    "func": "// OPC UA Item read 결과를 누적 후 aggregator 로 일괄 전송\n// 각 read 결과는 msg.payload 에 단일값, msg.topic 에 NodeId.\nconst EQ = \"ASSY-01\";\nconst TAG = msg.opcuaItemName || msg.topic || msg.browseName || \"\";\n// item name 은 NodeId 의 s=... 부분\nlet name = String(TAG);\nconst m = name.match(/s=([^;]+)/);\nif (m) name = m[1];\n\nfunction unwrapValue(payload) {\n  if (payload && typeof payload === 'object') {\n    if (payload.value && typeof payload.value === 'object' && 'value' in payload.value) {\n      return payload.value.value;\n    }\n    if ('value' in payload && typeof payload.value !== 'object') {\n      return payload.value;\n    }\n    if ('payload' in payload) {\n      return unwrapValue(payload.payload);\n    }\n  }\n  return payload;\n}\n\nconst buf = flow.get('opcua_buf_ASSY-01') || {};\nbuf[name] = unwrapValue(msg.payload);\nflow.set('opcua_buf_ASSY-01', buf);\nreturn null;\n",
+    "outputs": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 800,
+    "y": 3140,
+    "wires": []
+  },
+  {
+    "id": "336637bec3b14cfa",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "ASSY-01 prep power",
+    "func": "// OpcUa-Client read 용 msg 구성 (Item 노드 제거)\nmsg.topic = 'ns=2;s=power';\nmsg.datatype = 'Boolean';\nmsg.opcuaItemName = 'power';\nmsg.payload = '';\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 380,
+    "y": 3140,
+    "wires": [
+      [
+        "fe6fb1918c8143ba"
+      ]
+    ]
+  },
+  {
+    "id": "fe6fb1918c8143ba",
+    "type": "OpcUa-Client",
+    "z": "5db7d1d1fc5a48f5",
+    "endpoint": "b284f1ec73514852",
+    "action": "read",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "ASSY-01 read power",
+    "x": 580,
+    "y": 3140,
+    "wires": [
+      [
+        "e8f81ccd8cb9401a"
+      ]
+    ]
+  },
+  {
+    "id": "a3f4ca8f5e2e464e",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "ASSY-01 prep tightening_torque_sp",
+    "func": "// OpcUa-Client read 용 msg 구성 (Item 노드 제거)\nmsg.topic = 'ns=2;s=tightening_torque_sp';\nmsg.datatype = 'Float';\nmsg.opcuaItemName = 'tightening_torque_sp';\nmsg.payload = '';\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 380,
+    "y": 3168,
+    "wires": [
+      [
+        "ed530b157a584c68"
+      ]
+    ]
+  },
+  {
+    "id": "ed530b157a584c68",
+    "type": "OpcUa-Client",
+    "z": "5db7d1d1fc5a48f5",
+    "endpoint": "b284f1ec73514852",
+    "action": "read",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "ASSY-01 read tightening_torque_sp",
+    "x": 580,
+    "y": 3168,
+    "wires": [
+      [
+        "e8f81ccd8cb9401a"
+      ]
+    ]
+  },
+  {
+    "id": "a478d33a5dce4666",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "ASSY-01 prep tightening_angle_sp",
+    "func": "// OpcUa-Client read 용 msg 구성 (Item 노드 제거)\nmsg.topic = 'ns=2;s=tightening_angle_sp';\nmsg.datatype = 'Float';\nmsg.opcuaItemName = 'tightening_angle_sp';\nmsg.payload = '';\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 380,
+    "y": 3196,
+    "wires": [
+      [
+        "a8c8cd481ea544d9"
+      ]
+    ]
+  },
+  {
+    "id": "a8c8cd481ea544d9",
+    "type": "OpcUa-Client",
+    "z": "5db7d1d1fc5a48f5",
+    "endpoint": "b284f1ec73514852",
+    "action": "read",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "ASSY-01 read tightening_angle_sp",
+    "x": 580,
+    "y": 3196,
+    "wires": [
+      [
+        "e8f81ccd8cb9401a"
+      ]
+    ]
+  },
+  {
+    "id": "b8bdc0221ec64494",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "ASSY-01 prep press_force_sp",
+    "func": "// OpcUa-Client read 용 msg 구성 (Item 노드 제거)\nmsg.topic = 'ns=2;s=press_force_sp';\nmsg.datatype = 'Float';\nmsg.opcuaItemName = 'press_force_sp';\nmsg.payload = '';\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 380,
+    "y": 3224,
+    "wires": [
+      [
+        "91674d6f15524b33"
+      ]
+    ]
+  },
+  {
+    "id": "91674d6f15524b33",
+    "type": "OpcUa-Client",
+    "z": "5db7d1d1fc5a48f5",
+    "endpoint": "b284f1ec73514852",
+    "action": "read",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "ASSY-01 read press_force_sp",
+    "x": 580,
+    "y": 3224,
+    "wires": [
+      [
+        "e8f81ccd8cb9401a"
+      ]
+    ]
+  },
+  {
+    "id": "fb4360c8d2084cb1",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "ASSY-01 prep tightening_torque",
+    "func": "// OpcUa-Client read 용 msg 구성 (Item 노드 제거)\nmsg.topic = 'ns=2;s=tightening_torque';\nmsg.datatype = 'Float';\nmsg.opcuaItemName = 'tightening_torque';\nmsg.payload = '';\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 380,
+    "y": 3252,
+    "wires": [
+      [
+        "9ee3a59480764e78"
+      ]
+    ]
+  },
+  {
+    "id": "9ee3a59480764e78",
+    "type": "OpcUa-Client",
+    "z": "5db7d1d1fc5a48f5",
+    "endpoint": "b284f1ec73514852",
+    "action": "read",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "ASSY-01 read tightening_torque",
+    "x": 580,
+    "y": 3252,
+    "wires": [
+      [
+        "e8f81ccd8cb9401a"
+      ]
+    ]
+  },
+  {
+    "id": "f672bb503ffc45d8",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "ASSY-01 prep tightening_angle",
+    "func": "// OpcUa-Client read 용 msg 구성 (Item 노드 제거)\nmsg.topic = 'ns=2;s=tightening_angle';\nmsg.datatype = 'Float';\nmsg.opcuaItemName = 'tightening_angle';\nmsg.payload = '';\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 380,
+    "y": 3280,
+    "wires": [
+      [
+        "66ceb8f24aee414f"
+      ]
+    ]
+  },
+  {
+    "id": "66ceb8f24aee414f",
+    "type": "OpcUa-Client",
+    "z": "5db7d1d1fc5a48f5",
+    "endpoint": "b284f1ec73514852",
+    "action": "read",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "ASSY-01 read tightening_angle",
+    "x": 580,
+    "y": 3280,
+    "wires": [
+      [
+        "e8f81ccd8cb9401a"
+      ]
+    ]
+  },
+  {
+    "id": "6455903ebba0495d",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "ASSY-01 prep press_force",
+    "func": "// OpcUa-Client read 용 msg 구성 (Item 노드 제거)\nmsg.topic = 'ns=2;s=press_force';\nmsg.datatype = 'Float';\nmsg.opcuaItemName = 'press_force';\nmsg.payload = '';\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 380,
+    "y": 3308,
+    "wires": [
+      [
+        "73434296ca714cb3"
+      ]
+    ]
+  },
+  {
+    "id": "73434296ca714cb3",
+    "type": "OpcUa-Client",
+    "z": "5db7d1d1fc5a48f5",
+    "endpoint": "b284f1ec73514852",
+    "action": "read",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "ASSY-01 read press_force",
+    "x": 580,
+    "y": 3308,
+    "wires": [
+      [
+        "e8f81ccd8cb9401a"
+      ]
+    ]
+  },
+  {
+    "id": "cdd6c05ee4244e19",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "ASSY-01 prep progress",
+    "func": "// OpcUa-Client read 용 msg 구성 (Item 노드 제거)\nmsg.topic = 'ns=2;s=progress';\nmsg.datatype = 'Float';\nmsg.opcuaItemName = 'progress';\nmsg.payload = '';\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 380,
+    "y": 3336,
+    "wires": [
+      [
+        "cf99040e47084615"
+      ]
+    ]
+  },
+  {
+    "id": "cf99040e47084615",
+    "type": "OpcUa-Client",
+    "z": "5db7d1d1fc5a48f5",
+    "endpoint": "b284f1ec73514852",
+    "action": "read",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "ASSY-01 read progress",
+    "x": 580,
+    "y": 3336,
+    "wires": [
+      [
+        "e8f81ccd8cb9401a"
+      ]
+    ]
+  },
+  {
+    "id": "7229ccbd81d04143",
+    "type": "inject",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "ASSY-01 poll 1s",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "1",
+    "crontab": "",
+    "once": true,
+    "onceDelay": "3",
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 200,
+    "y": 3140,
+    "wires": [
+      [
+        "336637bec3b14cfa",
+        "a3f4ca8f5e2e464e",
+        "a478d33a5dce4666",
+        "b8bdc0221ec64494",
+        "fb4360c8d2084cb1",
+        "f672bb503ffc45d8",
+        "6455903ebba0495d",
+        "cdd6c05ee4244e19"
+      ]
+    ]
+  },
+  {
+    "id": "59fdcb0218614c08",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "ASSY-01 flush",
+    "func": "// 1초 trigger: 누적된 OPC UA 값 한꺼번에 발사\nconst EQ = \"ASSY-01\";\nconst NAMES = [\"power\", \"tightening_torque_sp\", \"tightening_angle_sp\", \"press_force_sp\", \"tightening_torque\", \"tightening_angle\", \"press_force\", \"progress\"];\nconst buf = flow.get('opcua_buf_' + EQ) || {};\nconst tags = {};\nfor (const n of NAMES) {\n  if (n in buf) tags[n] = buf[n];\n}\nif (Object.keys(tags).length === 0) return null;\nmsg.payload = { equipment_id: EQ, tags: tags };\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 1000,
+    "y": 3140,
+    "wires": [
+      [
+        "b045666dc3984688",
+        "313af63860e34c65"
+      ]
+    ]
+  },
+  {
+    "id": "fe260c5b27d94a0e",
+    "type": "inject",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "ASSY-01 flush tick",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "1",
+    "crontab": "",
+    "once": true,
+    "onceDelay": "3.5",
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 820,
+    "y": 3170,
+    "wires": [
+      [
+        "59fdcb0218614c08"
+      ]
+    ]
+  },
+  {
+    "id": "701d8328cdb84c39",
+    "type": "debug",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "ASSY-02 debug",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 900,
+    "y": 3740,
+    "wires": []
+  },
+  {
+    "id": "d0f76079a03740f7",
+    "type": "comment",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "ASSY-02 (opcua) :4842",
+    "info": "LINE-01_ASSY-02 @ assy-02:4842",
+    "x": 300,
+    "y": 3700,
+    "wires": []
+  },
+  {
+    "id": "c15ffbfe0c2047b2",
+    "type": "OpcUa-Endpoint",
+    "endpoint": "opc.tcp://assy-02:4842/",
+    "secpol": "None",
+    "secmode": "None",
+    "none": true,
+    "login": false,
+    "usercert": false,
+    "usercertificate": "",
+    "userprivatekey": ""
+  },
+  {
+    "id": "5585ac3bc160439a",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "ASSY-02 collect",
+    "func": "// OPC UA Item read 결과를 누적 후 aggregator 로 일괄 전송\n// 각 read 결과는 msg.payload 에 단일값, msg.topic 에 NodeId.\nconst EQ = \"ASSY-02\";\nconst TAG = msg.opcuaItemName || msg.topic || msg.browseName || \"\";\n// item name 은 NodeId 의 s=... 부분\nlet name = String(TAG);\nconst m = name.match(/s=([^;]+)/);\nif (m) name = m[1];\n\nfunction unwrapValue(payload) {\n  if (payload && typeof payload === 'object') {\n    if (payload.value && typeof payload.value === 'object' && 'value' in payload.value) {\n      return payload.value.value;\n    }\n    if ('value' in payload && typeof payload.value !== 'object') {\n      return payload.value;\n    }\n    if ('payload' in payload) {\n      return unwrapValue(payload.payload);\n    }\n  }\n  return payload;\n}\n\nconst buf = flow.get('opcua_buf_ASSY-02') || {};\nbuf[name] = unwrapValue(msg.payload);\nflow.set('opcua_buf_ASSY-02', buf);\nreturn null;\n",
+    "outputs": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 800,
+    "y": 3740,
+    "wires": []
+  },
+  {
+    "id": "f6448a2d9ff140d9",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "ASSY-02 prep power",
+    "func": "// OpcUa-Client read 용 msg 구성 (Item 노드 제거)\nmsg.topic = 'ns=2;s=power';\nmsg.datatype = 'Boolean';\nmsg.opcuaItemName = 'power';\nmsg.payload = '';\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 380,
+    "y": 3740,
+    "wires": [
+      [
+        "6b5348bab3f643dc"
+      ]
+    ]
+  },
+  {
+    "id": "6b5348bab3f643dc",
+    "type": "OpcUa-Client",
+    "z": "5db7d1d1fc5a48f5",
+    "endpoint": "c15ffbfe0c2047b2",
+    "action": "read",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "ASSY-02 read power",
+    "x": 580,
+    "y": 3740,
+    "wires": [
+      [
+        "5585ac3bc160439a"
+      ]
+    ]
+  },
+  {
+    "id": "7e8373464e3543ba",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "ASSY-02 prep tightening_torque_sp",
+    "func": "// OpcUa-Client read 용 msg 구성 (Item 노드 제거)\nmsg.topic = 'ns=2;s=tightening_torque_sp';\nmsg.datatype = 'Float';\nmsg.opcuaItemName = 'tightening_torque_sp';\nmsg.payload = '';\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 380,
+    "y": 3768,
+    "wires": [
+      [
+        "7679fd9494514a3c"
+      ]
+    ]
+  },
+  {
+    "id": "7679fd9494514a3c",
+    "type": "OpcUa-Client",
+    "z": "5db7d1d1fc5a48f5",
+    "endpoint": "c15ffbfe0c2047b2",
+    "action": "read",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "ASSY-02 read tightening_torque_sp",
+    "x": 580,
+    "y": 3768,
+    "wires": [
+      [
+        "5585ac3bc160439a"
+      ]
+    ]
+  },
+  {
+    "id": "2b166bb6164d44cc",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "ASSY-02 prep tightening_angle_sp",
+    "func": "// OpcUa-Client read 용 msg 구성 (Item 노드 제거)\nmsg.topic = 'ns=2;s=tightening_angle_sp';\nmsg.datatype = 'Float';\nmsg.opcuaItemName = 'tightening_angle_sp';\nmsg.payload = '';\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 380,
+    "y": 3796,
+    "wires": [
+      [
+        "a7fe54456c27428b"
+      ]
+    ]
+  },
+  {
+    "id": "a7fe54456c27428b",
+    "type": "OpcUa-Client",
+    "z": "5db7d1d1fc5a48f5",
+    "endpoint": "c15ffbfe0c2047b2",
+    "action": "read",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "ASSY-02 read tightening_angle_sp",
+    "x": 580,
+    "y": 3796,
+    "wires": [
+      [
+        "5585ac3bc160439a"
+      ]
+    ]
+  },
+  {
+    "id": "7c13cfc864c64537",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "ASSY-02 prep press_force_sp",
+    "func": "// OpcUa-Client read 용 msg 구성 (Item 노드 제거)\nmsg.topic = 'ns=2;s=press_force_sp';\nmsg.datatype = 'Float';\nmsg.opcuaItemName = 'press_force_sp';\nmsg.payload = '';\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 380,
+    "y": 3824,
+    "wires": [
+      [
+        "b7944db736534c70"
+      ]
+    ]
+  },
+  {
+    "id": "b7944db736534c70",
+    "type": "OpcUa-Client",
+    "z": "5db7d1d1fc5a48f5",
+    "endpoint": "c15ffbfe0c2047b2",
+    "action": "read",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "ASSY-02 read press_force_sp",
+    "x": 580,
+    "y": 3824,
+    "wires": [
+      [
+        "5585ac3bc160439a"
+      ]
+    ]
+  },
+  {
+    "id": "84d2a8b9f00b494a",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "ASSY-02 prep tightening_torque",
+    "func": "// OpcUa-Client read 용 msg 구성 (Item 노드 제거)\nmsg.topic = 'ns=2;s=tightening_torque';\nmsg.datatype = 'Float';\nmsg.opcuaItemName = 'tightening_torque';\nmsg.payload = '';\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 380,
+    "y": 3852,
+    "wires": [
+      [
+        "2cfb6d03604241fc"
+      ]
+    ]
+  },
+  {
+    "id": "2cfb6d03604241fc",
+    "type": "OpcUa-Client",
+    "z": "5db7d1d1fc5a48f5",
+    "endpoint": "c15ffbfe0c2047b2",
+    "action": "read",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "ASSY-02 read tightening_torque",
+    "x": 580,
+    "y": 3852,
+    "wires": [
+      [
+        "5585ac3bc160439a"
+      ]
+    ]
+  },
+  {
+    "id": "ade11bd8268d44b6",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "ASSY-02 prep tightening_angle",
+    "func": "// OpcUa-Client read 용 msg 구성 (Item 노드 제거)\nmsg.topic = 'ns=2;s=tightening_angle';\nmsg.datatype = 'Float';\nmsg.opcuaItemName = 'tightening_angle';\nmsg.payload = '';\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 380,
+    "y": 3880,
+    "wires": [
+      [
+        "00cc146359a84156"
+      ]
+    ]
+  },
+  {
+    "id": "00cc146359a84156",
+    "type": "OpcUa-Client",
+    "z": "5db7d1d1fc5a48f5",
+    "endpoint": "c15ffbfe0c2047b2",
+    "action": "read",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "ASSY-02 read tightening_angle",
+    "x": 580,
+    "y": 3880,
+    "wires": [
+      [
+        "5585ac3bc160439a"
+      ]
+    ]
+  },
+  {
+    "id": "75874b2bc5b848b2",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "ASSY-02 prep press_force",
+    "func": "// OpcUa-Client read 용 msg 구성 (Item 노드 제거)\nmsg.topic = 'ns=2;s=press_force';\nmsg.datatype = 'Float';\nmsg.opcuaItemName = 'press_force';\nmsg.payload = '';\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 380,
+    "y": 3908,
+    "wires": [
+      [
+        "a94a374418574163"
+      ]
+    ]
+  },
+  {
+    "id": "a94a374418574163",
+    "type": "OpcUa-Client",
+    "z": "5db7d1d1fc5a48f5",
+    "endpoint": "c15ffbfe0c2047b2",
+    "action": "read",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "ASSY-02 read press_force",
+    "x": 580,
+    "y": 3908,
+    "wires": [
+      [
+        "5585ac3bc160439a"
+      ]
+    ]
+  },
+  {
+    "id": "cdee2ccbaa8e46dc",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "ASSY-02 prep progress",
+    "func": "// OpcUa-Client read 용 msg 구성 (Item 노드 제거)\nmsg.topic = 'ns=2;s=progress';\nmsg.datatype = 'Float';\nmsg.opcuaItemName = 'progress';\nmsg.payload = '';\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 380,
+    "y": 3936,
+    "wires": [
+      [
+        "b10437716b2b476e"
+      ]
+    ]
+  },
+  {
+    "id": "b10437716b2b476e",
+    "type": "OpcUa-Client",
+    "z": "5db7d1d1fc5a48f5",
+    "endpoint": "c15ffbfe0c2047b2",
+    "action": "read",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "ASSY-02 read progress",
+    "x": 580,
+    "y": 3936,
+    "wires": [
+      [
+        "5585ac3bc160439a"
+      ]
+    ]
+  },
+  {
+    "id": "571abf0653f04fca",
+    "type": "inject",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "ASSY-02 poll 1s",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "1",
+    "crontab": "",
+    "once": true,
+    "onceDelay": "3",
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 200,
+    "y": 3740,
+    "wires": [
+      [
+        "f6448a2d9ff140d9",
+        "7e8373464e3543ba",
+        "2b166bb6164d44cc",
+        "7c13cfc864c64537",
+        "84d2a8b9f00b494a",
+        "ade11bd8268d44b6",
+        "75874b2bc5b848b2",
+        "cdee2ccbaa8e46dc"
+      ]
+    ]
+  },
+  {
+    "id": "c875844f6b2f4052",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "ASSY-02 flush",
+    "func": "// 1초 trigger: 누적된 OPC UA 값 한꺼번에 발사\nconst EQ = \"ASSY-02\";\nconst NAMES = [\"power\", \"tightening_torque_sp\", \"tightening_angle_sp\", \"press_force_sp\", \"tightening_torque\", \"tightening_angle\", \"press_force\", \"progress\"];\nconst buf = flow.get('opcua_buf_' + EQ) || {};\nconst tags = {};\nfor (const n of NAMES) {\n  if (n in buf) tags[n] = buf[n];\n}\nif (Object.keys(tags).length === 0) return null;\nmsg.payload = { equipment_id: EQ, tags: tags };\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 1000,
+    "y": 3740,
+    "wires": [
+      [
+        "b045666dc3984688",
+        "701d8328cdb84c39"
+      ]
+    ]
+  },
+  {
+    "id": "6eaa6fbdedfd433d",
+    "type": "inject",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "ASSY-02 flush tick",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "1",
+    "crontab": "",
+    "once": true,
+    "onceDelay": "3.5",
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 820,
+    "y": 3770,
+    "wires": [
+      [
+        "c875844f6b2f4052"
+      ]
+    ]
+  },
+  {
+    "id": "aad9d3d1bb4b4d44",
+    "type": "debug",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "TEST-01 debug",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 900,
+    "y": 4340,
+    "wires": []
+  },
+  {
+    "id": "eff1f672a9974a99",
+    "type": "comment",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "TEST-01 (opcua) :4851",
+    "info": "LINE-01_TEST-01 @ test-01:4851",
+    "x": 300,
+    "y": 4300,
+    "wires": []
+  },
+  {
+    "id": "d503f7f8a28344ae",
+    "type": "OpcUa-Endpoint",
+    "endpoint": "opc.tcp://test-01:4851/",
+    "secpol": "None",
+    "secmode": "None",
+    "none": true,
+    "login": false,
+    "usercert": false,
+    "usercertificate": "",
+    "userprivatekey": ""
+  },
+  {
+    "id": "bb3c4a2cebbb43f1",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "TEST-01 collect",
+    "func": "// OPC UA Item read 결과를 누적 후 aggregator 로 일괄 전송\n// 각 read 결과는 msg.payload 에 단일값, msg.topic 에 NodeId.\nconst EQ = \"TEST-01\";\nconst TAG = msg.opcuaItemName || msg.topic || msg.browseName || \"\";\n// item name 은 NodeId 의 s=... 부분\nlet name = String(TAG);\nconst m = name.match(/s=([^;]+)/);\nif (m) name = m[1];\n\nfunction unwrapValue(payload) {\n  if (payload && typeof payload === 'object') {\n    if (payload.value && typeof payload.value === 'object' && 'value' in payload.value) {\n      return payload.value.value;\n    }\n    if ('value' in payload && typeof payload.value !== 'object') {\n      return payload.value;\n    }\n    if ('payload' in payload) {\n      return unwrapValue(payload.payload);\n    }\n  }\n  return payload;\n}\n\nconst buf = flow.get('opcua_buf_TEST-01') || {};\nbuf[name] = unwrapValue(msg.payload);\nflow.set('opcua_buf_TEST-01', buf);\nreturn null;\n",
+    "outputs": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 800,
+    "y": 4340,
+    "wires": []
+  },
+  {
+    "id": "62c1f0b2db9a49f8",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "TEST-01 prep power",
+    "func": "// OpcUa-Client read 용 msg 구성 (Item 노드 제거)\nmsg.topic = 'ns=2;s=power';\nmsg.datatype = 'Boolean';\nmsg.opcuaItemName = 'power';\nmsg.payload = '';\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 380,
+    "y": 4340,
+    "wires": [
+      [
+        "60deeeb6193d4f0e"
+      ]
+    ]
+  },
+  {
+    "id": "60deeeb6193d4f0e",
+    "type": "OpcUa-Client",
+    "z": "5db7d1d1fc5a48f5",
+    "endpoint": "d503f7f8a28344ae",
+    "action": "read",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "TEST-01 read power",
+    "x": 580,
+    "y": 4340,
+    "wires": [
+      [
+        "bb3c4a2cebbb43f1"
+      ]
+    ]
+  },
+  {
+    "id": "aacde4b444a64296",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "TEST-01 prep bore_dimension_sp",
+    "func": "// OpcUa-Client read 용 msg 구성 (Item 노드 제거)\nmsg.topic = 'ns=2;s=bore_dimension_sp';\nmsg.datatype = 'Float';\nmsg.opcuaItemName = 'bore_dimension_sp';\nmsg.payload = '';\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 380,
+    "y": 4368,
+    "wires": [
+      [
+        "eac351cc83c64af6"
+      ]
+    ]
+  },
+  {
+    "id": "eac351cc83c64af6",
+    "type": "OpcUa-Client",
+    "z": "5db7d1d1fc5a48f5",
+    "endpoint": "d503f7f8a28344ae",
+    "action": "read",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "TEST-01 read bore_dimension_sp",
+    "x": 580,
+    "y": 4368,
+    "wires": [
+      [
+        "bb3c4a2cebbb43f1"
+      ]
+    ]
+  },
+  {
+    "id": "a0e243bb2a86473c",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "TEST-01 prep hole_dimension_sp",
+    "func": "// OpcUa-Client read 용 msg 구성 (Item 노드 제거)\nmsg.topic = 'ns=2;s=hole_dimension_sp';\nmsg.datatype = 'Float';\nmsg.opcuaItemName = 'hole_dimension_sp';\nmsg.payload = '';\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 380,
+    "y": 4396,
+    "wires": [
+      [
+        "9b070bf0e79e4160"
+      ]
+    ]
+  },
+  {
+    "id": "9b070bf0e79e4160",
+    "type": "OpcUa-Client",
+    "z": "5db7d1d1fc5a48f5",
+    "endpoint": "d503f7f8a28344ae",
+    "action": "read",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "TEST-01 read hole_dimension_sp",
+    "x": 580,
+    "y": 4396,
+    "wires": [
+      [
+        "bb3c4a2cebbb43f1"
+      ]
+    ]
+  },
+  {
+    "id": "077756c67cd144e9",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "TEST-01 prep bore_dimension",
+    "func": "// OpcUa-Client read 용 msg 구성 (Item 노드 제거)\nmsg.topic = 'ns=2;s=bore_dimension';\nmsg.datatype = 'Float';\nmsg.opcuaItemName = 'bore_dimension';\nmsg.payload = '';\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 380,
+    "y": 4424,
+    "wires": [
+      [
+        "970f28782af547b0"
+      ]
+    ]
+  },
+  {
+    "id": "970f28782af547b0",
+    "type": "OpcUa-Client",
+    "z": "5db7d1d1fc5a48f5",
+    "endpoint": "d503f7f8a28344ae",
+    "action": "read",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "TEST-01 read bore_dimension",
+    "x": 580,
+    "y": 4424,
+    "wires": [
+      [
+        "bb3c4a2cebbb43f1"
+      ]
+    ]
+  },
+  {
+    "id": "3ed968b559724790",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "TEST-01 prep hole_dimension",
+    "func": "// OpcUa-Client read 용 msg 구성 (Item 노드 제거)\nmsg.topic = 'ns=2;s=hole_dimension';\nmsg.datatype = 'Float';\nmsg.opcuaItemName = 'hole_dimension';\nmsg.payload = '';\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 380,
+    "y": 4452,
+    "wires": [
+      [
+        "be8d1810352e45cc"
+      ]
+    ]
+  },
+  {
+    "id": "be8d1810352e45cc",
+    "type": "OpcUa-Client",
+    "z": "5db7d1d1fc5a48f5",
+    "endpoint": "d503f7f8a28344ae",
+    "action": "read",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "TEST-01 read hole_dimension",
+    "x": 580,
+    "y": 4452,
+    "wires": [
+      [
+        "bb3c4a2cebbb43f1"
+      ]
+    ]
+  },
+  {
+    "id": "6c9d01c5ea5a4999",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "TEST-01 prep result_ok",
+    "func": "// OpcUa-Client read 용 msg 구성 (Item 노드 제거)\nmsg.topic = 'ns=2;s=result_ok';\nmsg.datatype = 'Boolean';\nmsg.opcuaItemName = 'result_ok';\nmsg.payload = '';\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 380,
+    "y": 4480,
+    "wires": [
+      [
+        "c0e35accfec24b6c"
+      ]
+    ]
+  },
+  {
+    "id": "c0e35accfec24b6c",
+    "type": "OpcUa-Client",
+    "z": "5db7d1d1fc5a48f5",
+    "endpoint": "d503f7f8a28344ae",
+    "action": "read",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "TEST-01 read result_ok",
+    "x": 580,
+    "y": 4480,
+    "wires": [
+      [
+        "bb3c4a2cebbb43f1"
+      ]
+    ]
+  },
+  {
+    "id": "cd0fa2009ba543ac",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "TEST-01 prep progress",
+    "func": "// OpcUa-Client read 용 msg 구성 (Item 노드 제거)\nmsg.topic = 'ns=2;s=progress';\nmsg.datatype = 'Float';\nmsg.opcuaItemName = 'progress';\nmsg.payload = '';\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 380,
+    "y": 4508,
+    "wires": [
+      [
+        "27e77be83c424048"
+      ]
+    ]
+  },
+  {
+    "id": "27e77be83c424048",
+    "type": "OpcUa-Client",
+    "z": "5db7d1d1fc5a48f5",
+    "endpoint": "d503f7f8a28344ae",
+    "action": "read",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "TEST-01 read progress",
+    "x": 580,
+    "y": 4508,
+    "wires": [
+      [
+        "bb3c4a2cebbb43f1"
+      ]
+    ]
+  },
+  {
+    "id": "28c88163a89b4244",
+    "type": "inject",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "TEST-01 poll 1s",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "1",
+    "crontab": "",
+    "once": true,
+    "onceDelay": "3",
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 200,
+    "y": 4340,
+    "wires": [
+      [
+        "62c1f0b2db9a49f8",
+        "aacde4b444a64296",
+        "a0e243bb2a86473c",
+        "077756c67cd144e9",
+        "3ed968b559724790",
+        "6c9d01c5ea5a4999",
+        "cd0fa2009ba543ac"
+      ]
+    ]
+  },
+  {
+    "id": "5b99ab0d39b34ba6",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "TEST-01 flush",
+    "func": "// 1초 trigger: 누적된 OPC UA 값 한꺼번에 발사\nconst EQ = \"TEST-01\";\nconst NAMES = [\"power\", \"bore_dimension_sp\", \"hole_dimension_sp\", \"bore_dimension\", \"hole_dimension\", \"result_ok\", \"progress\"];\nconst buf = flow.get('opcua_buf_' + EQ) || {};\nconst tags = {};\nfor (const n of NAMES) {\n  if (n in buf) tags[n] = buf[n];\n}\nif (Object.keys(tags).length === 0) return null;\nmsg.payload = { equipment_id: EQ, tags: tags };\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 1000,
+    "y": 4340,
+    "wires": [
+      [
+        "b045666dc3984688",
+        "aad9d3d1bb4b4d44"
+      ]
+    ]
+  },
+  {
+    "id": "126aa92978a9447a",
+    "type": "inject",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "TEST-01 flush tick",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "1",
+    "crontab": "",
+    "once": true,
+    "onceDelay": "3.5",
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 820,
+    "y": 4370,
+    "wires": [
+      [
+        "5b99ab0d39b34ba6"
+      ]
+    ]
+  },
+  {
+    "id": "172a88e1b0f34fa0",
+    "type": "debug",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "TEST-02 debug",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 900,
+    "y": 4940,
+    "wires": []
+  },
+  {
+    "id": "6f8cd6b3dbb84696",
+    "type": "comment",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "TEST-02 (opcua) :4852",
+    "info": "LINE-01_TEST-02 @ test-02:4852",
+    "x": 300,
+    "y": 4900,
+    "wires": []
+  },
+  {
+    "id": "f7119ebe4c9841be",
+    "type": "OpcUa-Endpoint",
+    "endpoint": "opc.tcp://test-02:4852/",
+    "secpol": "None",
+    "secmode": "None",
+    "none": true,
+    "login": false,
+    "usercert": false,
+    "usercertificate": "",
+    "userprivatekey": ""
+  },
+  {
+    "id": "3d18404149c84d12",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "TEST-02 collect",
+    "func": "// OPC UA Item read 결과를 누적 후 aggregator 로 일괄 전송\n// 각 read 결과는 msg.payload 에 단일값, msg.topic 에 NodeId.\nconst EQ = \"TEST-02\";\nconst TAG = msg.opcuaItemName || msg.topic || msg.browseName || \"\";\n// item name 은 NodeId 의 s=... 부분\nlet name = String(TAG);\nconst m = name.match(/s=([^;]+)/);\nif (m) name = m[1];\n\nfunction unwrapValue(payload) {\n  if (payload && typeof payload === 'object') {\n    if (payload.value && typeof payload.value === 'object' && 'value' in payload.value) {\n      return payload.value.value;\n    }\n    if ('value' in payload && typeof payload.value !== 'object') {\n      return payload.value;\n    }\n    if ('payload' in payload) {\n      return unwrapValue(payload.payload);\n    }\n  }\n  return payload;\n}\n\nconst buf = flow.get('opcua_buf_TEST-02') || {};\nbuf[name] = unwrapValue(msg.payload);\nflow.set('opcua_buf_TEST-02', buf);\nreturn null;\n",
+    "outputs": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 800,
+    "y": 4940,
+    "wires": []
+  },
+  {
+    "id": "e3fb26cae42a42b3",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "TEST-02 prep power",
+    "func": "// OpcUa-Client read 용 msg 구성 (Item 노드 제거)\nmsg.topic = 'ns=2;s=power';\nmsg.datatype = 'Boolean';\nmsg.opcuaItemName = 'power';\nmsg.payload = '';\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 380,
+    "y": 4940,
+    "wires": [
+      [
+        "ce8151d238ed4850"
+      ]
+    ]
+  },
+  {
+    "id": "ce8151d238ed4850",
+    "type": "OpcUa-Client",
+    "z": "5db7d1d1fc5a48f5",
+    "endpoint": "f7119ebe4c9841be",
+    "action": "read",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "TEST-02 read power",
+    "x": 580,
+    "y": 4940,
+    "wires": [
+      [
+        "3d18404149c84d12"
+      ]
+    ]
+  },
+  {
+    "id": "90840c064e5c48d4",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "TEST-02 prep bore_dimension_sp",
+    "func": "// OpcUa-Client read 용 msg 구성 (Item 노드 제거)\nmsg.topic = 'ns=2;s=bore_dimension_sp';\nmsg.datatype = 'Float';\nmsg.opcuaItemName = 'bore_dimension_sp';\nmsg.payload = '';\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 380,
+    "y": 4968,
+    "wires": [
+      [
+        "efaccff1c8424565"
+      ]
+    ]
+  },
+  {
+    "id": "efaccff1c8424565",
+    "type": "OpcUa-Client",
+    "z": "5db7d1d1fc5a48f5",
+    "endpoint": "f7119ebe4c9841be",
+    "action": "read",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "TEST-02 read bore_dimension_sp",
+    "x": 580,
+    "y": 4968,
+    "wires": [
+      [
+        "3d18404149c84d12"
+      ]
+    ]
+  },
+  {
+    "id": "542657948db045fd",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "TEST-02 prep hole_dimension_sp",
+    "func": "// OpcUa-Client read 용 msg 구성 (Item 노드 제거)\nmsg.topic = 'ns=2;s=hole_dimension_sp';\nmsg.datatype = 'Float';\nmsg.opcuaItemName = 'hole_dimension_sp';\nmsg.payload = '';\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 380,
+    "y": 4996,
+    "wires": [
+      [
+        "ad3590c2e6814745"
+      ]
+    ]
+  },
+  {
+    "id": "ad3590c2e6814745",
+    "type": "OpcUa-Client",
+    "z": "5db7d1d1fc5a48f5",
+    "endpoint": "f7119ebe4c9841be",
+    "action": "read",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "TEST-02 read hole_dimension_sp",
+    "x": 580,
+    "y": 4996,
+    "wires": [
+      [
+        "3d18404149c84d12"
+      ]
+    ]
+  },
+  {
+    "id": "f8ba79414f6f4f41",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "TEST-02 prep bore_dimension",
+    "func": "// OpcUa-Client read 용 msg 구성 (Item 노드 제거)\nmsg.topic = 'ns=2;s=bore_dimension';\nmsg.datatype = 'Float';\nmsg.opcuaItemName = 'bore_dimension';\nmsg.payload = '';\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 380,
+    "y": 5024,
+    "wires": [
+      [
+        "06e159166acd4d8c"
+      ]
+    ]
+  },
+  {
+    "id": "06e159166acd4d8c",
+    "type": "OpcUa-Client",
+    "z": "5db7d1d1fc5a48f5",
+    "endpoint": "f7119ebe4c9841be",
+    "action": "read",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "TEST-02 read bore_dimension",
+    "x": 580,
+    "y": 5024,
+    "wires": [
+      [
+        "3d18404149c84d12"
+      ]
+    ]
+  },
+  {
+    "id": "2104a28d7b874943",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "TEST-02 prep hole_dimension",
+    "func": "// OpcUa-Client read 용 msg 구성 (Item 노드 제거)\nmsg.topic = 'ns=2;s=hole_dimension';\nmsg.datatype = 'Float';\nmsg.opcuaItemName = 'hole_dimension';\nmsg.payload = '';\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 380,
+    "y": 5052,
+    "wires": [
+      [
+        "c166c51aeaa2463c"
+      ]
+    ]
+  },
+  {
+    "id": "c166c51aeaa2463c",
+    "type": "OpcUa-Client",
+    "z": "5db7d1d1fc5a48f5",
+    "endpoint": "f7119ebe4c9841be",
+    "action": "read",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "TEST-02 read hole_dimension",
+    "x": 580,
+    "y": 5052,
+    "wires": [
+      [
+        "3d18404149c84d12"
+      ]
+    ]
+  },
+  {
+    "id": "71bae36dd84e404e",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "TEST-02 prep result_ok",
+    "func": "// OpcUa-Client read 용 msg 구성 (Item 노드 제거)\nmsg.topic = 'ns=2;s=result_ok';\nmsg.datatype = 'Boolean';\nmsg.opcuaItemName = 'result_ok';\nmsg.payload = '';\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 380,
+    "y": 5080,
+    "wires": [
+      [
+        "36c79421138e4b58"
+      ]
+    ]
+  },
+  {
+    "id": "36c79421138e4b58",
+    "type": "OpcUa-Client",
+    "z": "5db7d1d1fc5a48f5",
+    "endpoint": "f7119ebe4c9841be",
+    "action": "read",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "TEST-02 read result_ok",
+    "x": 580,
+    "y": 5080,
+    "wires": [
+      [
+        "3d18404149c84d12"
+      ]
+    ]
+  },
+  {
+    "id": "6109ccb753bb4298",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "TEST-02 prep progress",
+    "func": "// OpcUa-Client read 용 msg 구성 (Item 노드 제거)\nmsg.topic = 'ns=2;s=progress';\nmsg.datatype = 'Float';\nmsg.opcuaItemName = 'progress';\nmsg.payload = '';\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 380,
+    "y": 5108,
+    "wires": [
+      [
+        "64038abe91bb4734"
+      ]
+    ]
+  },
+  {
+    "id": "64038abe91bb4734",
+    "type": "OpcUa-Client",
+    "z": "5db7d1d1fc5a48f5",
+    "endpoint": "f7119ebe4c9841be",
+    "action": "read",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "TEST-02 read progress",
+    "x": 580,
+    "y": 5108,
+    "wires": [
+      [
+        "3d18404149c84d12"
+      ]
+    ]
+  },
+  {
+    "id": "ec0c620251134ff0",
+    "type": "inject",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "TEST-02 poll 1s",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "1",
+    "crontab": "",
+    "once": true,
+    "onceDelay": "3",
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 200,
+    "y": 4940,
+    "wires": [
+      [
+        "e3fb26cae42a42b3",
+        "90840c064e5c48d4",
+        "542657948db045fd",
+        "f8ba79414f6f4f41",
+        "2104a28d7b874943",
+        "71bae36dd84e404e",
+        "6109ccb753bb4298"
+      ]
+    ]
+  },
+  {
+    "id": "2c35bde2df024eb3",
+    "type": "function",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "TEST-02 flush",
+    "func": "// 1초 trigger: 누적된 OPC UA 값 한꺼번에 발사\nconst EQ = \"TEST-02\";\nconst NAMES = [\"power\", \"bore_dimension_sp\", \"hole_dimension_sp\", \"bore_dimension\", \"hole_dimension\", \"result_ok\", \"progress\"];\nconst buf = flow.get('opcua_buf_' + EQ) || {};\nconst tags = {};\nfor (const n of NAMES) {\n  if (n in buf) tags[n] = buf[n];\n}\nif (Object.keys(tags).length === 0) return null;\nmsg.payload = { equipment_id: EQ, tags: tags };\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 1000,
+    "y": 4940,
+    "wires": [
+      [
+        "b045666dc3984688",
+        "172a88e1b0f34fa0"
+      ]
+    ]
+  },
+  {
+    "id": "23e2f05dc24940e9",
+    "type": "inject",
+    "z": "5db7d1d1fc5a48f5",
+    "name": "TEST-02 flush tick",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "1",
+    "crontab": "",
+    "once": true,
+    "onceDelay": "3.5",
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 820,
+    "y": 4970,
+    "wires": [
+      [
+        "2c35bde2df024eb3"
+      ]
+    ]
+  },
+  {
+    "id": "f7e9ba87aad3491a",
+    "type": "tab",
+    "label": "LINE-01 Self-Check",
+    "disabled": false,
+    "info": ""
+  },
+  {
+    "id": "cd7aba39b917461f",
+    "type": "comment",
+    "z": "f7e9ba87aad3491a",
+    "name": "LINE-01 self-check",
+    "info": "  같은 Docker 네트워크의 OpcUa-Server (nodered-line01:4860) 에\nclient 로 접속해서 publish 된 변수를 읽어보는 검증 탭.\n\n• 여기서 값이 읽히면 → 서버 측 OK\n• 여기서도 안 읽히면 → publish/addVariable 문제\n• 여기는 OK 인데 통합 DAS 가 안 읽히면 → docker/network 문제\n",
+    "x": 180,
+    "y": 30,
+    "wires": []
+  },
+  {
+    "id": "0f120f6af7b2424d",
+    "type": "OpcUa-Endpoint",
+    "endpoint": "opc.tcp://nodered-line01:4860/line-das/LINE-01",
+    "secpol": "None",
+    "secmode": "None",
+    "none": true,
+    "login": false,
+    "usercert": false,
+    "usercertificate": "",
+    "userprivatekey": "",
+    "name": "self-check LINE-01"
+  },
+  {
+    "id": "851cb64f156c4ca2",
+    "type": "debug",
+    "z": "f7e9ba87aad3491a",
+    "name": "SELF-CHECK LINE-01.payload",
+    "active": true,
+    "tosidebar": true,
+    "console": true,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 900,
+    "y": 100,
+    "wires": []
+  },
+  {
+    "id": "08e04893bae14106",
+    "type": "OpcUa-Client",
+    "z": "f7e9ba87aad3491a",
+    "endpoint": "0f120f6af7b2424d",
+    "action": "read",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "read",
+    "x": 700,
+    "y": 100,
+    "wires": [
+      [
+        "851cb64f156c4ca2"
+      ]
+    ]
+  },
+  {
+    "id": "8ba4212687594c08",
+    "type": "OpcUa-Item",
+    "z": "f7e9ba87aad3491a",
+    "item": "ns=2;s=LINE-01.payload",
+    "datatype": "String",
+    "value": "",
+    "name": "LINE-01.payload",
+    "x": 480,
+    "y": 100,
+    "wires": [
+      [
+        "08e04893bae14106"
+      ]
+    ]
+  },
+  {
+    "id": "f795e86c1bff4ef5",
+    "type": "debug",
+    "z": "f7e9ba87aad3491a",
+    "name": "SELF-CHECK LINE-01.line_ts",
+    "active": true,
+    "tosidebar": true,
+    "console": true,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 900,
+    "y": 160,
+    "wires": []
+  },
+  {
+    "id": "c8113ffacebe4855",
+    "type": "OpcUa-Client",
+    "z": "f7e9ba87aad3491a",
+    "endpoint": "0f120f6af7b2424d",
+    "action": "read",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "read",
+    "x": 700,
+    "y": 160,
+    "wires": [
+      [
+        "f795e86c1bff4ef5"
+      ]
+    ]
+  },
+  {
+    "id": "10ce8a0020e44646",
+    "type": "OpcUa-Item",
+    "z": "f7e9ba87aad3491a",
+    "item": "ns=2;s=LINE-01.line_ts",
+    "datatype": "String",
+    "value": "",
+    "name": "LINE-01.line_ts",
+    "x": 480,
+    "y": 160,
+    "wires": [
+      [
+        "c8113ffacebe4855"
+      ]
+    ]
+  },
+  {
+    "id": "131d8626ec794a54",
+    "type": "debug",
+    "z": "f7e9ba87aad3491a",
+    "name": "SELF-CHECK LINE-01.CAST-01.status",
+    "active": true,
+    "tosidebar": true,
+    "console": true,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 900,
+    "y": 220,
+    "wires": []
+  },
+  {
+    "id": "d9fd7398fa834fc9",
+    "type": "OpcUa-Client",
+    "z": "f7e9ba87aad3491a",
+    "endpoint": "0f120f6af7b2424d",
+    "action": "read",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "read",
+    "x": 700,
+    "y": 220,
+    "wires": [
+      [
+        "131d8626ec794a54"
+      ]
+    ]
+  },
+  {
+    "id": "1627bbea5ccb470c",
+    "type": "OpcUa-Item",
+    "z": "f7e9ba87aad3491a",
+    "item": "ns=2;s=LINE-01.CAST-01.status",
+    "datatype": "String",
+    "value": "",
+    "name": "LINE-01.CAST-01.status",
+    "x": 480,
+    "y": 220,
+    "wires": [
+      [
+        "d9fd7398fa834fc9"
+      ]
+    ]
+  },
+  {
+    "id": "1c66c1b181f14522",
+    "type": "debug",
+    "z": "f7e9ba87aad3491a",
+    "name": "SELF-CHECK LINE-01.CAST-01.data.power",
+    "active": true,
+    "tosidebar": true,
+    "console": true,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 900,
+    "y": 280,
+    "wires": []
+  },
+  {
+    "id": "508ddaf3c24c4ff7",
+    "type": "OpcUa-Client",
+    "z": "f7e9ba87aad3491a",
+    "endpoint": "0f120f6af7b2424d",
+    "action": "read",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "read",
+    "x": 700,
+    "y": 280,
+    "wires": [
+      [
+        "1c66c1b181f14522"
+      ]
+    ]
+  },
+  {
+    "id": "ebb16e4139614b45",
+    "type": "OpcUa-Item",
+    "z": "f7e9ba87aad3491a",
+    "item": "ns=2;s=LINE-01.CAST-01.data.power",
+    "datatype": "Float",
+    "value": "",
+    "name": "LINE-01.CAST-01.data.power",
+    "x": 480,
+    "y": 280,
+    "wires": [
+      [
+        "508ddaf3c24c4ff7"
+      ]
+    ]
+  },
+  {
+    "id": "b410809f0ea54f0d",
+    "type": "debug",
+    "z": "f7e9ba87aad3491a",
+    "name": "SELF-CHECK LINE-01.CNC-01.status",
+    "active": true,
+    "tosidebar": true,
+    "console": true,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 900,
+    "y": 340,
+    "wires": []
+  },
+  {
+    "id": "6635eefff461468f",
+    "type": "OpcUa-Client",
+    "z": "f7e9ba87aad3491a",
+    "endpoint": "0f120f6af7b2424d",
+    "action": "read",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "read",
+    "x": 700,
+    "y": 340,
+    "wires": [
+      [
+        "b410809f0ea54f0d"
+      ]
+    ]
+  },
+  {
+    "id": "92e9147c2f2a4643",
+    "type": "OpcUa-Item",
+    "z": "f7e9ba87aad3491a",
+    "item": "ns=2;s=LINE-01.CNC-01.status",
+    "datatype": "String",
+    "value": "",
+    "name": "LINE-01.CNC-01.status",
+    "x": 480,
+    "y": 340,
+    "wires": [
+      [
+        "6635eefff461468f"
+      ]
+    ]
+  },
+  {
+    "id": "d1df8ac90a3d4591",
+    "type": "debug",
+    "z": "f7e9ba87aad3491a",
+    "name": "SELF-CHECK LINE-01.CNC-01.data.power",
+    "active": true,
+    "tosidebar": true,
+    "console": true,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 900,
+    "y": 400,
+    "wires": []
+  },
+  {
+    "id": "596e03b8d31f4c74",
+    "type": "OpcUa-Client",
+    "z": "f7e9ba87aad3491a",
+    "endpoint": "0f120f6af7b2424d",
+    "action": "read",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "read",
+    "x": 700,
+    "y": 400,
+    "wires": [
+      [
+        "d1df8ac90a3d4591"
+      ]
+    ]
+  },
+  {
+    "id": "803f1634f6d2460b",
+    "type": "OpcUa-Item",
+    "z": "f7e9ba87aad3491a",
+    "item": "ns=2;s=LINE-01.CNC-01.data.power",
+    "datatype": "Float",
+    "value": "",
+    "name": "LINE-01.CNC-01.data.power",
+    "x": 480,
+    "y": 400,
+    "wires": [
+      [
+        "596e03b8d31f4c74"
+      ]
+    ]
+  },
+  {
+    "id": "5feffa730a36422b",
+    "type": "debug",
+    "z": "f7e9ba87aad3491a",
+    "name": "SELF-CHECK LINE-01.TEST-01.status",
+    "active": true,
+    "tosidebar": true,
+    "console": true,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 900,
+    "y": 460,
+    "wires": []
+  },
+  {
+    "id": "f8a03cc1b47e46c0",
+    "type": "OpcUa-Client",
+    "z": "f7e9ba87aad3491a",
+    "endpoint": "0f120f6af7b2424d",
+    "action": "read",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "read",
+    "x": 700,
+    "y": 460,
+    "wires": [
+      [
+        "5feffa730a36422b"
+      ]
+    ]
+  },
+  {
+    "id": "6af2643b48e64098",
+    "type": "OpcUa-Item",
+    "z": "f7e9ba87aad3491a",
+    "item": "ns=2;s=LINE-01.TEST-01.status",
+    "datatype": "String",
+    "value": "",
+    "name": "LINE-01.TEST-01.status",
+    "x": 480,
+    "y": 460,
+    "wires": [
+      [
+        "f8a03cc1b47e46c0"
+      ]
+    ]
+  },
+  {
+    "id": "ef84e65586a4430d",
+    "type": "debug",
+    "z": "f7e9ba87aad3491a",
+    "name": "SELF-CHECK LINE-01.TEST-01.data.hole_dimension",
+    "active": true,
+    "tosidebar": true,
+    "console": true,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 900,
+    "y": 520,
+    "wires": []
+  },
+  {
+    "id": "d340f4efa4a548ca",
+    "type": "OpcUa-Client",
+    "z": "f7e9ba87aad3491a",
+    "endpoint": "0f120f6af7b2424d",
+    "action": "read",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "read",
+    "x": 700,
+    "y": 520,
+    "wires": [
+      [
+        "ef84e65586a4430d"
+      ]
+    ]
+  },
+  {
+    "id": "4fe15445a8b94338",
+    "type": "OpcUa-Item",
+    "z": "f7e9ba87aad3491a",
+    "item": "ns=2;s=LINE-01.TEST-01.data.hole_dimension",
+    "datatype": "Float",
+    "value": "",
+    "name": "LINE-01.TEST-01.data.hole_dimension",
+    "x": 480,
+    "y": 520,
+    "wires": [
+      [
+        "d340f4efa4a548ca"
+      ]
+    ]
+  },
+  {
+    "id": "0fa49037168246fc",
+    "type": "inject",
+    "z": "f7e9ba87aad3491a",
+    "name": "self-check tick 1s",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "1",
+    "crontab": "",
+    "once": true,
+    "onceDelay": "15",
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 250,
+    "y": 100,
+    "wires": [
+      [
+        "8ba4212687594c08",
+        "10ce8a0020e44646",
+        "1627bbea5ccb470c",
+        "ebb16e4139614b45",
+        "92e9147c2f2a4643",
+        "803f1634f6d2460b",
+        "6af2643b48e64098",
+        "4fe15445a8b94338"
+      ]
+    ]
+  },
+  {
+    "id": "241201566daa4530",
+    "type": "tab",
+    "label": "LINE-01 SP Control",
+    "disabled": false,
+    "info": ""
+  },
+  {
+    "id": "8261901fc29a49bd",
+    "type": "comment",
+    "z": "241201566daa4530",
+    "name": "LINE-01 setpoint write",
+    "info": "· 설비 setpoint 를 넎트워크 너머 변경하는 탭.\n· 프로토콜별 write 노드를 사용, 시뮬에 값을 기록.\n· inject 세 개 (low / mid / high) 이 기본 제공됨.\n· write 후 1~2초 내 DAS 탭 의 센서 값들이 새 중심값으로 이동.\n",
+    "x": 180,
+    "y": 30,
+    "wires": []
+  },
+  {
+    "id": "32d591b5f7bf47f3",
+    "type": "comment",
+    "z": "241201566daa4530",
+    "name": "CAST-01 (mcprotocol) cast-01:5001",
+    "info": "LINE-01_CAST-01 setpoint write 세그먼트",
+    "x": 200,
+    "y": 80,
+    "wires": []
+  },
+  {
+    "id": "91127039ec734464",
+    "type": "MC Protocol Connection",
+    "name": "LINE-01_CAST-01 SP @ cast-01:5001",
+    "host": "cast-01",
+    "port": "5001",
+    "protocol": "TCP",
+    "frame": "3E",
+    "plcType": "Q",
+    "ascii": false,
+    "PLCStation": "",
+    "PCStation": "",
+    "PLCModuleNo": "",
+    "network": "",
+    "octalInputOutput": false,
+    "timeout": "2000"
+  },
+  {
+    "id": "6da342ebb9c24e97",
+    "type": "MC Write",
+    "z": "241201566daa4530",
+    "name": "CAST-01 write injection_pressure_sp",
+    "topic": "",
+    "connection": "91127039ec734464",
+    "address": "DREAL0",
+    "addressType": "str",
+    "data": "payload",
+    "dataType": "msg",
+    "errorHandling": "throw",
+    "outputs": 1,
+    "x": 850,
+    "y": 110,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "b80f21f8a44a4444",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "injection_pressure_sp = 72.0 (low)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "72.0",
+    "payloadType": "num",
+    "x": 420,
+    "y": 110,
+    "wires": [
+      [
+        "6da342ebb9c24e97"
+      ]
+    ]
+  },
+  {
+    "id": "0efd842b4cb34f05",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "injection_pressure_sp = 80.0 (mid)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "80.0",
+    "payloadType": "num",
+    "x": 420,
+    "y": 135,
+    "wires": [
+      [
+        "6da342ebb9c24e97"
+      ]
+    ]
+  },
+  {
+    "id": "f127904a24a348e1",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "injection_pressure_sp = 88.0 (high)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "88.0",
+    "payloadType": "num",
+    "x": 420,
+    "y": 160,
+    "wires": [
+      [
+        "6da342ebb9c24e97"
+      ]
+    ]
+  },
+  {
+    "id": "ccb6d1d558db4d8a",
+    "type": "MC Write",
+    "z": "241201566daa4530",
+    "name": "CAST-01 write mold_temperature_sp",
+    "topic": "",
+    "connection": "91127039ec734464",
+    "address": "DREAL2",
+    "addressType": "str",
+    "data": "payload",
+    "dataType": "msg",
+    "errorHandling": "throw",
+    "outputs": 1,
+    "x": 850,
+    "y": 200,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "61dc2b716f1b4e7b",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "mold_temperature_sp = 193.5 (low)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "193.5",
+    "payloadType": "num",
+    "x": 420,
+    "y": 200,
+    "wires": [
+      [
+        "ccb6d1d558db4d8a"
+      ]
+    ]
+  },
+  {
+    "id": "554a3dc260454f09",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "mold_temperature_sp = 215.0 (mid)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "215.0",
+    "payloadType": "num",
+    "x": 420,
+    "y": 225,
+    "wires": [
+      [
+        "ccb6d1d558db4d8a"
+      ]
+    ]
+  },
+  {
+    "id": "8f9873b1db8d46b6",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "mold_temperature_sp = 236.5 (high)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "236.5",
+    "payloadType": "num",
+    "x": 420,
+    "y": 250,
+    "wires": [
+      [
+        "ccb6d1d558db4d8a"
+      ]
+    ]
+  },
+  {
+    "id": "16d70688919040ac",
+    "type": "MC Write",
+    "z": "241201566daa4530",
+    "name": "CAST-01 write cooling_flow_sp",
+    "topic": "",
+    "connection": "91127039ec734464",
+    "address": "DREAL4",
+    "addressType": "str",
+    "data": "payload",
+    "dataType": "msg",
+    "errorHandling": "throw",
+    "outputs": 1,
+    "x": 850,
+    "y": 290,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "8ab18b1cab4645bd",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "cooling_flow_sp = 36.0 (low)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "36.0",
+    "payloadType": "num",
+    "x": 420,
+    "y": 290,
+    "wires": [
+      [
+        "16d70688919040ac"
+      ]
+    ]
+  },
+  {
+    "id": "81436683a9714fd9",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "cooling_flow_sp = 40.0 (mid)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "40.0",
+    "payloadType": "num",
+    "x": 420,
+    "y": 315,
+    "wires": [
+      [
+        "16d70688919040ac"
+      ]
+    ]
+  },
+  {
+    "id": "14118644b17d4e41",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "cooling_flow_sp = 44.0 (high)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "44.0",
+    "payloadType": "num",
+    "x": 420,
+    "y": 340,
+    "wires": [
+      [
+        "16d70688919040ac"
+      ]
+    ]
+  },
+  {
+    "id": "2e2d43df6dfd4f18",
+    "type": "comment",
+    "z": "241201566daa4530",
+    "name": "CNC-01 (modbus-rtu-tcp) cnc-01:5101",
+    "info": "LINE-01_CNC-01 setpoint write 세그먼트",
+    "x": 200,
+    "y": 410,
+    "wires": []
+  },
+  {
+    "id": "34f4fae225974c07",
+    "type": "modbus-client",
+    "name": "LINE-01_CNC-01 SP @ cnc-01:5101",
+    "clienttype": "tcp",
+    "bufferCommands": true,
+    "stateLogEnabled": false,
+    "queueLogEnabled": false,
+    "failureLogEnabled": true,
+    "tcpHost": "cnc-01",
+    "tcpPort": "5101",
+    "tcpType": "TELNET",
+    "serialPort": "/dev/ttyUSB0",
+    "serialType": "RTU-BUFFERD",
+    "serialBaudrate": "9600",
+    "serialDatabits": "8",
+    "serialStopbits": "1",
+    "serialParity": "none",
+    "serialConnectionDelay": "100",
+    "serialAsciiResponseStartDelimiter": "0x3A",
+    "unit_id": "1",
+    "commandDelay": "1",
+    "clientTimeout": "2000",
+    "reconnectOnTimeout": true,
+    "reconnectTimeout": "2000",
+    "parallelUnitIdsAllowed": true,
+    "showErrors": false,
+    "showWarnings": true,
+    "showLogs": false
+  },
+  {
+    "id": "b4b8e3f30b4e441c",
+    "type": "modbus-write",
+    "z": "241201566daa4530",
+    "name": "CNC-01 write spindle_speed_sp",
+    "showStatusActivities": false,
+    "showErrors": false,
+    "showWarnings": true,
+    "unitid": "",
+    "dataType": "HoldingRegister",
+    "adr": "0",
+    "quantity": "1",
+    "emptyMsgOnFail": false,
+    "keepMsgProperties": false,
+    "delayOnStart": false,
+    "startDelayTime": "",
+    "server": "34f4fae225974c07",
+    "x": 850,
+    "y": 440,
+    "wires": [
+      [],
+      []
+    ]
+  },
+  {
+    "id": "98018fcf92834891",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "spindle_speed_sp = 4950 (low)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "4950",
+    "payloadType": "num",
+    "x": 420,
+    "y": 440,
+    "wires": [
+      [
+        "b4b8e3f30b4e441c"
+      ]
+    ]
+  },
+  {
+    "id": "c3e8b839a4aa4bd0",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "spindle_speed_sp = 5500 (mid)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "5500",
+    "payloadType": "num",
+    "x": 420,
+    "y": 465,
+    "wires": [
+      [
+        "b4b8e3f30b4e441c"
+      ]
+    ]
+  },
+  {
+    "id": "8b634bd1248547a9",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "spindle_speed_sp = 6050 (high)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "6050",
+    "payloadType": "num",
+    "x": 420,
+    "y": 490,
+    "wires": [
+      [
+        "b4b8e3f30b4e441c"
+      ]
+    ]
+  },
+  {
+    "id": "4067743f7162451b",
+    "type": "modbus-write",
+    "z": "241201566daa4530",
+    "name": "CNC-01 write tool_usage_sp",
+    "showStatusActivities": false,
+    "showErrors": false,
+    "showWarnings": true,
+    "unitid": "",
+    "dataType": "MHoldingRegisters",
+    "adr": "1000",
+    "quantity": "2",
+    "emptyMsgOnFail": false,
+    "keepMsgProperties": false,
+    "delayOnStart": false,
+    "startDelayTime": "",
+    "server": "34f4fae225974c07",
+    "x": 900,
+    "y": 530,
+    "wires": [
+      [],
+      []
+    ]
+  },
+  {
+    "id": "a5c2dd09afe74de7",
+    "type": "function",
+    "z": "241201566daa4530",
+    "name": "f32->u16x2 tool_usage_sp",
+    "func": "// float -> uint16[2] BE 변환\n// 시뮬 modbus_server 가 readFloatBE(reg0_hi << 16 | reg1_lo) 로 해석하므로\n// register 순서는 [hi_word, lo_word] (big-endian word order)\n// modbus-write 노드가 dataType=MHoldingRegisters 면 FC=16, payload 가 array 면\n// 그대로 values 로 쓴다 (contrib-modbus modbus-write.js#105).\nconst v = Number(msg.payload);\nif (!Number.isFinite(v)) {\n  node.warn('invalid payload for float write: ' + msg.payload);\n  return null;\n}\nconst buf = Buffer.alloc(4);\nbuf.writeFloatBE(v, 0);\nconst hi = buf.readUInt16BE(0);\nconst lo = buf.readUInt16BE(2);\nmsg.payload = [hi, lo];\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 700,
+    "y": 530,
+    "wires": [
+      [
+        "4067743f7162451b"
+      ]
+    ]
+  },
+  {
+    "id": "7973c2e0e10547a1",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "tool_usage_sp = 27.0 (low)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "27.0",
+    "payloadType": "num",
+    "x": 420,
+    "y": 530,
+    "wires": [
+      [
+        "a5c2dd09afe74de7"
+      ]
+    ]
+  },
+  {
+    "id": "0238bd5ef7ab45f9",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "tool_usage_sp = 30.0 (mid)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "30.0",
+    "payloadType": "num",
+    "x": 420,
+    "y": 555,
+    "wires": [
+      [
+        "a5c2dd09afe74de7"
+      ]
+    ]
+  },
+  {
+    "id": "c7167714892248a4",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "tool_usage_sp = 33.0 (high)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "33.0",
+    "payloadType": "num",
+    "x": 420,
+    "y": 580,
+    "wires": [
+      [
+        "a5c2dd09afe74de7"
+      ]
+    ]
+  },
+  {
+    "id": "0d08d4c7d3ca4614",
+    "type": "modbus-write",
+    "z": "241201566daa4530",
+    "name": "CNC-01 write coolant_flow_sp",
+    "showStatusActivities": false,
+    "showErrors": false,
+    "showWarnings": true,
+    "unitid": "",
+    "dataType": "MHoldingRegisters",
+    "adr": "1004",
+    "quantity": "2",
+    "emptyMsgOnFail": false,
+    "keepMsgProperties": false,
+    "delayOnStart": false,
+    "startDelayTime": "",
+    "server": "34f4fae225974c07",
+    "x": 900,
+    "y": 620,
+    "wires": [
+      [],
+      []
+    ]
+  },
+  {
+    "id": "d6d63448db754be3",
+    "type": "function",
+    "z": "241201566daa4530",
+    "name": "f32->u16x2 coolant_flow_sp",
+    "func": "// float -> uint16[2] BE 변환\n// 시뮬 modbus_server 가 readFloatBE(reg0_hi << 16 | reg1_lo) 로 해석하므로\n// register 순서는 [hi_word, lo_word] (big-endian word order)\n// modbus-write 노드가 dataType=MHoldingRegisters 면 FC=16, payload 가 array 면\n// 그대로 values 로 쓴다 (contrib-modbus modbus-write.js#105).\nconst v = Number(msg.payload);\nif (!Number.isFinite(v)) {\n  node.warn('invalid payload for float write: ' + msg.payload);\n  return null;\n}\nconst buf = Buffer.alloc(4);\nbuf.writeFloatBE(v, 0);\nconst hi = buf.readUInt16BE(0);\nconst lo = buf.readUInt16BE(2);\nmsg.payload = [hi, lo];\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 700,
+    "y": 620,
+    "wires": [
+      [
+        "0d08d4c7d3ca4614"
+      ]
+    ]
+  },
+  {
+    "id": "7dbf6bb3c0994046",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "coolant_flow_sp = 16.2 (low)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "16.2",
+    "payloadType": "num",
+    "x": 420,
+    "y": 620,
+    "wires": [
+      [
+        "d6d63448db754be3"
+      ]
+    ]
+  },
+  {
+    "id": "4097d489a7b9417d",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "coolant_flow_sp = 18.0 (mid)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "18.0",
+    "payloadType": "num",
+    "x": 420,
+    "y": 645,
+    "wires": [
+      [
+        "d6d63448db754be3"
+      ]
+    ]
+  },
+  {
+    "id": "ce3b54e9a24c4327",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "coolant_flow_sp = 19.8 (high)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "19.8",
+    "payloadType": "num",
+    "x": 420,
+    "y": 670,
+    "wires": [
+      [
+        "d6d63448db754be3"
+      ]
+    ]
+  },
+  {
+    "id": "6b9b202ef0974aec",
+    "type": "comment",
+    "z": "241201566daa4530",
+    "name": "CNC-02 (modbus-rtu-tcp) cnc-02:5102",
+    "info": "LINE-01_CNC-02 setpoint write 세그먼트",
+    "x": 200,
+    "y": 740,
+    "wires": []
+  },
+  {
+    "id": "cf19fa1835234930",
+    "type": "modbus-client",
+    "name": "LINE-01_CNC-02 SP @ cnc-02:5102",
+    "clienttype": "tcp",
+    "bufferCommands": true,
+    "stateLogEnabled": false,
+    "queueLogEnabled": false,
+    "failureLogEnabled": true,
+    "tcpHost": "cnc-02",
+    "tcpPort": "5102",
+    "tcpType": "TELNET",
+    "serialPort": "/dev/ttyUSB0",
+    "serialType": "RTU-BUFFERD",
+    "serialBaudrate": "9600",
+    "serialDatabits": "8",
+    "serialStopbits": "1",
+    "serialParity": "none",
+    "serialConnectionDelay": "100",
+    "serialAsciiResponseStartDelimiter": "0x3A",
+    "unit_id": "1",
+    "commandDelay": "1",
+    "clientTimeout": "2000",
+    "reconnectOnTimeout": true,
+    "reconnectTimeout": "2000",
+    "parallelUnitIdsAllowed": true,
+    "showErrors": false,
+    "showWarnings": true,
+    "showLogs": false
+  },
+  {
+    "id": "c7f13dddc1944605",
+    "type": "modbus-write",
+    "z": "241201566daa4530",
+    "name": "CNC-02 write spindle_speed_sp",
+    "showStatusActivities": false,
+    "showErrors": false,
+    "showWarnings": true,
+    "unitid": "",
+    "dataType": "HoldingRegister",
+    "adr": "0",
+    "quantity": "1",
+    "emptyMsgOnFail": false,
+    "keepMsgProperties": false,
+    "delayOnStart": false,
+    "startDelayTime": "",
+    "server": "cf19fa1835234930",
+    "x": 850,
+    "y": 770,
+    "wires": [
+      [],
+      []
+    ]
+  },
+  {
+    "id": "f821d6ff5c954ad2",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "spindle_speed_sp = 4950 (low)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "4950",
+    "payloadType": "num",
+    "x": 420,
+    "y": 770,
+    "wires": [
+      [
+        "c7f13dddc1944605"
+      ]
+    ]
+  },
+  {
+    "id": "991d11008bc94350",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "spindle_speed_sp = 5500 (mid)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "5500",
+    "payloadType": "num",
+    "x": 420,
+    "y": 795,
+    "wires": [
+      [
+        "c7f13dddc1944605"
+      ]
+    ]
+  },
+  {
+    "id": "1c301cb61a5f46bd",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "spindle_speed_sp = 6050 (high)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "6050",
+    "payloadType": "num",
+    "x": 420,
+    "y": 820,
+    "wires": [
+      [
+        "c7f13dddc1944605"
+      ]
+    ]
+  },
+  {
+    "id": "b24390e89f4047f0",
+    "type": "modbus-write",
+    "z": "241201566daa4530",
+    "name": "CNC-02 write tool_usage_sp",
+    "showStatusActivities": false,
+    "showErrors": false,
+    "showWarnings": true,
+    "unitid": "",
+    "dataType": "MHoldingRegisters",
+    "adr": "1000",
+    "quantity": "2",
+    "emptyMsgOnFail": false,
+    "keepMsgProperties": false,
+    "delayOnStart": false,
+    "startDelayTime": "",
+    "server": "cf19fa1835234930",
+    "x": 900,
+    "y": 860,
+    "wires": [
+      [],
+      []
+    ]
+  },
+  {
+    "id": "d0e29f5006224323",
+    "type": "function",
+    "z": "241201566daa4530",
+    "name": "f32->u16x2 tool_usage_sp",
+    "func": "// float -> uint16[2] BE 변환\n// 시뮬 modbus_server 가 readFloatBE(reg0_hi << 16 | reg1_lo) 로 해석하므로\n// register 순서는 [hi_word, lo_word] (big-endian word order)\n// modbus-write 노드가 dataType=MHoldingRegisters 면 FC=16, payload 가 array 면\n// 그대로 values 로 쓴다 (contrib-modbus modbus-write.js#105).\nconst v = Number(msg.payload);\nif (!Number.isFinite(v)) {\n  node.warn('invalid payload for float write: ' + msg.payload);\n  return null;\n}\nconst buf = Buffer.alloc(4);\nbuf.writeFloatBE(v, 0);\nconst hi = buf.readUInt16BE(0);\nconst lo = buf.readUInt16BE(2);\nmsg.payload = [hi, lo];\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 700,
+    "y": 860,
+    "wires": [
+      [
+        "b24390e89f4047f0"
+      ]
+    ]
+  },
+  {
+    "id": "d10f3006dfe74fe8",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "tool_usage_sp = 27.0 (low)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "27.0",
+    "payloadType": "num",
+    "x": 420,
+    "y": 860,
+    "wires": [
+      [
+        "d0e29f5006224323"
+      ]
+    ]
+  },
+  {
+    "id": "5922eb2e47704016",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "tool_usage_sp = 30.0 (mid)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "30.0",
+    "payloadType": "num",
+    "x": 420,
+    "y": 885,
+    "wires": [
+      [
+        "d0e29f5006224323"
+      ]
+    ]
+  },
+  {
+    "id": "096041695d1a4786",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "tool_usage_sp = 33.0 (high)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "33.0",
+    "payloadType": "num",
+    "x": 420,
+    "y": 910,
+    "wires": [
+      [
+        "d0e29f5006224323"
+      ]
+    ]
+  },
+  {
+    "id": "76cfc512e83647f4",
+    "type": "modbus-write",
+    "z": "241201566daa4530",
+    "name": "CNC-02 write coolant_flow_sp",
+    "showStatusActivities": false,
+    "showErrors": false,
+    "showWarnings": true,
+    "unitid": "",
+    "dataType": "MHoldingRegisters",
+    "adr": "1004",
+    "quantity": "2",
+    "emptyMsgOnFail": false,
+    "keepMsgProperties": false,
+    "delayOnStart": false,
+    "startDelayTime": "",
+    "server": "cf19fa1835234930",
+    "x": 900,
+    "y": 950,
+    "wires": [
+      [],
+      []
+    ]
+  },
+  {
+    "id": "2aacde7d22cb4802",
+    "type": "function",
+    "z": "241201566daa4530",
+    "name": "f32->u16x2 coolant_flow_sp",
+    "func": "// float -> uint16[2] BE 변환\n// 시뮬 modbus_server 가 readFloatBE(reg0_hi << 16 | reg1_lo) 로 해석하므로\n// register 순서는 [hi_word, lo_word] (big-endian word order)\n// modbus-write 노드가 dataType=MHoldingRegisters 면 FC=16, payload 가 array 면\n// 그대로 values 로 쓴다 (contrib-modbus modbus-write.js#105).\nconst v = Number(msg.payload);\nif (!Number.isFinite(v)) {\n  node.warn('invalid payload for float write: ' + msg.payload);\n  return null;\n}\nconst buf = Buffer.alloc(4);\nbuf.writeFloatBE(v, 0);\nconst hi = buf.readUInt16BE(0);\nconst lo = buf.readUInt16BE(2);\nmsg.payload = [hi, lo];\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 700,
+    "y": 950,
+    "wires": [
+      [
+        "76cfc512e83647f4"
+      ]
+    ]
+  },
+  {
+    "id": "425c83008101403b",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "coolant_flow_sp = 16.2 (low)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "16.2",
+    "payloadType": "num",
+    "x": 420,
+    "y": 950,
+    "wires": [
+      [
+        "2aacde7d22cb4802"
+      ]
+    ]
+  },
+  {
+    "id": "85186c2ab9a64cf9",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "coolant_flow_sp = 18.0 (mid)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "18.0",
+    "payloadType": "num",
+    "x": 420,
+    "y": 975,
+    "wires": [
+      [
+        "2aacde7d22cb4802"
+      ]
+    ]
+  },
+  {
+    "id": "7449101ebd484c52",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "coolant_flow_sp = 19.8 (high)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "19.8",
+    "payloadType": "num",
+    "x": 420,
+    "y": 1000,
+    "wires": [
+      [
+        "2aacde7d22cb4802"
+      ]
+    ]
+  },
+  {
+    "id": "87ff499d924e42bb",
+    "type": "comment",
+    "z": "241201566daa4530",
+    "name": "CNC-03 (modbus-rtu-tcp) cnc-03:5103",
+    "info": "LINE-01_CNC-03 setpoint write 세그먼트",
+    "x": 200,
+    "y": 1070,
+    "wires": []
+  },
+  {
+    "id": "ee00246cafbe4f2b",
+    "type": "modbus-client",
+    "name": "LINE-01_CNC-03 SP @ cnc-03:5103",
+    "clienttype": "tcp",
+    "bufferCommands": true,
+    "stateLogEnabled": false,
+    "queueLogEnabled": false,
+    "failureLogEnabled": true,
+    "tcpHost": "cnc-03",
+    "tcpPort": "5103",
+    "tcpType": "TELNET",
+    "serialPort": "/dev/ttyUSB0",
+    "serialType": "RTU-BUFFERD",
+    "serialBaudrate": "9600",
+    "serialDatabits": "8",
+    "serialStopbits": "1",
+    "serialParity": "none",
+    "serialConnectionDelay": "100",
+    "serialAsciiResponseStartDelimiter": "0x3A",
+    "unit_id": "1",
+    "commandDelay": "1",
+    "clientTimeout": "2000",
+    "reconnectOnTimeout": true,
+    "reconnectTimeout": "2000",
+    "parallelUnitIdsAllowed": true,
+    "showErrors": false,
+    "showWarnings": true,
+    "showLogs": false
+  },
+  {
+    "id": "18c45689a9dc4f07",
+    "type": "modbus-write",
+    "z": "241201566daa4530",
+    "name": "CNC-03 write spindle_speed_sp",
+    "showStatusActivities": false,
+    "showErrors": false,
+    "showWarnings": true,
+    "unitid": "",
+    "dataType": "HoldingRegister",
+    "adr": "0",
+    "quantity": "1",
+    "emptyMsgOnFail": false,
+    "keepMsgProperties": false,
+    "delayOnStart": false,
+    "startDelayTime": "",
+    "server": "ee00246cafbe4f2b",
+    "x": 850,
+    "y": 1100,
+    "wires": [
+      [],
+      []
+    ]
+  },
+  {
+    "id": "7e7054b9f0b94607",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "spindle_speed_sp = 4950 (low)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "4950",
+    "payloadType": "num",
+    "x": 420,
+    "y": 1100,
+    "wires": [
+      [
+        "18c45689a9dc4f07"
+      ]
+    ]
+  },
+  {
+    "id": "4e45696877ab41a8",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "spindle_speed_sp = 5500 (mid)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "5500",
+    "payloadType": "num",
+    "x": 420,
+    "y": 1125,
+    "wires": [
+      [
+        "18c45689a9dc4f07"
+      ]
+    ]
+  },
+  {
+    "id": "f27292a653ff463d",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "spindle_speed_sp = 6050 (high)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "6050",
+    "payloadType": "num",
+    "x": 420,
+    "y": 1150,
+    "wires": [
+      [
+        "18c45689a9dc4f07"
+      ]
+    ]
+  },
+  {
+    "id": "8f1dae4d9ced4c3c",
+    "type": "modbus-write",
+    "z": "241201566daa4530",
+    "name": "CNC-03 write tool_usage_sp",
+    "showStatusActivities": false,
+    "showErrors": false,
+    "showWarnings": true,
+    "unitid": "",
+    "dataType": "MHoldingRegisters",
+    "adr": "1000",
+    "quantity": "2",
+    "emptyMsgOnFail": false,
+    "keepMsgProperties": false,
+    "delayOnStart": false,
+    "startDelayTime": "",
+    "server": "ee00246cafbe4f2b",
+    "x": 900,
+    "y": 1190,
+    "wires": [
+      [],
+      []
+    ]
+  },
+  {
+    "id": "cf1ff99e646b4ca1",
+    "type": "function",
+    "z": "241201566daa4530",
+    "name": "f32->u16x2 tool_usage_sp",
+    "func": "// float -> uint16[2] BE 변환\n// 시뮬 modbus_server 가 readFloatBE(reg0_hi << 16 | reg1_lo) 로 해석하므로\n// register 순서는 [hi_word, lo_word] (big-endian word order)\n// modbus-write 노드가 dataType=MHoldingRegisters 면 FC=16, payload 가 array 면\n// 그대로 values 로 쓴다 (contrib-modbus modbus-write.js#105).\nconst v = Number(msg.payload);\nif (!Number.isFinite(v)) {\n  node.warn('invalid payload for float write: ' + msg.payload);\n  return null;\n}\nconst buf = Buffer.alloc(4);\nbuf.writeFloatBE(v, 0);\nconst hi = buf.readUInt16BE(0);\nconst lo = buf.readUInt16BE(2);\nmsg.payload = [hi, lo];\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 700,
+    "y": 1190,
+    "wires": [
+      [
+        "8f1dae4d9ced4c3c"
+      ]
+    ]
+  },
+  {
+    "id": "25ecfb31d13b4f28",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "tool_usage_sp = 27.0 (low)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "27.0",
+    "payloadType": "num",
+    "x": 420,
+    "y": 1190,
+    "wires": [
+      [
+        "cf1ff99e646b4ca1"
+      ]
+    ]
+  },
+  {
+    "id": "f7fcb7e905314995",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "tool_usage_sp = 30.0 (mid)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "30.0",
+    "payloadType": "num",
+    "x": 420,
+    "y": 1215,
+    "wires": [
+      [
+        "cf1ff99e646b4ca1"
+      ]
+    ]
+  },
+  {
+    "id": "6015f681ddc14868",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "tool_usage_sp = 33.0 (high)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "33.0",
+    "payloadType": "num",
+    "x": 420,
+    "y": 1240,
+    "wires": [
+      [
+        "cf1ff99e646b4ca1"
+      ]
+    ]
+  },
+  {
+    "id": "7f0be1757b9f4040",
+    "type": "modbus-write",
+    "z": "241201566daa4530",
+    "name": "CNC-03 write coolant_flow_sp",
+    "showStatusActivities": false,
+    "showErrors": false,
+    "showWarnings": true,
+    "unitid": "",
+    "dataType": "MHoldingRegisters",
+    "adr": "1004",
+    "quantity": "2",
+    "emptyMsgOnFail": false,
+    "keepMsgProperties": false,
+    "delayOnStart": false,
+    "startDelayTime": "",
+    "server": "ee00246cafbe4f2b",
+    "x": 900,
+    "y": 1280,
+    "wires": [
+      [],
+      []
+    ]
+  },
+  {
+    "id": "af29a3eaa29d40b6",
+    "type": "function",
+    "z": "241201566daa4530",
+    "name": "f32->u16x2 coolant_flow_sp",
+    "func": "// float -> uint16[2] BE 변환\n// 시뮬 modbus_server 가 readFloatBE(reg0_hi << 16 | reg1_lo) 로 해석하므로\n// register 순서는 [hi_word, lo_word] (big-endian word order)\n// modbus-write 노드가 dataType=MHoldingRegisters 면 FC=16, payload 가 array 면\n// 그대로 values 로 쓴다 (contrib-modbus modbus-write.js#105).\nconst v = Number(msg.payload);\nif (!Number.isFinite(v)) {\n  node.warn('invalid payload for float write: ' + msg.payload);\n  return null;\n}\nconst buf = Buffer.alloc(4);\nbuf.writeFloatBE(v, 0);\nconst hi = buf.readUInt16BE(0);\nconst lo = buf.readUInt16BE(2);\nmsg.payload = [hi, lo];\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 700,
+    "y": 1280,
+    "wires": [
+      [
+        "7f0be1757b9f4040"
+      ]
+    ]
+  },
+  {
+    "id": "c4f145c58eab4434",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "coolant_flow_sp = 16.2 (low)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "16.2",
+    "payloadType": "num",
+    "x": 420,
+    "y": 1280,
+    "wires": [
+      [
+        "af29a3eaa29d40b6"
+      ]
+    ]
+  },
+  {
+    "id": "8fb655983e0d426c",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "coolant_flow_sp = 18.0 (mid)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "18.0",
+    "payloadType": "num",
+    "x": 420,
+    "y": 1305,
+    "wires": [
+      [
+        "af29a3eaa29d40b6"
+      ]
+    ]
+  },
+  {
+    "id": "94f8bc24f68b4a88",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "coolant_flow_sp = 19.8 (high)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "19.8",
+    "payloadType": "num",
+    "x": 420,
+    "y": 1330,
+    "wires": [
+      [
+        "af29a3eaa29d40b6"
+      ]
+    ]
+  },
+  {
+    "id": "391134afa3864f66",
+    "type": "comment",
+    "z": "241201566daa4530",
+    "name": "WASH-01 (modbus) wash-01:5021",
+    "info": "LINE-01_WASH-01 setpoint write 세그먼트",
+    "x": 200,
+    "y": 1400,
+    "wires": []
+  },
+  {
+    "id": "bb012f69ff7143a5",
+    "type": "modbus-client",
+    "name": "LINE-01_WASH-01 SP @ wash-01:5021",
+    "clienttype": "tcp",
+    "bufferCommands": true,
+    "stateLogEnabled": false,
+    "queueLogEnabled": false,
+    "failureLogEnabled": true,
+    "tcpHost": "wash-01",
+    "tcpPort": "5021",
+    "tcpType": "DEFAULT",
+    "serialPort": "/dev/ttyUSB0",
+    "serialType": "RTU-BUFFERD",
+    "serialBaudrate": "9600",
+    "serialDatabits": "8",
+    "serialStopbits": "1",
+    "serialParity": "none",
+    "serialConnectionDelay": "100",
+    "serialAsciiResponseStartDelimiter": "0x3A",
+    "unit_id": "1",
+    "commandDelay": "1",
+    "clientTimeout": "2000",
+    "reconnectOnTimeout": true,
+    "reconnectTimeout": "2000",
+    "parallelUnitIdsAllowed": true,
+    "showErrors": false,
+    "showWarnings": true,
+    "showLogs": false
+  },
+  {
+    "id": "161752de84ff4bb7",
+    "type": "modbus-write",
+    "z": "241201566daa4530",
+    "name": "WASH-01 write cleaning_concentration_sp",
+    "showStatusActivities": false,
+    "showErrors": false,
+    "showWarnings": true,
+    "unitid": "",
+    "dataType": "MHoldingRegisters",
+    "adr": "1000",
+    "quantity": "2",
+    "emptyMsgOnFail": false,
+    "keepMsgProperties": false,
+    "delayOnStart": false,
+    "startDelayTime": "",
+    "server": "bb012f69ff7143a5",
+    "x": 900,
+    "y": 1430,
+    "wires": [
+      [],
+      []
+    ]
+  },
+  {
+    "id": "cf0b21a7b86c48d0",
+    "type": "function",
+    "z": "241201566daa4530",
+    "name": "f32->u16x2 cleaning_concentration_sp",
+    "func": "// float -> uint16[2] BE 변환\n// 시뮬 modbus_server 가 readFloatBE(reg0_hi << 16 | reg1_lo) 로 해석하므로\n// register 순서는 [hi_word, lo_word] (big-endian word order)\n// modbus-write 노드가 dataType=MHoldingRegisters 면 FC=16, payload 가 array 면\n// 그대로 values 로 쓴다 (contrib-modbus modbus-write.js#105).\nconst v = Number(msg.payload);\nif (!Number.isFinite(v)) {\n  node.warn('invalid payload for float write: ' + msg.payload);\n  return null;\n}\nconst buf = Buffer.alloc(4);\nbuf.writeFloatBE(v, 0);\nconst hi = buf.readUInt16BE(0);\nconst lo = buf.readUInt16BE(2);\nmsg.payload = [hi, lo];\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 700,
+    "y": 1430,
+    "wires": [
+      [
+        "161752de84ff4bb7"
+      ]
+    ]
+  },
+  {
+    "id": "62f6b79c491a4623",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "cleaning_concentration_sp = 2.88 (low)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "2.88",
+    "payloadType": "num",
+    "x": 420,
+    "y": 1430,
+    "wires": [
+      [
+        "cf0b21a7b86c48d0"
+      ]
+    ]
+  },
+  {
+    "id": "e29affdd93e946c3",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "cleaning_concentration_sp = 3.2 (mid)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "3.2",
+    "payloadType": "num",
+    "x": 420,
+    "y": 1455,
+    "wires": [
+      [
+        "cf0b21a7b86c48d0"
+      ]
+    ]
+  },
+  {
+    "id": "fc7bc018e93e4520",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "cleaning_concentration_sp = 3.52 (high)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "3.52",
+    "payloadType": "num",
+    "x": 420,
+    "y": 1480,
+    "wires": [
+      [
+        "cf0b21a7b86c48d0"
+      ]
+    ]
+  },
+  {
+    "id": "c8d824ca33384875",
+    "type": "modbus-write",
+    "z": "241201566daa4530",
+    "name": "WASH-01 write cleaning_temperature_sp",
+    "showStatusActivities": false,
+    "showErrors": false,
+    "showWarnings": true,
+    "unitid": "",
+    "dataType": "MHoldingRegisters",
+    "adr": "1002",
+    "quantity": "2",
+    "emptyMsgOnFail": false,
+    "keepMsgProperties": false,
+    "delayOnStart": false,
+    "startDelayTime": "",
+    "server": "bb012f69ff7143a5",
+    "x": 900,
+    "y": 1520,
+    "wires": [
+      [],
+      []
+    ]
+  },
+  {
+    "id": "a3308a8ec7b04b78",
+    "type": "function",
+    "z": "241201566daa4530",
+    "name": "f32->u16x2 cleaning_temperature_sp",
+    "func": "// float -> uint16[2] BE 변환\n// 시뮬 modbus_server 가 readFloatBE(reg0_hi << 16 | reg1_lo) 로 해석하므로\n// register 순서는 [hi_word, lo_word] (big-endian word order)\n// modbus-write 노드가 dataType=MHoldingRegisters 면 FC=16, payload 가 array 면\n// 그대로 values 로 쓴다 (contrib-modbus modbus-write.js#105).\nconst v = Number(msg.payload);\nif (!Number.isFinite(v)) {\n  node.warn('invalid payload for float write: ' + msg.payload);\n  return null;\n}\nconst buf = Buffer.alloc(4);\nbuf.writeFloatBE(v, 0);\nconst hi = buf.readUInt16BE(0);\nconst lo = buf.readUInt16BE(2);\nmsg.payload = [hi, lo];\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 700,
+    "y": 1520,
+    "wires": [
+      [
+        "c8d824ca33384875"
+      ]
+    ]
+  },
+  {
+    "id": "3401fa93c0c4450e",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "cleaning_temperature_sp = 55.8 (low)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "55.8",
+    "payloadType": "num",
+    "x": 420,
+    "y": 1520,
+    "wires": [
+      [
+        "a3308a8ec7b04b78"
+      ]
+    ]
+  },
+  {
+    "id": "c5241f70b2744965",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "cleaning_temperature_sp = 62.0 (mid)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "62.0",
+    "payloadType": "num",
+    "x": 420,
+    "y": 1545,
+    "wires": [
+      [
+        "a3308a8ec7b04b78"
+      ]
+    ]
+  },
+  {
+    "id": "2453f9daaa2c4e48",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "cleaning_temperature_sp = 68.2 (high)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "68.2",
+    "payloadType": "num",
+    "x": 420,
+    "y": 1570,
+    "wires": [
+      [
+        "a3308a8ec7b04b78"
+      ]
+    ]
+  },
+  {
+    "id": "5b6051d80cab42c1",
+    "type": "modbus-write",
+    "z": "241201566daa4530",
+    "name": "WASH-01 write cleaning_pressure_sp",
+    "showStatusActivities": false,
+    "showErrors": false,
+    "showWarnings": true,
+    "unitid": "",
+    "dataType": "MHoldingRegisters",
+    "adr": "1004",
+    "quantity": "2",
+    "emptyMsgOnFail": false,
+    "keepMsgProperties": false,
+    "delayOnStart": false,
+    "startDelayTime": "",
+    "server": "bb012f69ff7143a5",
+    "x": 900,
+    "y": 1610,
+    "wires": [
+      [],
+      []
+    ]
+  },
+  {
+    "id": "6e3802fca9794c9e",
+    "type": "function",
+    "z": "241201566daa4530",
+    "name": "f32->u16x2 cleaning_pressure_sp",
+    "func": "// float -> uint16[2] BE 변환\n// 시뮬 modbus_server 가 readFloatBE(reg0_hi << 16 | reg1_lo) 로 해석하므로\n// register 순서는 [hi_word, lo_word] (big-endian word order)\n// modbus-write 노드가 dataType=MHoldingRegisters 면 FC=16, payload 가 array 면\n// 그대로 values 로 쓴다 (contrib-modbus modbus-write.js#105).\nconst v = Number(msg.payload);\nif (!Number.isFinite(v)) {\n  node.warn('invalid payload for float write: ' + msg.payload);\n  return null;\n}\nconst buf = Buffer.alloc(4);\nbuf.writeFloatBE(v, 0);\nconst hi = buf.readUInt16BE(0);\nconst lo = buf.readUInt16BE(2);\nmsg.payload = [hi, lo];\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 700,
+    "y": 1610,
+    "wires": [
+      [
+        "5b6051d80cab42c1"
+      ]
+    ]
+  },
+  {
+    "id": "f98aa60b48db4e2a",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "cleaning_pressure_sp = 3.6 (low)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "3.6",
+    "payloadType": "num",
+    "x": 420,
+    "y": 1610,
+    "wires": [
+      [
+        "6e3802fca9794c9e"
+      ]
+    ]
+  },
+  {
+    "id": "ae3973b7abf54f9f",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "cleaning_pressure_sp = 4.0 (mid)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "4.0",
+    "payloadType": "num",
+    "x": 420,
+    "y": 1635,
+    "wires": [
+      [
+        "6e3802fca9794c9e"
+      ]
+    ]
+  },
+  {
+    "id": "9a50ef9ace3c4f9a",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "cleaning_pressure_sp = 4.4 (high)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "4.4",
+    "payloadType": "num",
+    "x": 420,
+    "y": 1660,
+    "wires": [
+      [
+        "6e3802fca9794c9e"
+      ]
+    ]
+  },
+  {
+    "id": "014a070cfaee4a46",
+    "type": "comment",
+    "z": "241201566daa4530",
+    "name": "ASSY-01 (opcua) assy-01:4841",
+    "info": "LINE-01_ASSY-01 setpoint write 세그먼트",
+    "x": 200,
+    "y": 1730,
+    "wires": []
+  },
+  {
+    "id": "e236d445a45b43eb",
+    "type": "OpcUa-Endpoint",
+    "endpoint": "opc.tcp://assy-01:4841/",
+    "secpol": "None",
+    "secmode": "None",
+    "none": true,
+    "login": false,
+    "usercert": false,
+    "usercertificate": "",
+    "userprivatekey": ""
+  },
+  {
+    "id": "c0fb70d27f294cd5",
+    "type": "OpcUa-Client",
+    "z": "241201566daa4530",
+    "endpoint": "e236d445a45b43eb",
+    "action": "write",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "ASSY-01 write tightening_torque_sp",
+    "x": 900,
+    "y": 1760,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "4dfdc5bfb0744503",
+    "type": "function",
+    "z": "241201566daa4530",
+    "name": "prep write tightening_torque_sp",
+    "func": "// OpcUa-Client write 용 msg 구성\nmsg.topic = 'ns=2;s=tightening_torque_sp';\nmsg.datatype = 'Float';\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 700,
+    "y": 1760,
+    "wires": [
+      [
+        "c0fb70d27f294cd5"
+      ]
+    ]
+  },
+  {
+    "id": "f230d217dd0e4788",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "tightening_torque_sp = 36.0 (low)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "36.0",
+    "payloadType": "num",
+    "x": 420,
+    "y": 1760,
+    "wires": [
+      [
+        "4dfdc5bfb0744503"
+      ]
+    ]
+  },
+  {
+    "id": "1812ced33c424cc3",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "tightening_torque_sp = 40.0 (mid)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "40.0",
+    "payloadType": "num",
+    "x": 420,
+    "y": 1785,
+    "wires": [
+      [
+        "4dfdc5bfb0744503"
+      ]
+    ]
+  },
+  {
+    "id": "21c0a3d503be43f5",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "tightening_torque_sp = 44.0 (high)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "44.0",
+    "payloadType": "num",
+    "x": 420,
+    "y": 1810,
+    "wires": [
+      [
+        "4dfdc5bfb0744503"
+      ]
+    ]
+  },
+  {
+    "id": "d0eb76e3f85e42fe",
+    "type": "OpcUa-Client",
+    "z": "241201566daa4530",
+    "endpoint": "e236d445a45b43eb",
+    "action": "write",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "ASSY-01 write tightening_angle_sp",
+    "x": 900,
+    "y": 1850,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "1d77c4ba13674235",
+    "type": "function",
+    "z": "241201566daa4530",
+    "name": "prep write tightening_angle_sp",
+    "func": "// OpcUa-Client write 용 msg 구성\nmsg.topic = 'ns=2;s=tightening_angle_sp';\nmsg.datatype = 'Float';\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 700,
+    "y": 1850,
+    "wires": [
+      [
+        "d0eb76e3f85e42fe"
+      ]
+    ]
+  },
+  {
+    "id": "afd39935449f41c5",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "tightening_angle_sp = 81.0 (low)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "81.0",
+    "payloadType": "num",
+    "x": 420,
+    "y": 1850,
+    "wires": [
+      [
+        "1d77c4ba13674235"
+      ]
+    ]
+  },
+  {
+    "id": "dd8043c308ff407d",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "tightening_angle_sp = 90.0 (mid)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "90.0",
+    "payloadType": "num",
+    "x": 420,
+    "y": 1875,
+    "wires": [
+      [
+        "1d77c4ba13674235"
+      ]
+    ]
+  },
+  {
+    "id": "58ad162b45664495",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "tightening_angle_sp = 99.0 (high)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "99.0",
+    "payloadType": "num",
+    "x": 420,
+    "y": 1900,
+    "wires": [
+      [
+        "1d77c4ba13674235"
+      ]
+    ]
+  },
+  {
+    "id": "f01b77174e384b1b",
+    "type": "OpcUa-Client",
+    "z": "241201566daa4530",
+    "endpoint": "e236d445a45b43eb",
+    "action": "write",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "ASSY-01 write press_force_sp",
+    "x": 900,
+    "y": 1940,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "2fc88dcc41c94faf",
+    "type": "function",
+    "z": "241201566daa4530",
+    "name": "prep write press_force_sp",
+    "func": "// OpcUa-Client write 용 msg 구성\nmsg.topic = 'ns=2;s=press_force_sp';\nmsg.datatype = 'Float';\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 700,
+    "y": 1940,
+    "wires": [
+      [
+        "f01b77174e384b1b"
+      ]
+    ]
+  },
+  {
+    "id": "a59c2ee160a34436",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "press_force_sp = 1620.0 (low)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "1620.0",
+    "payloadType": "num",
+    "x": 420,
+    "y": 1940,
+    "wires": [
+      [
+        "2fc88dcc41c94faf"
+      ]
+    ]
+  },
+  {
+    "id": "b8cc6b1028934dff",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "press_force_sp = 1800.0 (mid)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "1800.0",
+    "payloadType": "num",
+    "x": 420,
+    "y": 1965,
+    "wires": [
+      [
+        "2fc88dcc41c94faf"
+      ]
+    ]
+  },
+  {
+    "id": "3d839d1944da4d1b",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "press_force_sp = 1980.0 (high)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "1980.0",
+    "payloadType": "num",
+    "x": 420,
+    "y": 1990,
+    "wires": [
+      [
+        "2fc88dcc41c94faf"
+      ]
+    ]
+  },
+  {
+    "id": "9d21bd7ed6364ea0",
+    "type": "comment",
+    "z": "241201566daa4530",
+    "name": "ASSY-02 (opcua) assy-02:4842",
+    "info": "LINE-01_ASSY-02 setpoint write 세그먼트",
+    "x": 200,
+    "y": 2060,
+    "wires": []
+  },
+  {
+    "id": "3cbb63f1cf0645ab",
+    "type": "OpcUa-Endpoint",
+    "endpoint": "opc.tcp://assy-02:4842/",
+    "secpol": "None",
+    "secmode": "None",
+    "none": true,
+    "login": false,
+    "usercert": false,
+    "usercertificate": "",
+    "userprivatekey": ""
+  },
+  {
+    "id": "82e7b1759cd34ab1",
+    "type": "OpcUa-Client",
+    "z": "241201566daa4530",
+    "endpoint": "3cbb63f1cf0645ab",
+    "action": "write",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "ASSY-02 write tightening_torque_sp",
+    "x": 900,
+    "y": 2090,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "3bb355fccb964f2a",
+    "type": "function",
+    "z": "241201566daa4530",
+    "name": "prep write tightening_torque_sp",
+    "func": "// OpcUa-Client write 용 msg 구성\nmsg.topic = 'ns=2;s=tightening_torque_sp';\nmsg.datatype = 'Float';\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 700,
+    "y": 2090,
+    "wires": [
+      [
+        "82e7b1759cd34ab1"
+      ]
+    ]
+  },
+  {
+    "id": "872a6ec70c4d437c",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "tightening_torque_sp = 36.0 (low)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "36.0",
+    "payloadType": "num",
+    "x": 420,
+    "y": 2090,
+    "wires": [
+      [
+        "3bb355fccb964f2a"
+      ]
+    ]
+  },
+  {
+    "id": "3da139bd8c7e49ae",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "tightening_torque_sp = 40.0 (mid)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "40.0",
+    "payloadType": "num",
+    "x": 420,
+    "y": 2115,
+    "wires": [
+      [
+        "3bb355fccb964f2a"
+      ]
+    ]
+  },
+  {
+    "id": "7f3aea18b4674d92",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "tightening_torque_sp = 44.0 (high)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "44.0",
+    "payloadType": "num",
+    "x": 420,
+    "y": 2140,
+    "wires": [
+      [
+        "3bb355fccb964f2a"
+      ]
+    ]
+  },
+  {
+    "id": "4bf1474897b34c78",
+    "type": "OpcUa-Client",
+    "z": "241201566daa4530",
+    "endpoint": "3cbb63f1cf0645ab",
+    "action": "write",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "ASSY-02 write tightening_angle_sp",
+    "x": 900,
+    "y": 2180,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "987bf57ba0a947ca",
+    "type": "function",
+    "z": "241201566daa4530",
+    "name": "prep write tightening_angle_sp",
+    "func": "// OpcUa-Client write 용 msg 구성\nmsg.topic = 'ns=2;s=tightening_angle_sp';\nmsg.datatype = 'Float';\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 700,
+    "y": 2180,
+    "wires": [
+      [
+        "4bf1474897b34c78"
+      ]
+    ]
+  },
+  {
+    "id": "c4f7de91f82e4b9a",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "tightening_angle_sp = 81.0 (low)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "81.0",
+    "payloadType": "num",
+    "x": 420,
+    "y": 2180,
+    "wires": [
+      [
+        "987bf57ba0a947ca"
+      ]
+    ]
+  },
+  {
+    "id": "1179d1460c4f4d6e",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "tightening_angle_sp = 90.0 (mid)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "90.0",
+    "payloadType": "num",
+    "x": 420,
+    "y": 2205,
+    "wires": [
+      [
+        "987bf57ba0a947ca"
+      ]
+    ]
+  },
+  {
+    "id": "d9c968b01f124923",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "tightening_angle_sp = 99.0 (high)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "99.0",
+    "payloadType": "num",
+    "x": 420,
+    "y": 2230,
+    "wires": [
+      [
+        "987bf57ba0a947ca"
+      ]
+    ]
+  },
+  {
+    "id": "ae010be310a246f8",
+    "type": "OpcUa-Client",
+    "z": "241201566daa4530",
+    "endpoint": "3cbb63f1cf0645ab",
+    "action": "write",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "ASSY-02 write press_force_sp",
+    "x": 900,
+    "y": 2270,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "c352a6741e7c4028",
+    "type": "function",
+    "z": "241201566daa4530",
+    "name": "prep write press_force_sp",
+    "func": "// OpcUa-Client write 용 msg 구성\nmsg.topic = 'ns=2;s=press_force_sp';\nmsg.datatype = 'Float';\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 700,
+    "y": 2270,
+    "wires": [
+      [
+        "ae010be310a246f8"
+      ]
+    ]
+  },
+  {
+    "id": "2f1c38a5e4274dd4",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "press_force_sp = 1620.0 (low)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "1620.0",
+    "payloadType": "num",
+    "x": 420,
+    "y": 2270,
+    "wires": [
+      [
+        "c352a6741e7c4028"
+      ]
+    ]
+  },
+  {
+    "id": "7a65701a601847c8",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "press_force_sp = 1800.0 (mid)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "1800.0",
+    "payloadType": "num",
+    "x": 420,
+    "y": 2295,
+    "wires": [
+      [
+        "c352a6741e7c4028"
+      ]
+    ]
+  },
+  {
+    "id": "490d2163b8024bed",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "press_force_sp = 1980.0 (high)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "1980.0",
+    "payloadType": "num",
+    "x": 420,
+    "y": 2320,
+    "wires": [
+      [
+        "c352a6741e7c4028"
+      ]
+    ]
+  },
+  {
+    "id": "0f48e572077f402a",
+    "type": "comment",
+    "z": "241201566daa4530",
+    "name": "TEST-01 (opcua) test-01:4851",
+    "info": "LINE-01_TEST-01 setpoint write 세그먼트",
+    "x": 200,
+    "y": 2390,
+    "wires": []
+  },
+  {
+    "id": "d589e4b6feb24557",
+    "type": "OpcUa-Endpoint",
+    "endpoint": "opc.tcp://test-01:4851/",
+    "secpol": "None",
+    "secmode": "None",
+    "none": true,
+    "login": false,
+    "usercert": false,
+    "usercertificate": "",
+    "userprivatekey": ""
+  },
+  {
+    "id": "abccaf58261a4e1c",
+    "type": "OpcUa-Client",
+    "z": "241201566daa4530",
+    "endpoint": "d589e4b6feb24557",
+    "action": "write",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "TEST-01 write bore_dimension_sp",
+    "x": 900,
+    "y": 2420,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "9ee529f59b034ce2",
+    "type": "function",
+    "z": "241201566daa4530",
+    "name": "prep write bore_dimension_sp",
+    "func": "// OpcUa-Client write 용 msg 구성\nmsg.topic = 'ns=2;s=bore_dimension_sp';\nmsg.datatype = 'Float';\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 700,
+    "y": 2420,
+    "wires": [
+      [
+        "abccaf58261a4e1c"
+      ]
+    ]
+  },
+  {
+    "id": "e6f776d399924fb8",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "bore_dimension_sp = 36.0 (low)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "36.0",
+    "payloadType": "num",
+    "x": 420,
+    "y": 2420,
+    "wires": [
+      [
+        "9ee529f59b034ce2"
+      ]
+    ]
+  },
+  {
+    "id": "414f94613a2440b9",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "bore_dimension_sp = 40.0 (mid)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "40.0",
+    "payloadType": "num",
+    "x": 420,
+    "y": 2445,
+    "wires": [
+      [
+        "9ee529f59b034ce2"
+      ]
+    ]
+  },
+  {
+    "id": "56757399336444f7",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "bore_dimension_sp = 44.0 (high)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "44.0",
+    "payloadType": "num",
+    "x": 420,
+    "y": 2470,
+    "wires": [
+      [
+        "9ee529f59b034ce2"
+      ]
+    ]
+  },
+  {
+    "id": "10454edac5bc44bf",
+    "type": "OpcUa-Client",
+    "z": "241201566daa4530",
+    "endpoint": "d589e4b6feb24557",
+    "action": "write",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "TEST-01 write hole_dimension_sp",
+    "x": 900,
+    "y": 2510,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "a9b0ced150e245d9",
+    "type": "function",
+    "z": "241201566daa4530",
+    "name": "prep write hole_dimension_sp",
+    "func": "// OpcUa-Client write 용 msg 구성\nmsg.topic = 'ns=2;s=hole_dimension_sp';\nmsg.datatype = 'Float';\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 700,
+    "y": 2510,
+    "wires": [
+      [
+        "10454edac5bc44bf"
+      ]
+    ]
+  },
+  {
+    "id": "a95dd371efd44296",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "hole_dimension_sp = 9.18 (low)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "9.18",
+    "payloadType": "num",
+    "x": 420,
+    "y": 2510,
+    "wires": [
+      [
+        "a9b0ced150e245d9"
+      ]
+    ]
+  },
+  {
+    "id": "204406a1c2ea4821",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "hole_dimension_sp = 10.2 (mid)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "10.2",
+    "payloadType": "num",
+    "x": 420,
+    "y": 2535,
+    "wires": [
+      [
+        "a9b0ced150e245d9"
+      ]
+    ]
+  },
+  {
+    "id": "2d0dd8b1d74b4e1e",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "hole_dimension_sp = 11.22 (high)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "11.22",
+    "payloadType": "num",
+    "x": 420,
+    "y": 2560,
+    "wires": [
+      [
+        "a9b0ced150e245d9"
+      ]
+    ]
+  },
+  {
+    "id": "1905e4b61e094b90",
+    "type": "comment",
+    "z": "241201566daa4530",
+    "name": "TEST-02 (opcua) test-02:4852",
+    "info": "LINE-01_TEST-02 setpoint write 세그먼트",
+    "x": 200,
+    "y": 2630,
+    "wires": []
+  },
+  {
+    "id": "74acf6d4c0694a91",
+    "type": "OpcUa-Endpoint",
+    "endpoint": "opc.tcp://test-02:4852/",
+    "secpol": "None",
+    "secmode": "None",
+    "none": true,
+    "login": false,
+    "usercert": false,
+    "usercertificate": "",
+    "userprivatekey": ""
+  },
+  {
+    "id": "746429275f244c95",
+    "type": "OpcUa-Client",
+    "z": "241201566daa4530",
+    "endpoint": "74acf6d4c0694a91",
+    "action": "write",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "TEST-02 write bore_dimension_sp",
+    "x": 900,
+    "y": 2660,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "904728b8a8f64830",
+    "type": "function",
+    "z": "241201566daa4530",
+    "name": "prep write bore_dimension_sp",
+    "func": "// OpcUa-Client write 용 msg 구성\nmsg.topic = 'ns=2;s=bore_dimension_sp';\nmsg.datatype = 'Float';\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 700,
+    "y": 2660,
+    "wires": [
+      [
+        "746429275f244c95"
+      ]
+    ]
+  },
+  {
+    "id": "328e59b9308e4322",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "bore_dimension_sp = 36.0 (low)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "36.0",
+    "payloadType": "num",
+    "x": 420,
+    "y": 2660,
+    "wires": [
+      [
+        "904728b8a8f64830"
+      ]
+    ]
+  },
+  {
+    "id": "75ec6d5ee01e4244",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "bore_dimension_sp = 40.0 (mid)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "40.0",
+    "payloadType": "num",
+    "x": 420,
+    "y": 2685,
+    "wires": [
+      [
+        "904728b8a8f64830"
+      ]
+    ]
+  },
+  {
+    "id": "6859975168e04aa5",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "bore_dimension_sp = 44.0 (high)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "44.0",
+    "payloadType": "num",
+    "x": 420,
+    "y": 2710,
+    "wires": [
+      [
+        "904728b8a8f64830"
+      ]
+    ]
+  },
+  {
+    "id": "94c968a3c97c4842",
+    "type": "OpcUa-Client",
+    "z": "241201566daa4530",
+    "endpoint": "74acf6d4c0694a91",
+    "action": "write",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "TEST-02 write hole_dimension_sp",
+    "x": 900,
+    "y": 2750,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "afc0e006e1854cac",
+    "type": "function",
+    "z": "241201566daa4530",
+    "name": "prep write hole_dimension_sp",
+    "func": "// OpcUa-Client write 용 msg 구성\nmsg.topic = 'ns=2;s=hole_dimension_sp';\nmsg.datatype = 'Float';\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 700,
+    "y": 2750,
+    "wires": [
+      [
+        "94c968a3c97c4842"
+      ]
+    ]
+  },
+  {
+    "id": "3f9d4b27506a4c04",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "hole_dimension_sp = 9.18 (low)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "9.18",
+    "payloadType": "num",
+    "x": 420,
+    "y": 2750,
+    "wires": [
+      [
+        "afc0e006e1854cac"
+      ]
+    ]
+  },
+  {
+    "id": "fb9cd4368b814160",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "hole_dimension_sp = 10.2 (mid)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "10.2",
+    "payloadType": "num",
+    "x": 420,
+    "y": 2775,
+    "wires": [
+      [
+        "afc0e006e1854cac"
+      ]
+    ]
+  },
+  {
+    "id": "3deeec1d2e24422e",
+    "type": "inject",
+    "z": "241201566daa4530",
+    "name": "hole_dimension_sp = 11.22 (high)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": "",
+    "topic": "",
+    "payload": "11.22",
+    "payloadType": "num",
+    "x": 420,
+    "y": 2800,
+    "wires": [
+      [
+        "afc0e006e1854cac"
+      ]
+    ]
+  }
+]

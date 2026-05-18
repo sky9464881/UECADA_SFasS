@@ -8,6 +8,14 @@ if ($LASTEXITCODE -ne 0) {
   }
 }
 
+cmd /c "docker network inspect factory-net >NUL 2>NUL"
+if ($LASTEXITCODE -ne 0) {
+  cmd /c "docker network create factory-net >NUL 2>NUL"
+  if ($LASTEXITCODE -ne 0) {
+    throw "Failed to create Docker network 'factory-net'. Is Docker Desktop running?"
+  }
+}
+
 Push-Location .\DAS
 try {
   docker compose up -d --build
@@ -21,9 +29,7 @@ finally {
 
 Push-Location .\equip-sim
 try {
-  .\scripts\up.ps1 LINE-01
-  .\scripts\up.ps1 LINE-02
-  .\scripts\up.ps1 LINE-03
+  .\scripts\up-all.ps1 up
 }
 finally {
   Pop-Location
@@ -42,7 +48,7 @@ finally {
 
 Write-Host ""
 Write-Host "DAS UI:       http://localhost:1888"
-Write-Host "LINE-01 UI:   http://localhost:1880"
-Write-Host "LINE-02 UI:   http://localhost:1881"
-Write-Host "LINE-03 UI:   http://localhost:1882"
+Write-Host "LINE-01 UI:   http://localhost:2880"
+Write-Host "LINE-02 UI:   http://localhost:3880"
+Write-Host "LINE-03 UI:   http://localhost:4880"
 Write-Host "X_DAS UI:     http://localhost:1890"

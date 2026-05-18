@@ -5,6 +5,7 @@ import java.util.Set;
 
 import com.example.phm.sensor.SensorBuffer;
 import com.example.phm.sensor.SensorBufferRegistry;
+import com.example.phm.sensor.dto.SensorBufferLatestResponse;
 import com.example.phm.sensor.dto.SensorBufferResponse;
 import com.example.phm.sensor.dto.SensorDataRequest;
 import jakarta.validation.Valid;
@@ -56,9 +57,24 @@ public class SensorBufferController {
         return new SensorBufferResponse(bufferKey, buf.size(), buf.capacity(), buf.latest(), result);
     }
 
+    @GetMapping("/latest-values")
+    public List<SensorBufferLatestResponse> latestValues(@RequestParam List<String> bufferKeys) {
+        return bufferKeys.stream()
+                .map(this::latestValue)
+                .toList();
+    }
+
     /** 등록된 버퍼 키 목록 */
     @GetMapping
     public Set<String> listKeys() {
         return registry.registeredKeys();
+    }
+
+    private SensorBufferLatestResponse latestValue(String bufferKey) {
+        SensorBuffer buf = registry.get(bufferKey);
+        if (buf == null) {
+            return new SensorBufferLatestResponse(bufferKey, 0, 0, null);
+        }
+        return new SensorBufferLatestResponse(bufferKey, buf.size(), buf.capacity(), buf.latest());
     }
 }

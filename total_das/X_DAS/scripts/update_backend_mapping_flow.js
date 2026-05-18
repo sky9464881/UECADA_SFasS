@@ -41,12 +41,113 @@ const flow = JSON.parse(sanitizeJsonText(fs.readFileSync(flowPath, "utf8")));
 const collectorId = "fn_collect_backend_format";
 const publisherId = "fn_publish_xdas_backend";
 const liveDebugId = "debug_xdas_live_sample";
+const subscriptionId = "fn_build_subscriptions";
 const normalizerIds = [
   "fn_normalize_line1",
   "fn_normalize_line2",
   "fn_normalize_line3",
   "fn_normalize_sensor_das",
 ];
+
+const processTagsByEquipmentFunc = `const processTagsByEquipment = {
+  'CAST-01': [
+    ['power', 'Boolean'],
+    ['injection_pressure_sp', 'Double'],
+    ['mold_temperature_sp', 'Double'],
+    ['cooling_flow_sp', 'Double'],
+    ['injection_pressure', 'Double'],
+    ['mold_temperature', 'Double'],
+    ['cooling_flow', 'Double'],
+    ['progress', 'Double'],
+    ['cycle_time', 'Double']
+  ],
+  'CNC-01': [
+    ['power', 'Boolean'],
+    ['spindle_speed_sp', 'Int32'],
+    ['tool_usage_sp', 'Double'],
+    ['coolant_flow_sp', 'Double'],
+    ['spindle_speed', 'Int32'],
+    ['tool_usage', 'Double'],
+    ['coolant_flow', 'Double'],
+    ['progress', 'Double'],
+    ['cycle_time', 'Double']
+  ],
+  'CNC-02': [
+    ['power', 'Boolean'],
+    ['spindle_speed_sp', 'Int32'],
+    ['tool_usage_sp', 'Double'],
+    ['coolant_flow_sp', 'Double'],
+    ['spindle_speed', 'Int32'],
+    ['tool_usage', 'Double'],
+    ['coolant_flow', 'Double'],
+    ['progress', 'Double'],
+    ['cycle_time', 'Double']
+  ],
+  'CNC-03': [
+    ['power', 'Boolean'],
+    ['spindle_speed_sp', 'Int32'],
+    ['tool_usage_sp', 'Double'],
+    ['coolant_flow_sp', 'Double'],
+    ['spindle_speed', 'Int32'],
+    ['tool_usage', 'Double'],
+    ['coolant_flow', 'Double'],
+    ['progress', 'Double'],
+    ['cycle_time', 'Double']
+  ],
+  'WASH-01': [
+    ['power', 'Boolean'],
+    ['cleaning_concentration_sp', 'Double'],
+    ['cleaning_temperature_sp', 'Double'],
+    ['cleaning_pressure_sp', 'Double'],
+    ['cleaning_concentration', 'Double'],
+    ['cleaning_temperature', 'Double'],
+    ['cleaning_pressure', 'Double'],
+    ['progress', 'Double'],
+    ['cycle_time', 'Double']
+  ],
+  'ASSY-01': [
+    ['power', 'Boolean'],
+    ['tightening_torque_sp', 'Double'],
+    ['tightening_angle_sp', 'Double'],
+    ['press_force_sp', 'Double'],
+    ['tightening_torque', 'Double'],
+    ['tightening_angle', 'Double'],
+    ['press_force', 'Double'],
+    ['progress', 'Double'],
+    ['cycle_time', 'Double']
+  ],
+  'ASSY-02': [
+    ['power', 'Boolean'],
+    ['tightening_torque_sp', 'Double'],
+    ['tightening_angle_sp', 'Double'],
+    ['press_force_sp', 'Double'],
+    ['tightening_torque', 'Double'],
+    ['tightening_angle', 'Double'],
+    ['press_force', 'Double'],
+    ['progress', 'Double'],
+    ['cycle_time', 'Double']
+  ],
+  'TEST-01': [
+    ['power', 'Boolean'],
+    ['bore_dimension_sp', 'Double'],
+    ['hole_dimension_sp', 'Double'],
+    ['bore_dimension', 'Double'],
+    ['hole_dimension', 'Double'],
+    ['result_ok', 'Boolean'],
+    ['progress', 'Double'],
+    ['cycle_time', 'Double']
+  ],
+  'TEST-02': [
+    ['power', 'Boolean'],
+    ['bore_dimension_sp', 'Double'],
+    ['hole_dimension_sp', 'Double'],
+    ['bore_dimension', 'Double'],
+    ['hole_dimension', 'Double'],
+    ['result_ok', 'Boolean'],
+    ['progress', 'Double'],
+    ['cycle_time', 'Double']
+  ]
+};`;
 
 const collectorFunc = `const original = RED.util.cloneMessage(msg);
 original.backendWrite = false;
@@ -76,50 +177,58 @@ const PLC_MAP = {
   'CAST-01': {
     'data.mold_temperature': ['Temperature', 'Double'],
     'data.injection_pressure': ['Pressure', 'Double'],
-    'data.progress': ['CycleTime', 'Double', 'cycleTime'],
+    'data.cycle_time': ['CycleTime', 'Double'],
     'status': ['Status', 'Int32', 'statusCode']
   },
   'CNC-01': {
     'data.tool_usage': ['SpindleLoad', 'Double'],
     'data.spindle_speed': ['SpindleRPM', 'Double'],
     'data.coolant_flow': ['FeedRate', 'Double'],
+    'data.cycle_time': ['CycleTime', 'Double'],
     'status': ['Status', 'Int32', 'statusCode']
   },
   'CNC-02': {
     'data.tool_usage': ['SpindleLoad', 'Double'],
     'data.spindle_speed': ['SpindleRPM', 'Double'],
     'data.coolant_flow': ['FeedRate', 'Double'],
+    'data.cycle_time': ['CycleTime', 'Double'],
     'status': ['Status', 'Int32', 'statusCode']
   },
   'CNC-03': {
     'data.tool_usage': ['SpindleLoad', 'Double'],
     'data.spindle_speed': ['SpindleRPM', 'Double'],
     'data.coolant_flow': ['FeedRate', 'Double'],
+    'data.cycle_time': ['CycleTime', 'Double'],
     'status': ['Status', 'Int32', 'statusCode']
   },
   'WASH-01': {
     'data.cleaning_temperature': ['WaterTemp', 'Double'],
     'data.cleaning_flow': ['FlowRate', 'Double'],
+    'data.cycle_time': ['CycleTime', 'Double'],
     'status': ['Status', 'Int32', 'statusCode']
   },
   'ASSY-01': {
     'data.tightening_torque': ['TorqueValue', 'Double'],
     'data.progress': ['CycleCount', 'Int32', 'cycleCount'],
+    'data.cycle_time': ['CycleTime', 'Double'],
     'status': ['Status', 'Int32', 'statusCode']
   },
   'ASSY-02': {
     'data.tightening_torque': ['TorqueValue', 'Double'],
     'data.progress': ['CycleCount', 'Int32', 'cycleCount'],
+    'data.cycle_time': ['CycleTime', 'Double'],
     'status': ['Status', 'Int32', 'statusCode']
   },
   'TEST-01': {
-    'data.leak_rate': ['LeakPressure', 'Double'],
+    'data.hole_dimension': ['LeakPressure', 'Double'],
     'data.result_ok': ['LeakResult', 'Boolean'],
+    'data.cycle_time': ['CycleTime', 'Double'],
     'status': ['Status', 'Int32', 'statusCode']
   },
   'TEST-02': {
-    'data.leak_rate': ['LeakPressure', 'Double'],
+    'data.hole_dimension': ['LeakPressure', 'Double'],
     'data.result_ok': ['LeakResult', 'Boolean'],
+    'data.cycle_time': ['CycleTime', 'Double'],
     'status': ['Status', 'Int32', 'statusCode']
   }
 };
@@ -302,6 +411,13 @@ return [out, debugMessage];`;
 function findNode(id) {
   return flow.find((node) => node.id === id);
 }
+
+const subscription = findNode(subscriptionId);
+if (!subscription) throw new Error(`Missing subscription builder node ${subscriptionId}`);
+subscription.func = subscription.func.replace(
+  /const processTagsByEquipment = \{[\s\S]*?\n\};\n\nconst sensorDasTags =/,
+  `${processTagsByEquipmentFunc}\n\nconst sensorDasTags =`
+);
 
 for (const id of normalizerIds) {
   const node = findNode(id);

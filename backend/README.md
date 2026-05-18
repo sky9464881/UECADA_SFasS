@@ -168,6 +168,7 @@ Sensor DAS에서 X_DAS로 합쳐진 공통값은 설비별로 아래 suffix에 �
 curl http://localhost:8080/api/sensors
 curl "http://localhost:8080/api/sensors/LINE01.CAST01:temperature?last=10"
 curl "http://localhost:8080/api/sensors/LINE01.CAST01:sensor_vibration?last=10"
+curl "http://localhost:8080/api/sensors/latest-values?bufferKeys=LINE01.CAST01:sensor_current,LINE01.CAST01:sensor_voltage,LINE01.CAST01:cycle_time"
 ```
 
 상세 버퍼 명세는 `docs/das-backend-buffer-spec.md`를 기준으로 관리합니다.

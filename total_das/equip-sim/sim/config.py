@@ -40,6 +40,26 @@ MC_WORD_DEVICES = {k for k, (_c, b) in MC_DEVICE_CODES.items() if not b}
 
 
 @dataclass
+class MBMapping:
+    """Modbus 용 매핑 (config 에 직접 박힘).
+
+    kind:
+      'coil'      -> bool, FC=1/5/15
+      'hr_int'    -> int  (1 word, signed 16bit)
+      'hr_float'  -> float (2 word, big-endian)
+    address: 절대 주소 (coil 번호 또는 HR 워드 번호)
+    """
+    kind: str
+    address: int
+
+    def __post_init__(self) -> None:
+        if self.kind not in ("coil", "hr_int", "hr_float"):
+            raise ValueError(f"invalid mb kind: {self.kind}")
+        if not isinstance(self.address, int) or self.address < 0:
+            raise ValueError(f"mb address must be non-negative int, got {self.address!r}")
+
+
+@dataclass
 class MCMapping:
     """MC Protocol 용 디바이스 매핑.
 
@@ -72,6 +92,7 @@ class TagConfig:
     source_sp: Optional[str] = None  # sensor 가 참조하는 setpoint 이름
     step: int = 1                # counter 에서만 사용
     mc: Optional[MCMapping] = None   # MC Protocol 프로토콜 용 매핑
+    mb: Optional[MBMapping] = None   # Modbus (TCP/RTU) 용 매핑
 
     def __post_init__(self) -> None:
         if self.role not in ROLES:
@@ -90,6 +111,21 @@ class TagConfig:
         # mc 가 dict 로 와있으면 MCMapping 으로 변환
         if isinstance(self.mc, dict):
             self.mc = MCMapping(**self.mc)
+        if isinstance(self.mb, dict):
+            self.mb = MBMapping(**self.mb)
+        if self.mb is not None:
+            if self.data_type == "bool" and self.mb.kind != "coil":
+                raise ValueError(
+                    f"tag '{self.name}': bool requires mb.kind='coil', got {self.mb.kind}"
+                )
+            if self.data_type == "int" and self.mb.kind != "hr_int":
+                raise ValueError(
+                    f"tag '{self.name}': int requires mb.kind='hr_int', got {self.mb.kind}"
+                )
+            if self.data_type == "float" and self.mb.kind != "hr_float":
+                raise ValueError(
+                    f"tag '{self.name}': float requires mb.kind='hr_float', got {self.mb.kind}"
+                )
         if self.mc is not None:
             # bool 은 bit device, int/float 는 word device 로만 허용
             if self.data_type == "bool" and self.mc.device not in MC_BIT_DEVICES:
@@ -113,15 +149,26 @@ class TagConfig:
 class SimConfig:
     equipment_name: str
     protocol: str
-    host: str
-    port: int
+    host: str = ""
+    port: int = 0
     sampling_ms: int = 1000
     namespace: Optional[str] = None
     tags: List[TagConfig] = field(default_factory=list)
+    # Modbus RTU 전용 (protocol == 'modbus-rtu')
+    serial_path: Optional[str] = None
+    baudrate: int = 9600
+    parity: str = "N"
+    stopbits: int = 1
+    bytesize: int = 8
+    slave_id: int = 1
 
     def __post_init__(self) -> None:
-        if self.protocol not in ("modbus", "opcua", "mcprotocol"):
+        if self.protocol not in ("modbus", "modbus-rtu", "modbus-rtu-tcp", "opcua", "mcprotocol"):
             raise ValueError(f"invalid protocol: {self.protocol}")
+        if self.protocol == "modbus-rtu" and not self.serial_path:
+            raise ValueError("modbus-rtu requires 'serial_path'")
+        if self.protocol == "modbus-rtu-tcp" and (not self.host or not self.port):
+            raise ValueError("modbus-rtu-tcp requires 'host' and 'port'")
         if self.sampling_ms <= 0:
             raise ValueError("sampling_ms must be positive")
 
@@ -140,6 +187,44 @@ class SimConfig:
                         f"sensor '{t.name}' source_sp='{t.source_sp}' "
                         f"is not a valid setpoint tag"
                     )
+
+        # modbus(TCP/RTU/RTU-over-TCP) 일 때는 모든 태그에 mb 매핑이 있어야 한다
+        if self.protocol in ("modbus", "modbus-rtu", "modbus-rtu-tcp"):
+            for t in self.tags:
+                if t.mb is None:
+                    raise ValueError(
+                        f"{self.protocol} requires mb mapping for all tags, missing on '{t.name}'"
+                    )
+            # 주소 중복 검사 (kind, address) 단위
+            seen_mb: dict[tuple[str, int], str] = {}
+            for t in self.tags:
+                key = (t.mb.kind, t.mb.address)
+                if key in seen_mb:
+                    raise ValueError(
+                        f"mb address conflict: {t.name} and {seen_mb[key]} "
+                        f"both map to {t.mb.kind}@{t.mb.address}"
+                    )
+                seen_mb[key] = t.name
+                if t.mb.kind == "hr_float":
+                    key2 = ("hr_float", t.mb.address + 1)  # 자기 자신 +1 워드 점유
+                    # 같은 kind 내에서만 검사. hr_int 와의 겹침은 둘 다 HR 공간이므로 별도 검사.
+            # HR 공간 (int / float) 겹침 검사
+            hr_occ: dict[int, str] = {}
+            for t in self.tags:
+                if t.mb.kind == "hr_int":
+                    if t.mb.address in hr_occ:
+                        raise ValueError(
+                            f"HR conflict: {t.name}@{t.mb.address} vs {hr_occ[t.mb.address]}"
+                        )
+                    hr_occ[t.mb.address] = t.name
+                elif t.mb.kind == "hr_float":
+                    for off in (0, 1):
+                        a = t.mb.address + off
+                        if a in hr_occ:
+                            raise ValueError(
+                                f"HR conflict: {t.name}@{a} vs {hr_occ[a]}"
+                            )
+                        hr_occ[a] = t.name + ("(+1)" if off else "")
 
         # mcprotocol 일 때는 모든 태그에 mc 매핑이 있어야 한다
         if self.protocol == "mcprotocol":

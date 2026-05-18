@@ -2,6 +2,7 @@ import { computed, type Component } from 'vue'
 import { useQueries, useQuery } from '@tanstack/vue-query'
 import { fetchEquipments, fetchEquipmentStatuses } from '@/api/equipmentApi'
 import { fetchAnalysisResults } from '@/api/analysisApi'
+import { fetchSensorLatestValues, type SensorBufferLatest, type SensorFrame } from '@/api/sensorApi'
 import type { Equipment, EquipmentStatusCode, EquipmentStatusItem } from '@/types/equipment'
 import type { AnalysisResult } from '@/types/analysis'
 import { POLL_INTERVAL_MS, STALE_TIME_MS } from '@/constants/polling'
@@ -55,6 +56,20 @@ export interface CategoryDefinition {
   iconKey: 'flame' | 'cog' | 'droplets' | 'wrench' | 'search'
 }
 
+type RealtimeMetric = 'cycle_time' | 'sensor_current' | 'sensor_voltage' | 'sensor_temperature' | 'sensor_vibration'
+type LatestFrameMap = Map<string, SensorFrame>
+
+const REALTIME_METRICS: readonly RealtimeMetric[] = [
+  'cycle_time',
+  'sensor_current',
+  'sensor_voltage',
+  'sensor_temperature',
+  'sensor_vibration',
+] as const
+
+const FRESH_MS = 5_000
+const STALE_MS = 30_000
+
 export const CATEGORY_DEFINITIONS: readonly CategoryDefinition[] = [
   { id: 'casting', name: '주조기', processType: '주조', description: '주조 공정 설비 모니터링', iconKey: 'flame' },
   { id: 'machining', name: '가공기', processType: '가공', description: '절삭·가공 공정 설비 모니터링', iconKey: 'cog' },
@@ -81,6 +96,11 @@ function formatNumber(value: number | null | undefined, digits = 2): string {
   return Number(value).toFixed(digits)
 }
 
+function formatMetric(value: number | null | undefined, unit: string, digits = 1): string {
+  if (value == null || Number.isNaN(value)) return '-'
+  return `${Number(value).toFixed(digits)}${unit}`
+}
+
 function alarmLevelLabel(level: string | null | undefined): string {
   if (!level) return '-'
   const v = level.toLowerCase()
@@ -90,17 +110,95 @@ function alarmLevelLabel(level: string | null | undefined): string {
   return level
 }
 
-function buildCommon(equipment: Equipment): EquipmentCommonMetric[] {
+function normalizeEquipmentCode(equipmentCode: string): { line: string; equipment: string } | null {
+  const match = equipmentCode.match(/^(LINE-\d{2})_(.+)$/)
+  if (!match) return null
+  return {
+    line: match[1].replace('-', ''),
+    equipment: match[2].replace(/-/g, ''),
+  }
+}
+
+function bufferKey(equipmentCode: string, metric: RealtimeMetric): string | null {
+  const parsed = normalizeEquipmentCode(equipmentCode)
+  if (!parsed) return null
+  return `${parsed.line}.${parsed.equipment}:${metric}`
+}
+
+function buildRealtimeKeys(equipments: readonly Equipment[]): string[] {
+  const keys = equipments.flatMap((equipment) =>
+    REALTIME_METRICS.map((metric) => bufferKey(equipment.equipmentCode, metric)).filter((key): key is string => !!key),
+  )
+  return [...new Set(keys)]
+}
+
+function latestFrameMap(items: readonly SensorBufferLatest[]): LatestFrameMap {
+  const map: LatestFrameMap = new Map()
+  for (const item of items) {
+    if (item.latest) map.set(item.bufferKey, item.latest)
+  }
+  return map
+}
+
+function latestValue(map: LatestFrameMap, equipmentCode: string, metric: RealtimeMetric): number | null {
+  const key = bufferKey(equipmentCode, metric)
+  if (!key) return null
+  const value = map.get(key)?.value
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
+function latestTimestamp(map: LatestFrameMap, equipmentCode: string): number | null {
+  let latest: number | null = null
+  for (const metric of REALTIME_METRICS) {
+    const key = bufferKey(equipmentCode, metric)
+    const ts = key ? map.get(key)?.timestampMs : null
+    if (typeof ts === 'number' && (latest == null || ts > latest)) latest = ts
+  }
+  return latest
+}
+
+function realtimeRate(map: LatestFrameMap, equipmentCode: string, fallbackState: EquipmentState): number {
+  const ts = latestTimestamp(map, equipmentCode)
+  if (ts == null) return fallbackState === '운전' ? 50 : 0
+  const age = Date.now() - ts
+  if (age <= FRESH_MS) return 100
+  if (age >= STALE_MS) return 0
+  return Math.max(0, Math.round(100 - ((age - FRESH_MS) / (STALE_MS - FRESH_MS)) * 100))
+}
+
+function realtimeLabel(map: LatestFrameMap, equipmentCode: string): string {
+  const ts = latestTimestamp(map, equipmentCode)
+  if (ts == null) return '미수신'
+  const age = Date.now() - ts
+  if (age <= FRESH_MS) return '실시간'
+  if (age <= STALE_MS) return '지연'
+  return '오프라인'
+}
+
+function buildCommon(equipment: Equipment, realtime: LatestFrameMap): EquipmentCommonMetric[] {
+  const current = latestValue(realtime, equipment.equipmentCode, 'sensor_current')
+  const voltage = latestValue(realtime, equipment.equipmentCode, 'sensor_voltage')
+  const temperature = latestValue(realtime, equipment.equipmentCode, 'sensor_temperature')
+  const vibration = latestValue(realtime, equipment.equipmentCode, 'sensor_vibration')
+
   return [
     { label: '설비코드', value: equipment.equipmentCode },
     { label: '라인', value: equipment.location ?? '-' },
     { label: '모델', value: equipment.model ?? '-' },
     { label: '설치일', value: equipment.installDate ?? '-' },
+    { label: '수신상태', value: realtimeLabel(realtime, equipment.equipmentCode) },
+    { label: '전류', value: formatMetric(current, 'A', 1) },
+    { label: '전압', value: formatMetric(voltage, 'V', 1) },
+    { label: '온도', value: formatMetric(temperature, '°C', 1) },
+    { label: '습도', value: '-' },
+    { label: '진동', value: formatMetric(vibration, '', 3) },
+    { label: 'OK', value: '0' },
+    { label: 'NG', value: '0' },
   ]
 }
 
 function buildSpecific(analysis: AnalysisResult | null): EquipmentSpecificMetric[] {
-  if (!analysis) return [{ label: '분석 결과', value: '데이터 없음', status: '백엔드 분석 결과 미수신' }]
+  if (!analysis) return [{ label: '분석 결과', value: '데이터 없음', status: '실시간 분석 대기' }]
 
   const items: EquipmentSpecificMetric[] = []
   if (analysis.prediction) {
@@ -139,6 +237,7 @@ export function useEquipmentCatalog() {
   })
 
   const equipIds = computed(() => (equipmentsQuery.data.value ?? []).map((e) => e.equipmentCode))
+  const realtimeKeys = computed(() => buildRealtimeKeys(equipmentsQuery.data.value ?? []))
 
   const statusQuery = useQuery({
     queryKey: ['equipment-statuses', equipIds],
@@ -146,6 +245,14 @@ export function useEquipmentCatalog() {
     enabled: computed(() => equipIds.value.length > 0),
     refetchInterval: POLL_INTERVAL_MS.equipmentCategory,
     staleTime: 5_000,
+  })
+
+  const realtimeQuery = useQuery({
+    queryKey: ['equipment-realtime-latest', realtimeKeys],
+    queryFn: () => fetchSensorLatestValues(realtimeKeys.value),
+    enabled: computed(() => realtimeKeys.value.length > 0),
+    refetchInterval: POLL_INTERVAL_MS.equipmentRealtime,
+    staleTime: 1_000,
   })
 
   const analysisQueries = useQueries({
@@ -177,10 +284,13 @@ export function useEquipmentCatalog() {
     return map
   })
 
+  const realtimeMap = computed(() => latestFrameMap(realtimeQuery.data.value ?? []))
+
   const categories = computed<EquipmentCategory[]>(() => {
     const equipments = (equipmentsQuery.data.value ?? []) as Equipment[]
     const sMap = statusMap.value
     const aMap = analysisMap.value
+    const rMap = realtimeMap.value
 
     return CATEGORY_DEFINITIONS.map((def) => {
       const inCategory = equipments.filter((e) => e.processType === def.processType)
@@ -188,16 +298,18 @@ export function useEquipmentCatalog() {
         const code = sMap.get(e.equipmentCode)
         const state = statusCodeToState(code)
         const analysis = aMap.get(e.equipmentCode) ?? null
+        const cycleTime = latestValue(rMap, e.equipmentCode, 'cycle_time')
+        const rate = realtimeRate(rMap, e.equipmentCode, state)
         return {
           id: e.equipmentCode,
           name: e.equipmentName,
           line: e.location ?? '-',
           state,
-          rate: 0,
+          rate,
           defects: 0,
           operator: '-',
-          cycle: '-',
-          common: buildCommon(e),
+          cycle: cycleTime == null ? '-' : `${formatNumber(cycleTime, 1)}s`,
+          common: buildCommon(e, rMap),
           specific: buildSpecific(analysis),
         }
       })
@@ -205,6 +317,9 @@ export function useEquipmentCatalog() {
       const running = items.filter((it) => it.state === '운전').length
       const stopped = items.filter((it) => it.state === '정지').length
       const waiting = items.filter((it) => it.state === '대기' || it.state === '점검').length
+      const avgRate = items.length
+        ? Math.round(items.reduce((sum, item) => sum + item.rate, 0) / items.length)
+        : 0
 
       return {
         id: def.id,
@@ -215,8 +330,8 @@ export function useEquipmentCatalog() {
         running,
         stopped,
         waiting,
-        avgRate: 0,
-        defectCount: 0,
+        avgRate,
+        defectCount: items.reduce((sum, item) => sum + item.defects, 0),
         description: def.description,
         equipment: items,
       }

@@ -10,6 +10,7 @@
 
 export const POLL_INTERVAL_MS = {
   alarm: 1_000,
+  equipmentRealtime: 1_000,
   dashboard: 10_000,
   equipmentCategory: 15_000,
   equipmentAnalysis: 30_000,

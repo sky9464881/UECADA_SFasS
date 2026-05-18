@@ -623,5 +623,6 @@ def build() -> list[dict]:
 if __name__ == "__main__":
     out_path = Path(__file__).parent / "flows_control_test.json"
     data = build()
-    out_path.write_text(json.dumps(data, indent=2, ensure_ascii=False))
+    out_path.write_text(json.dumps(data, indent=2, ensure_ascii=False),
+                        encoding="utf-8")
     print(f"wrote {out_path} ({len(data)} nodes)")

@@ -16,7 +16,7 @@ import {
 import type { Component } from 'vue'
 import { useAppNav } from '@/composables/useAppNav'
 import { useLogout } from '@/composables/useLogout'
-import { useFactoryLayout } from '@/composables/useFactoryLayout'
+import { realtimeBufferKey, useFactoryLayout, type FactoryRealtimeMetric } from '@/composables/useFactoryLayout'
 import type { LineSummary, LineStatusCode } from '@/types/line'
 import type { Equipment, EquipmentStatusItem, EquipmentStatusCode } from '@/types/equipment'
 
@@ -69,7 +69,7 @@ const STAGE_ORDER: readonly StageDef[] = [
   { key: 'insp', label: '검사', badge: 'INSPECT', icon: Search },
 ] as const
 
-const { lines: linesData, equipments: equipmentsData, statuses: statusesData } = useFactoryLayout()
+const { lines: linesData, equipments: equipmentsData, statuses: statusesData, realtime: realtimeData } = useFactoryLayout()
 
 const PROCESS_TYPE_TO_STAGE_KEY: Record<string, StageKey> = {
   주조: 'cast',
@@ -121,6 +121,27 @@ function equipmentSummary(e: Equipment): string {
   return parts.join(' · ')
 }
 
+function realtimeValue(equipmentCode: string, metric: FactoryRealtimeMetric): number | null {
+  const key = realtimeBufferKey(equipmentCode, metric)
+  const value = key ? realtimeData.value.get(key)?.value : null
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
+function fmt(value: number | null, unit: string, digits = 1): string {
+  if (value == null) return '-'
+  return `${value.toFixed(digits)}${unit}`
+}
+
+function realtimeMetrics(e: Equipment): EquipmentMetric[] {
+  return [
+    { label: '싸이클', value: fmt(realtimeValue(e.equipmentCode, 'cycle_time'), 's', 1) },
+    { label: '전류', value: fmt(realtimeValue(e.equipmentCode, 'sensor_current'), 'A', 1) },
+    { label: '전압', value: fmt(realtimeValue(e.equipmentCode, 'sensor_voltage'), 'V', 1) },
+    { label: '온도', value: fmt(realtimeValue(e.equipmentCode, 'sensor_temperature'), '°C', 1) },
+    { label: '진동', value: fmt(realtimeValue(e.equipmentCode, 'sensor_vibration'), '', 3) },
+  ]
+}
+
 const factoryLines = computed<FactoryLine[]>(() => {
   const lines = (linesData.value ?? []) as LineSummary[]
   return lines.map((line, idx) => {
@@ -160,6 +181,7 @@ const equipmentMatrix = computed<EquipmentMatrix>(() => {
       name: eq.equipmentName,
       status,
       summary: equipmentSummary(eq),
+      metrics: realtimeMetrics(eq),
     })
   }
 

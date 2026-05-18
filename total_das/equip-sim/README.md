@@ -1,43 +1,22 @@
 # equip-sim
 
-## Local total_DAS wiring
-
-Each line still runs as its own Compose project with its own `.env.lineNN`, but
-only the line Node-RED container is attached to the shared external network
-`total-das-net`. The simulator containers stay on a per-line internal network so
-service names such as `cast-01` do not collide across lines.
-
-Plain `docker compose up` in this folder reads `.env` and starts LINE-01 by
-default. Use `.env.line02` or `.env.line03` when you want the other lines.
-
-On Windows, use:
-
-```powershell
-.\scripts\up.ps1 LINE-01
-.\scripts\up.ps1 LINE-02
-.\scripts\up.ps1 LINE-03
-```
-
-The wrapper creates `total-das-net` if needed, rebuilds the matching
-`nodered/flows_das.lineN.json`, and starts only that line's Compose project.
-
 산업 프로토콜 시뮬레이터 + Node-RED 라인 DAS.
 **1 라인 = 9 설비 + Node-RED 1개**, 같은 `docker-compose.yml` 을 `.env.lineN` 으로
 띄워 한 호스트에서 **최대 3 라인 동시 실행** 가능합니다.
 
 ```
-[CAST-01 (Modbus)]    ┐
-[CNC-01 (MC Protocol)]│
-[CNC-02/03 (OPC UA)]  ├─→ [Node-RED 컨테이너]
-[WASH-01 (OPC UA)]    │      ├ 1초 폴링·집계
-[ASSY-01/02 (OPC UA)] │      └ OPC UA Server  :4870 / :4970 / :5070
-[TEST-01/02 (OPC UA)] ┘            ns=2;s=<LINE_ID>.payload (JSON 문자열)
+[CAST-01 (MC Protocol)] ┐
+[CNC-01/02/03 (RTU)]    │
+[WASH-01 (Modbus TCP)]  ├──▶ [Node-RED 라인 DAS]
+[ASSY-01/02 (OPC UA)]   │      ├ 1초 폴링·집계
+[TEST-01/02 (OPC UA)]   ┘      └ OPC UA Server  :4860 / :4960 / :5060
+                                   ns=2;s=<LINE_ID>.payload (JSON 문자열)
                                    ns=2;s=<LINE_ID>.<EQ>.data.<tag>
-                                                              └→ X-DAS 가 구독
+                                                              └──▶ 통합-DAS
 ```
 
 설계 원칙:
-- 과설계 금지 — `라인 1개 = compose 1 묶음 + .env 1개`
+- 과설계 금지 — 라인 1개 = compose 1 묶음 + `.env` 1개
 - 웹 UI / DB / 인증 / REST API 없음 (모두 stdout 로그)
 - SIGINT/SIGTERM graceful shutdown
 - dataclass + asyncio (필요한 곳에만)
@@ -49,75 +28,95 @@ The wrapper creates `total-das-net` if needed, rebuilds the matching
 
 ```
 equip-sim/
-├── docker-compose.yml         9 설비 + nodered 1개 (env 변수화)
-├── .env.line01 / line02 / line03   라인별 LINE_ID + 포트 + project 이름
-├── scripts/up.sh              헬퍼 (build flow + compose up)
-├── Dockerfile                 시뮬레이터 이미지 (python:3.11-slim)
-├── Dockerfile.nodered         Node-RED 4.1.10-22 + contrib + mcprotocol 패치
-├── main.py                    시뮬레이터 엔트리
+├── docker-compose.yml             9 설비 + nodered 1개 (env 변수화)
+├── .env.line01 / line02 / line03  라인별 LINE_ID + 포트 + project 이름
+├── scripts/up.sh / up.ps1         헬퍼 (build flow + compose up)
+├── Dockerfile                     시뮬레이터 이미지 (python:3.11-slim)
+├── Dockerfile.nodered             Node-RED + contrib (mcprotocol 패치)
+├── Dockerfile.serialbridge        socat 가상 시리얼 페어 컨테이너
+├── main.py                        시뮬레이터 엔트리
 ├── requirements.txt
-├── configs/                   ★ 라인별 설비 config
-│   ├── _generate.py           configs/line{1,2,3}/*.json 재생성기
-│   ├── line1/  9 .json        LINE-01 설비 9개
-│   ├── line2/  9 .json        LINE-02
-│   └── line3/  9 .json        LINE-03
+├── configs/                       ★ 라인별 설비 config
+│   ├── _generate.py               configs/line{1,2,3}/*.json 재생성기
+│   ├── line1/  9 .json
+│   ├── line2/  9 .json
+│   └── line3/  9 .json
 ├── sim/
-│   ├── config.py              ${LINE_ID:-LINE-00} 같은 env 토큰 치환
-│   ├── state.py               progress 같이 SP 없는 센서도 base_value 로 동작
-│   ├── log.py
+│   ├── config.py / state.py / log.py
 │   └── protocols/
-│       ├── modbus_server.py
-│       ├── mc_server.py
-│       └── opcua_server.py
+│       ├── modbus_server.py        WASH (TCP), CNC (RTU)
+│       ├── mc_server.py            CAST (3E Binary)
+│       └── opcua_server.py         ASSY / TEST
 ├── docs/
-│   └── integration_spec.md    페이로드/NodeId/포트 명세
+│   └── integration_spec.md
 └── nodered/
-    ├── build_flow_das.py      라인 DAS flow 빌더 (LINE_ID env)
-    ├── flows_das.json         빌드 결과
-    ├── _verify_flow_das.py    정적 검증 (wires/JS syntax)
-    ├── _test_emit_payload.js  status/quality/cycle_time 단위 테스트
-    └── _test_publish.js       NodeId 매핑/dtype 단위 테스트
+    ├── build_flow_das.py
+    ├── build_flow_host_viewer.py
+    └── flows_das.json (빌드 결과)
 ```
 
 ---
 
 ## 라인 / 포트 / 프로토콜
 
-| 라인 | LINE_ID | LINE_DIR | UI | DAS OPCUA |
-|---|---|---|---|---|
-| 1 | `LINE-01` | `line1` | 1880 | 4870 |
-| 2 | `LINE-02` | `line2` | 1881 | 4970 |
-| 3 | `LINE-03` | `line3` | 1882 | 5070 |
+### 라인 메타
 
-**설비 포트는 `base + 100 × (N-1)`** 정책으로 라인끼리 충돌하지 않습니다.
+| 라인 | LINE_ID | LINE_DIR | Node-RED UI | DAS OPC UA |
+|---|---|---|---|---|
+| 1 | `LINE-01` | `line1` | **2880** | **4860** |
+| 2 | `LINE-02` | `line2` | **3880** | **4960** |
+| 3 | `LINE-03` | `line3` | **4880** | **5060** |
+
+### 설비 프로토콜
+
+| 설비 | 인스턴스 | 프로토콜 | 비고 |
+|---|---|---|---|
+| 주조기 | CAST-01 | **MC Protocol 3E Binary** | TCP |
+| 가공기 | CNC-01, CNC-02, CNC-03 | **Modbus RTU** | **시리얼 (가상 시리얼 페어)** |
+| 세척기 | WASH-01 | **Modbus TCP** | |
+| 조립기 | ASSY-01, ASSY-02 | **OPC UA** | TCP |
+| 검사기 | TEST-01, TEST-02 | **OPC UA** | TCP |
+
+### 호스트 포트 (TCP 만, base + 100 × (N-1))
 
 | 설비 | 프로토콜 | LINE-01 | LINE-02 | LINE-03 |
 |---|---|---|---|---|
-| CAST-01 | Modbus TCP | 5021 | 5121 | 5221 |
-| CNC-01 | **MC Protocol 3E Binary** | 5081 | 5181 | 5281 |
-| CNC-02 | OPC UA | 5082 | 5182 | 5282 |
-| CNC-03 | OPC UA | 5083 | 5183 | 5283 |
-| WASH-01 | OPC UA | 4841 | 4941 | 5041 |
-| ASSY-01 | OPC UA | 4851 | 4951 | 5051 |
-| ASSY-02 | OPC UA | 4852 | 4952 | 5052 |
-| TEST-01 | OPC UA | 4861 | 4961 | 5061 |
-| TEST-02 | OPC UA | 4862 | 4962 | 5062 |
+| CAST-01 | MC Protocol | **5001** | **5101** | **5201** |
+| WASH-01 | Modbus TCP | 5021 | 5121 | 5221 |
+| ASSY-01 | OPC UA | 4841 | 4941 | 5041 |
+| ASSY-02 | OPC UA | 4842 | 4942 | 5042 |
+| TEST-01 | OPC UA | 4851 | 4951 | 5051 |
+| TEST-02 | OPC UA | 4852 | 4952 | 5052 |
+| 라인 DAS | OPC UA Server | **4860** | **4960** | **5060** |
+| Node-RED UI | HTTP | **2880** | **3880** | **4880** |
 
-> **변경 사항**: 이전 버전에서는 CNC-01/02/03 모두 MC Protocol 이었지만,
-> 현재는 **CNC-01 만 MC Protocol**, CNC-02/03 은 OPC UA 로 통일되었습니다.
+> CNC-01/02/03 은 **TCP 포트 사용 안 함**. 시리얼 디바이스로 통신 (아래 §시리얼 참조).
+> 이전 명세의 LINE-03 가 4000번대로 떨어졌던 부분은 폐기. 모든 라인 동일하게 48xx → 49xx → 50xx 로 100 씩 증가.
+
+### CNC (Modbus RTU) 시리얼 디바이스
+
+CNC 는 포트가 아니라 시리얼 라인입니다. 도커 안에서 **socat 가상 시리얼 페어** 컨테이너가 `pty` 두 짝을 만들고, 한 쪽은 시뮬레이터(RTU 슬레이브) 가, 다른 쪽은 Node-RED(RTU 마스터) 가 잡습니다.
+
+| 설비 | 시뮬레이터 쪽 (slave) | Node-RED 쪽 (master) | baudrate / parity / stopbits |
+|---|---|---|---|
+| CNC-01 | `/dev/vserial/cnc01.slave` | `/dev/vserial/cnc01.master` | 9600 / N / 1, slave id 1 |
+| CNC-02 | `/dev/vserial/cnc02.slave` | `/dev/vserial/cnc02.master` | 9600 / N / 1, slave id 1 |
+| CNC-03 | `/dev/vserial/cnc03.slave` | `/dev/vserial/cnc03.master` | 9600 / N / 1, slave id 1 |
+
+> 페어는 `serial-bridge` 컨테이너의 docker volume (`/dev/vserial`) 을 공유해 시뮬/노드레드 양쪽에서 본다. 라인끼리는 `COMPOSE_PROJECT_NAME` 으로 격리되어 충돌 없음.
 
 ---
 
-## 태그 명세 (2026-05 개정판)
+## 태그 명세 (2026-05-13 개정 3)
 
-### 공통 (모든 설비 9개)
+### 공통 태그 (모든 설비 9 개)
 
-| 태그 | 타입 | RW | 의미 |
-|---|---|---|---|
-| `power` | bool | RW | 설비 가동 상태 |
-| `progress` | float | RO | **단위 시간당 진행률**. base = `1/cycle_sec`, stddev = base × 10% |
+| 태그 | 단위 | 타입 | RW | 비고 |
+|---|---|---|---|---|
+| `power` | — | bool | RW | ON/OFF 제어 |
+| `progress` | — | float | RO | **단위 시간당 진행률**. base = `1/cycle_sec`, stddev = base × 10% |
 
-설비별 `cycle_sec`:
+설비별 `cycle_sec` (progress base):
 
 | 설비 | cycle_sec | progress base |
 |---|---|---|
@@ -127,217 +126,442 @@ equip-sim/
 | ASSY-01/02 | 120 | 1/120 |
 | TEST-01/02 | 120 | 1/120 |
 
-> 시뮬레이터는 **매 tick `base ± N(0, stddev)` 만 송출**합니다.
-> 1.0 을 넘으면 cycle 1회 완료라는 의미이며, 그 누적/리셋/cycle_time 산출은
-> Node-RED EMIT PAYLOAD function 에서 flow context 로 관리합니다.
+> **`cycle_time` 은 센서가 아닙니다.** 시뮬은 매 tick `progress = base ± N(0, stddev)` 만 송출.
+> Node-RED 라인 DAS 가 `progress` 를 누적해 `≥ 1.0` 이 되는 순간 직전 cycle 의 소요(초)를 `cycle_time` 으로 산출 → 페이로드의 `data.cycle_time` 으로 발행합니다.
 
-### 설비별 고유 태그
+### 설비별 공정 태그
 
-- **CAST-01**: `injection_pressure`, `mold_temperature`, `cooling_flow`,
-  `injection_pressure_sp` (RW), `mold_temperature_sp` (RW)
-- **CNC-01/02/03**: `spindle_speed`, `tool_usage`, `coolant_flow`,
-  `spindle_speed_sp` (RW)
-- **WASH-01**: `cleaning_concentration`, `temperature`, `pressure`, `flow`,
-  `cleaning_temperature_sp` (RW)
-- **ASSY-01/02**: `tightening_torque`, `angle`, `press_force`,
-  `part_detected` (bool), `tightening_torque_sp` (RW)
-- **TEST-01/02**: `bore_dimension`, `hole_dimension`, `leak_rate`,
-  `flow_value`, `result_ok` (bool) — *SP 없음*
+**CAST-01 주조기**
+| 태그 | 단위 | 타입 | 범위 / 비고 |
+|---|---|---|---|
+| `injection_pressure` | MPa | float | 30~120 |
+| `mold_temperature` | ℃ | float | 190~240 |
+| `cooling_flow` | L/min | float | 20~60 |
+| `injection_pressure_sp` | MPa | float | RW |
+| `mold_temperature_sp` | ℃ | float | RW |
+| `cooling_flow_sp` | L/min | float | RW |
 
-> **제거된 태그**: `voltage`, `current`, `surface_temperature`, `vibration`,
-> `alarm`, `part_count`, `cycle_time` (센서로서). 모두 명세 개정으로 빠졌습니다.
+**CNC-01 / 02 / 03 가공기 (Modbus RTU)**
+| 태그 | 단위 | 타입 | 범위 / 비고 |
+|---|---|---|---|
+| `spindle_speed` | rpm | int | 3000~8000 |
+| `tool_usage` | % | float | 0~80 |
+| `coolant_flow` | L/min | float | 10~30 |
+| `spindle_speed_sp` | rpm | int | RW |
+| `tool_usage_sp` | % | float | RW |
+| `coolant_flow_sp` | L/min | float | RW |
 
-### MC Protocol 매핑 (CNC-01 전용)
+**WASH-01 세척기 (Modbus TCP)**
+| 태그 | 단위 | 타입 | 범위 / 비고 |
+|---|---|---|---|
+| `cleaning_concentration` | % | float | 2~5 |
+| `cleaning_temperature` | ℃ | float | 50~75 |
+| `cleaning_pressure` | bar | float | 2~6 |
+| `cleaning_concentration_sp` | % | float | RW |
+| `cleaning_temperature_sp` | ℃ | float | RW |
+| `cleaning_pressure_sp` | bar | float | RW |
 
+**ASSY-01 / 02 조립기 (OPC UA)**
+| 태그 | 단위 | 타입 | 범위 / 비고 |
+|---|---|---|---|
+| `tightening_torque` | Nm | float | 30~50 |
+| `tightening_angle` | deg | float | 설정 범위 내 |
+| `press_force` | N | float | 500~3000 |
+| `tightening_torque_sp` | Nm | float | RW |
+| `tightening_angle_sp` | deg | float | RW |
+| `press_force_sp` | N | float | RW |
+
+**TEST-01 / 02 검사기 (OPC UA)**
+| 태그 | 단위 | 타입 | 범위 / 비고 |
+|---|---|---|---|
+| `bore_dimension` | mm | float | 40.000 ± 0.020 |
+| `hole_dimension` | mm | float | 10.200 ± 0.050 |
+| `result_ok` | bool | bool | RO. OK=true / NG=false |
+| `bore_dimension_sp` | mm | float | RW |
+| `hole_dimension_sp` | mm | float | RW |
+
+### 프로토콜별 매핑
+
+**MC Protocol 3E Binary — CAST-01 전용**
 | 주소 | 태그 | 타입 |
 |---|---|---|
-| `M0` | `power` | bool |
-| `D0` | `spindle_speed_sp` | float (2 word, LSB-first) |
-| `D2` | `spindle_speed` | float |
-| `D100` | `tool_usage` | float |
-| `D102` | `coolant_flow` | float |
-| `D104` | `progress` | float |
+| `M0` | `power` | bit |
+| `D0` | `injection_pressure_sp` | float (LSB-first, 2 word) |
+| `D2` | `mold_temperature_sp` | float |
+| `D4` | `cooling_flow_sp` | float |
+| `D100` | `injection_pressure` | float |
+| `D102` | `mold_temperature` | float |
+| `D104` | `cooling_flow` | float |
+| `D106` | `progress` | float |
 
-OPC UA / Modbus 측 NodeId/주소는 `docs/integration_spec.md` 참고.
+**Modbus RTU — CNC-01 / 02 / 03 (slave id 1)**
+| Function | Address | 태그 | 타입 |
+|---|---|---|---|
+| Coil (FC01/05) | `0` | `power` | bool |
+| HR (FC03/06) | `0` | `spindle_speed_sp` | uint16 |
+| HR | `2` | `spindle_speed` | uint16 |
+| HR | `1000` | `tool_usage_sp` | float (2 word, big-endian) |
+| HR | `1002` | `tool_usage` | float |
+| HR | `1004` | `coolant_flow_sp` | float |
+| HR | `1006` | `coolant_flow` | float |
+| HR | `1008` | `progress` | float |
+
+**Modbus TCP — WASH-01**
+| Function | Address | 태그 | 타입 |
+|---|---|---|---|
+| Coil | `0` | `power` | bool |
+| HR | `1000` | `cleaning_concentration_sp` | float |
+| HR | `1002` | `cleaning_temperature_sp` | float |
+| HR | `1004` | `cleaning_pressure_sp` | float |
+| HR | `1006` | `cleaning_concentration` | float |
+| HR | `1008` | `cleaning_temperature` | float |
+| HR | `1010` | `cleaning_pressure` | float |
+| HR | `1012` | `progress` | float |
+
+**OPC UA — ASSY / TEST**
+`ns=2;s=<EquipmentName>.<tag>` 평면 구조. EquipmentName 은 config 의 `equipment_name` (예: `LINE-01_ASSY-01`).
+
+---
+
+## 라인 DAS → 통합-DAS 페이로드
+
+라인 DAS Node-RED 가 1 초에 1 회 다음 JSON 을 만들어 OPC UA Server 의 `payload` 변수로 발행합니다.
+
+```json
+{
+  "ts": "2026-05-13T05:50:12.345Z",
+  "line_id": "LINE-01",
+  "schema_version": "1.0",
+  "equipments": {
+    "CAST-01": {
+      "status": "RUN",
+      "ts": "2026-05-13T05:50:12.300Z",
+      "quality": "GOOD",
+      "data": {
+        "power": true,
+        "progress": 0.0168,
+        "cycle_time": 59.8,
+        "injection_pressure": 65.4,
+        "mold_temperature": 215.3,
+        "cooling_flow": 38.2,
+        "injection_pressure_sp": 80.0,
+        "mold_temperature_sp": 215.0,
+        "cooling_flow_sp": 40.0
+      }
+    },
+    "CNC-01": { "...": "..." },
+    "WASH-01": { "...": "..." },
+    "ASSY-01": { "...": "..." },
+    "TEST-01": { "...": "..." }
+  }
+}
+```
+
+### 필드 정의
+
+| 키 | 타입 | 설명 |
+|---|---|---|
+| `ts` | string | ISO-8601 UTC ms. 라인 DAS 페이로드 생성 시각 |
+| `line_id` | string | `LINE-01 / LINE-02 / LINE-03` |
+| `schema_version` | string | 본 규격 버전 (현재 `1.0`) |
+| `equipments.<ID>.status` | string | `OFF / RUN`. (`WARNING / DANGER` 향후 확장 자리) |
+| `equipments.<ID>.ts` | string | 해당 설비 데이터 측정 시각 |
+| `equipments.<ID>.quality` | string | `GOOD / UNCERTAIN / BAD` |
+| `equipments.<ID>.data` | object | 태그명 → 값. 공통 + 공정 태그 평탄 구조 |
+| `equipments.<ID>.data.cycle_time` | float | 라인 DAS 가 progress 누적으로 산출. 1회도 완료 전이면 키 없음 |
+
+### status / quality / cycle_time 판정 (Node-RED 책임)
+
+시뮬레이터는 절대 `status`, `quality`, `cycle_time` 같은 파생값을 만들지 않습니다.
+
+**status**
+1. 데이터 없음 또는 통신 실패 → `OFF` + `quality=BAD`
+2. `power === false` → `OFF`
+3. 그 외 → `RUN`
+4. `WARNING / DANGER` 는 명세상 자리만 잡혀 있고 현재 구현은 OFF/RUN 두 단계
+
+**quality**
+| 값 | 조건 |
+|---|---|
+| `GOOD` | 마지막 수신이 3 초 이내 |
+| `UNCERTAIN` | 마지막 수신이 3 초 초과, 그러나 일부 데이터는 존재 |
+| `BAD` | 데이터 없음 (폴링 자체 실패) |
+
+**cycle_time**
+- Node-RED flow context: `cycle_state[<EQ>] = { acc, last_cycle_time, start_ms }`
+- 매 tick `acc += progress`. `start_ms` 가 없으면 `Date.now()` 로 초기화.
+- `acc >= 1.0` 인 순간 cycle 1 회 완료 →
+  `last_cycle_time = (Date.now() - start_ms) / 1000`, `acc=0`, `start_ms=null` 리셋.
+- 페이로드의 `data.cycle_time` 은 `last_cycle_time`. 한 번도 완료 전이면 키 생략.
+
+---
+
+## 라인 DAS → 통합-DAS OPC UA 노출
+
+### Endpoint
+
+| 라인 | Endpoint |
+|---|---|
+| LINE-01 | `opc.tcp://<host>:4860/line-das/LINE-01` |
+| LINE-02 | `opc.tcp://<host>:4960/line-das/LINE-02` |
+| LINE-03 | `opc.tcp://<host>:5060/line-das/LINE-03` |
+
+### NodeId 규약
+
+```
+ns=2;s=<line_id>.payload                                (String, 통째 JSON)
+ns=2;s=<line_id>.line_ts                                (String)
+ns=2;s=<line_id>.schema_version                         (String)
+ns=2;s=<line_id>.<equipment_id>.status                  (String)
+ns=2;s=<line_id>.<equipment_id>.ts                      (String)
+ns=2;s=<line_id>.<equipment_id>.quality                 (String)
+ns=2;s=<line_id>.<equipment_id>.data.<tag_name>         (Boolean / Int32 / Double)
+ns=2;s=<line_id>.<equipment_id>.data.cycle_time         (Double)
+```
+
+> `node-red-contrib-opcua` 의 OpcUa-Server 는 **2 단계 프로토콜** 사용:
+> 1. 최초 1회: `msg.topic = 'ns=2;s=<name>;datatype=<DT>'` + `msg.payload = { opcuaCommand: 'addVariable' }`
+> 2. 이후 매 tick: `msg.payload = { messageType: 'Variable', namespace: 2, variableName: '<name>', variableValue: <val>, datatype: '<DT>' }`
+>
+> 필드가 하나라도 빠지면 `"warning: properties like messageType, namespace, variableName or VariableValue is missing."` 경고가 매 메시지마다 발생.
+
+---
+
+## 통합 DAS (3개 라인 머지)
+
+3개 라인 DAS 의 페이로드를 한 컨테이너로 모으는 **통합 DAS** (`nodered-das`) 가 별도로 떠 있습니다. 이 컨테이너는 `factory-net` 외부 도커 네트워크에 attach 되어 있어서, 각 라인 컨테이너 (`nodered-line01/02/03`) 의 OPC UA Server 를 **컨테이너명으로** 안정적으로 접근합니다.
+
+### 컨테이너 / 포트
+
+| 항목 | 값 |
+|---|---|
+| 컨테이너명 | `nodered-das` |
+| compose 파일 | `integration/docker-compose.yml` |
+| Node-RED UI | `http://localhost:5880` |
+| OPC UA Server (재노출) | `opc.tcp://localhost:5860/integration-das` |
+| 네트워크 | `factory-net` (external, 사전 생성 필요) |
+
+### Flow 구조
+
+`integration/build_flow_integration.py` 가 생성하는 `flows_integration.json` 는 라인별로 다음 컬럼을 갖습니다:
+
+```
+[1s inject] → [OpcUa-Item: ns=2;s=LINE-0X.payload] → [OpcUa-Client READ]
+              → [PARSE: JSON.parse] → [DEBUG (stdout)]
+                                    → [PUBLISH (addVariable+Variable)] → [OpcUa-Server :5860]
+```
+
+각 라인 DAS 의 endpoint:
+
+| 라인 | 통합 DAS 가 읽는 endpoint |
+|---|---|
+| LINE-01 | `opc.tcp://nodered-line01:4860/line-das/LINE-01` |
+| LINE-02 | `opc.tcp://nodered-line02:4960/line-das/LINE-02` |
+| LINE-03 | `opc.tcp://nodered-line03:5060/line-das/LINE-03` |
+
+> 라인 compose 의 `nodered` 서비스는 `container_name: nodered-line0X` + `factory-net` alias 가 박혀 있어서, 통합 DAS 가 IP 가 아닌 컨테이너명으로 안정 접속.
+
+### 통합 DAS 가 재노출하는 NodeId
+
+```
+ns=2;s=LINE-01.payload            (원본 JSON String)
+ns=2;s=LINE-01.<EQ>.status         (String)
+ns=2;s=LINE-01.<EQ>.data.<tag>    (Boolean / Int32 / Double)
+... (LINE-02, LINE-03 도 동일하게)
+```
+
+호스트의 UA Expert 같은 클라이언트는 `opc.tcp://localhost:5860/integration-das` 한 곳만 보면 **3개 라인 전체 텔레메트리** 가 평면 NodeId 로 다 보입니다.
+
+---
+
+## 폴링 / 주기
+
+| 항목 | 값 | 비고 |
+|---|---|---|
+| 설비 측 sampling_ms | 1000 | 시뮬레이터 내부 갱신 주기 |
+| 라인 DAS 폴링 주기 | 1000 | Node-RED inject |
+| 페이로드 생성 주기 | 1000 | 라인 단위 1초 1건 |
+| 통신 timeout | 10000 | 설비 응답 대기 |
 
 ---
 
 ## 빠르게 실행
 
-### 0) 사전 준비 — Node-RED flow 빌드
+### 0) 사전 준비
 
-flow 는 라인별로 다른 포트를 박아두므로, 라인 바꿀 때마다 다시 빌드합니다.
+- Docker Desktop (Windows / macOS) 또는 docker engine + compose v2 (Linux)
+- Python 3.11+ (flow 빌드용)
+- (선택) Node.js + Node-RED 4.x — 호스트 viewer 용
 
+### ✨ 일괄 기동 (권장)
+
+3개 라인 + 통합 DAS 을 한 번에 올릴 때는 `up-all` 스크립트가 가장 간단합니다. 내부적으로 factory-net 생성 + flow 빌드 + 4개 compose up 을 순서대로 수행합니다.
+
+**PowerShell**:
+```powershell
+.\scripts\up-all.ps1            # 전체 기동
+.\scripts\up-all.ps1 down       # 전체 종료
+.\scripts\up-all.ps1 logs -Line LINE-02
+.\scripts\up-all.ps1 ps
+```
+
+**Bash**:
 ```bash
-cd equip-sim
+./scripts/up-all.sh             # 전체 기동
+./scripts/up-all.sh down        # 전체 종료
+./scripts/up-all.sh logs LINE-02
+./scripts/up-all.sh ps
+```
+
+전체 기동되면 아래 포트가 열립니다:
+
+| 항목 | 주소 |
+|---|---|
+| LINE-01 Node-RED UI | <http://localhost:2880> |
+| LINE-02 Node-RED UI | <http://localhost:3880> |
+| LINE-03 Node-RED UI | <http://localhost:4880> |
+| 통합 DAS Node-RED UI | <http://localhost:5880> |
+| 통합 DAS OPC UA | `opc.tcp://localhost:5860/integration-das` |
+
+개별로 돌리고 싶으면 아래 1–2단계를 따라가세요.
+
+### 1) Node-RED flow 빌드
+
+flow 는 라인별로 다른 포트를 박아두므로 라인 바꿀 때마다 다시 빌드합니다.
+
+**PowerShell**:
+```powershell
+$env:LINE_ID = "LINE-01"
+python nodered\build_flow_das.py --host-mode docker
+```
+
+**Bash**:
+```bash
 LINE_ID=LINE-01 python nodered/build_flow_das.py --host-mode docker
-# wrote nodered/flows_das.json (165 nodes) line_id=LINE-01 host_mode=docker
 ```
 
-> 호스트에서 직접 (localhost 포트) 접근하려면 `--host-mode localhost`.
+### 2) 라인 기동
 
-### 1) 한 줄 헬퍼 (권장)
-
+**한 줄 헬퍼**:
 ```bash
-./scripts/up.sh LINE-01           # = build flow + compose up -d --build
-./scripts/up.sh LINE-02 logs -f   # 임의 compose 명령 그대로 전달
-./scripts/up.sh LINE-03 down -v
+./scripts/up.sh LINE-01           # Linux / macOS / Git Bash
+.\scripts\up.ps1 LINE-01          # PowerShell
 ```
 
-### 2) 직접 compose 호출
-
+**직접 compose 호출**:
 ```bash
-docker compose up -d --build
 docker compose --env-file .env.line01 up -d --build
 docker compose --env-file .env.line02 up -d --build
 docker compose --env-file .env.line03 up -d --build
 ```
 
-- `COMPOSE_PROJECT_NAME` 이 라인마다 다르므로 컨테이너/네트워크/볼륨이 격리됩니다.
-- 컨테이너 내부 포트 = 호스트 publish 포트 (1:1).
-  단 Node-RED admin UI 만 `${PORT_NODERED_UI}:1880` 매핑.
+각 라인은 다음 컨테이너를 띄웁니다:
+- `serial-bridge` — socat 가상 시리얼 페어 (`/dev/vserial/cnc0{1,2,3}.{slave,master}`)
+- `cast-01`, `cnc-01/02/03`, `wash-01`, `assy-01/02`, `test-01/02` — 시뮬레이터 (9 개)
+- `nodered` — 라인 DAS
+
+`COMPOSE_PROJECT_NAME` 이 라인마다 달라서 네트워크/볼륨/디바이스가 완전히 격리됩니다.
 
 ### 3) flow import
 
-Node-RED admin UI → Import → `./nodered/flows_das.json`
-(컨테이너 안에선 `/host-flows/flows_das.json`) → Deploy.
-
 | 라인 | admin UI | DAS endpoint |
 |---|---|---|
-| LINE-01 | <http://localhost:1880> | `opc.tcp://localhost:4870/line-das/LINE-01` |
-| LINE-02 | <http://localhost:1881> | `opc.tcp://localhost:4970/line-das/LINE-02` |
-| LINE-03 | <http://localhost:1882> | `opc.tcp://localhost:5070/line-das/LINE-03` |
+| LINE-01 | <http://localhost:2880> | `opc.tcp://localhost:4860/line-das/LINE-01` |
+| LINE-02 | <http://localhost:3880> | `opc.tcp://localhost:4960/line-das/LINE-02` |
+| LINE-03 | <http://localhost:4880> | `opc.tcp://localhost:5060/line-das/LINE-03` |
+
+Node-RED admin UI → 우상단 메뉴 → **Import** → `/host-flows/flows_das.json` → **Deploy**.
 
 ### 4) 동작 확인
 
-- Node-RED 디버그 사이드바: 1초마다 `payload` 출력
+- Node-RED debug 사이드바에 1 초마다 `payload` 출력
 - DAS OPC UA Server 노드:
-  - `ns=2;s=<LINE>.payload` (String, 통째 JSON)
-  - `ns=2;s=<LINE>.line_ts`, `ns=2;s=<LINE>.schema_version`
+  - `ns=2;s=<LINE>.payload` — 통째 JSON (String)
+  - `ns=2;s=<LINE>.line_ts`, `schema_version`
   - `ns=2;s=<LINE>.<EQ>.status / ts / quality`
-  - `ns=2;s=<LINE>.<EQ>.data.<tag>` (Float / Boolean / Int32)
-  - `ns=2;s=<LINE>.<EQ>.data.cycle_time` (Float, Node-RED 가 `progress` 누적으로 산출해 `data` 에 합쳐 발행)
+  - `ns=2;s=<LINE>.<EQ>.data.<tag>` — Boolean / Int32 / Double
+  - `ns=2;s=<LINE>.<EQ>.data.cycle_time` — Double (라인 DAS 산출)
 
 ### 5) 종료
 
 ```bash
-./scripts/up.sh LINE-01 down              # 컨테이너만 제거
-./scripts/up.sh LINE-01 down -v           # nodered-data 볼륨까지
+./scripts/up.sh LINE-01 down         # 컨테이너만
+./scripts/up.sh LINE-01 down -v      # nodered-data 볼륨까지
 ```
 
 ---
 
-## status / cycle_time 판정 (Node-RED 책임)
+## 윈도우 환경
 
-시뮬레이터는 절대 `alarm` 이나 `cycle_time` 같은 파생값을 만들지 않습니다.
-모두 Node-RED EMIT PAYLOAD function 에서 처리합니다.
+PowerShell 에서는 `LINE_ID=... 명령` 같은 inline env 가 안 됩니다. 두 줄로 나눠 쓰세요:
 
-- **status**:
-  - `power === false` → `OFF`
-  - 그 외 → `RUN` (`WARNING` / `DANGER` 는 향후 확장 자리)
-- **quality**:
-  - 데이터 없음 → `BAD`
-  - 마지막 수신 > 3 s → `UNCERTAIN`
-  - 그 외 → `GOOD`
-- **cycle_time** (flow context `cycle_state`):
-  - 매 tick `progress` 를 `acc` 에 더하고, `start_ms` 가 없으면 기록
-  - `acc >= 1.0` 가 되는 순간 `cycle_time = (now - start_ms) / 1000`
-  - `acc` 와 `start_ms` 리셋 → 다음 cycle 측정 시작
+```powershell
+cd C:\path\to\equip-sim
 
----
+# LINE-01
+$env:LINE_ID = "LINE-01"
+python nodered\build_flow_das.py --host-mode docker
+docker compose --env-file .env.line01 up -d --build
 
-## Node-RED 이미지 (`Dockerfile.nodered`)
+# LINE-02
+$env:LINE_ID = "LINE-02"
+python nodered\build_flow_das.py --host-mode docker
+docker compose --env-file .env.line02 up -d --build
 
-`nodered/node-red:4.1.10-22` 베이스에 다음 contrib 를 설치합니다:
+# LINE-03
+$env:LINE_ID = "LINE-03"
+python nodered\build_flow_das.py --host-mode docker
+docker compose --env-file .env.line03 up -d --build
+```
 
-- `node-red-contrib-modbus` (CAST-01)
-- `node-red-contrib-opcua`  (CNC-02/03, WASH/ASSY/TEST + DAS Server)
-- `node-red-contrib-mcprotocol` (CNC-01)
+또는 `scripts\up.ps1 LINE-01` 한 줄로.
 
-> ⚠️ Node 24+ 에서 `mcprotocol` 의 `util.log()` 호출이 깨집니다.
-> 빌드 시 `sed` 로 `console.log(` 으로 치환합니다 (`Dockerfile.nodered` 참고).
+### 윈도우에서 주의
 
----
-
-## 시뮬레이터 컨테이너
-
-- 1 컨테이너 = 1 설비 = `SIM_CONFIG=/app/configs/<line_dir>/<EQ>.json`
-- config 안의 `equipment_name` 은 `"${LINE_ID:-LINE-00}_<EQ>"` 토큰 보관 → 기동 시 치환
-- 동작:
-  - Modbus → bool→coil, int→HR[0..], float→HR[1000..] (big-endian, 2 word)
-  - MC Protocol → 3E Binary, M=bit, D=int/float (LSB-first 2-word float)
-  - OPC UA → `ns=2;s=<EquipmentName>.<tag>` 평면 구조
-
-자세한 페이로드/NodeId 규약은 [`docs/integration_spec.md`](docs/integration_spec.md).
+1. `localhost` 가 IPv6 (`::1`) 로 풀려서 OPC UA 클라이언트가 못 붙는 케이스가 있음 → endpoint URL 을 `127.0.0.1` 로 사용
+2. Docker Desktop 의 컨테이너 hostname 이 외부에 advertise 되면 OPC UA discovery 에서 `Server end point are not known yet` 발생 → docker-compose 의 nodered 서비스에 `hostname: localhost` 추가 (이미 빌더가 박아둠)
+3. PowerShell 실행 정책 막히면 한 세션 한정: `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`
+4. 처음 띄울 때 Windows Defender 가 "docker / python 이 네트워크 사용 허용?" 묻는데 허용
 
 ---
 
 ## 호스트 Node-RED 에서 조회 (포트 1883)
 
-도커 안의 라인 DAS 가 `4870 / 4970 / 5070` 으로 노출한 OPC UA 변수를,
-호스트 OS 에 따로 설치한 Node-RED (포트 **1883**) 에서 subscribe 해 확인하는 용도.
+도커 안의 라인 DAS 가 `4860 / 4960 / 5060` 으로 노출한 OPC UA 변수를 호스트 OS 의 별도 Node-RED (포트 **1883**) 에서 구독해 확인하는 용도.
 
 ### 1) 호스트 Node-RED 설치 + 1883 으로 기동
 
 ```powershell
-# Node.js LTS 먼저 설치. 그 다음:
 npm install -g --unsafe-perm node-red
 
-# OPC UA 클라이언트 노드 설치 (한 번만)
 cd $env:USERPROFILE\.node-red
 npm install node-red-contrib-opcua
 
-# 1883 포트로 기동
 node-red -p 1883
 ```
 
-매번 `-p 1883` 치기 귀찮으면 `%USERPROFILE%\.node-red\settings.js` 에서
-`uiPort: 1883` 로 설정. 접속: <http://localhost:1883>
-
 ### 2) viewer flow 빌드
-
-도커가 `localhost` 에 포트 publish 한 경우:
 
 ```bash
 python nodered/build_flow_host_viewer.py
 # wrote nodered/flows_host_viewer.json (26 nodes) lines=['LINE-01','LINE-02','LINE-03'] host=127.0.0.1
-```
 
-다른 PC 의 도커에 붙으려면:
-
-```bash
+# 다른 PC 의 도커에 붙으려면:
 python nodered/build_flow_host_viewer.py --host 192.168.0.10
-```
 
-특정 라인만 보고 싶으면:
-
-```bash
+# 특정 라인만:
 python nodered/build_flow_host_viewer.py --lines LINE-01
 ```
 
 ### 3) Node-RED 1883 에서 import
 
-호스트 Node-RED admin UI 접속 → 우상단 메뉴 → **Import** →
-`nodered/flows_host_viewer.json` 파일 선택 → **Deploy**.
+<http://localhost:1883> → 우상단 메뉴 → Import → `nodered/flows_host_viewer.json` → Deploy.
 
-2 초 뒤에 각 라인의 `subscribe` 가 시작되고, debug 사이드바에
-`LINE-01 payload` 같은 이름으로 **파싱된 JSON 객체** 가 1초마다 뜨면 성공.
+2 초 뒤 각 라인의 subscribe 가 시작되고 debug 사이드바에 `LINE-01 payload` 같은 이름으로 파싱된 JSON 객체가 1초마다 뜨면 성공.
 
-```
-msg.topic   = "ns=2;s=LINE-01.payload"
-msg.payload = {
-  ts: "2026-05-13T...",
-  line_id: "LINE-01",
-  schema_version: "1.0",
-  equipments: { "CAST-01": { status: "RUN", quality: "GOOD",
-                              data: { power: true, progress: 0.0168, ... } }, ... }
-}
-```
+### 4) 개별 태그도 구독
 
-### 4) 개별 태그도 구독하고 싶으면
-
-각 라인 목엄의 `LINE-0X topics` function 노드 안 `EXTRA_TOPICS` 배열에
-노드를 추가하고 Deploy 다시.
+각 라인의 `LINE-0X topics` function 노드 `EXTRA_TOPICS` 배열에 추가:
 
 ```js
 const EXTRA_TOPICS = [
@@ -347,40 +571,65 @@ const EXTRA_TOPICS = [
 ];
 ```
 
-debug 사이드바에 키별로 값이 일일이 챍힅니다 (값이 변할 때마다 1 msg).
-
 ### 5) 주의
 
-- 도커 쪽 flow 가 먼저 Deploy 되어 있어야 함 (addVariable 명령이 돌아 변수들이 등록된 이후에 구독 가능)
-- `localhost` 로 안 붙으면 `127.0.0.1` 로 바꿔서 다시 빌드 (IPv6 파싱 이슈)
-- 호스트 Node-RED 의 1883 은 MQTT 기본 포트와 같은 숫자이지만 여기서는 admin UI 용일 뿐 충돌 아님
+- **도커 쪽 flow 가 먼저 Deploy 되어 있어야 함** (addVariable 명령이 돌아 변수들이 등록된 이후에 구독 가능)
+- `localhost` 로 안 붙으면 `127.0.0.1` 로 재빌드 (IPv6 이슈)
+- 호스트 Node-RED 의 1883 은 MQTT 기본 포트와 같은 숫자이지만 여기서는 admin UI 용 — 충돌 아님
+
+---
 
 ## flow 검증 / 단위 테스트
 
 빌드 직후 자동 회귀 테스트:
 
 ```bash
-cd equip-sim
 LINE_ID=LINE-01 python nodered/build_flow_das.py --host-mode docker
 python nodered/_verify_flow_das.py        # wires/ref/JS syntax 정적 검증
 node nodered/_test_emit_payload.js        # status / quality / cycle_time 판정
-node nodered/_test_publish.js             # NodeId 매핑 / dtype 자동 판정
+node nodered/_test_publish.js             # NodeId / dtype / addVariable 2단계
 ```
 
-기대 결과: `ALL OK` / `ALL ASSERTIONS PASSED`.
+기대 결과: 모두 `OK` / `ALL ASSERTIONS PASSED`.
+
+---
+
+## Node-RED 이미지 (Dockerfile.nodered)
+
+`nodered/node-red:4.1.10-22` 베이스 + contrib:
+- `node-red-contrib-modbus` (WASH-TCP, CNC-RTU)
+- `node-red-contrib-opcua` (ASSY/TEST + DAS Server)
+- `node-red-contrib-mcprotocol` (CAST-01)
+
+> ⚠️ Node 24+ 에서 `mcprotocol` 의 `util.log()` 호출이 깨집니다.
+> 빌드 시 `sed` 로 `console.log(` 으로 치환 (`Dockerfile.nodered` 참고).
+
+---
+
+## 시뮬레이터 컨테이너
+
+- 1 컨테이너 = 1 설비 = `SIM_CONFIG=/app/configs/<line_dir>/<EQ>.json`
+- config 안의 `equipment_name` 은 `"${LINE_ID:-LINE-00}_<EQ>"` 토큰 보관 → 기동 시 치환
+- 동작:
+  - **MC Protocol** (CAST-01) → 3E Binary, M=bit, D=int/float (LSB-first 2-word)
+  - **Modbus TCP** (WASH-01) → Coil + HR (big-endian 2-word float)
+  - **Modbus RTU** (CNC) → socat 가상 시리얼 슬레이브, slave id 1, 9600/N/1
+  - **OPC UA** (ASSY/TEST) → `ns=2;s=<EquipmentName>.<tag>` 평면 구조
+
+CNC 시뮬레이터는 시리얼 디바이스 `/dev/vserial/cnc0X.slave` 가 마운트되어 있어야 기동되므로, 항상 `serial-bridge` 컨테이너에 `depends_on` 으로 묶여 있습니다.
 
 ---
 
 ## 트러블슈팅
 
-- **mcprotocol 노드가 빨강** — Node-RED 컨테이너를 다시 빌드하세요.
-  (`Dockerfile.nodered` 의 `util.log` 패치가 적용되지 않은 베이스로 띄운 경우)
-- **OPC UA Server 가 4870 으로 안 열림** — Node-RED 컨테이너가 4870/4970/5070 중
-  맞는 포트를 publish 했는지, flow 안의 `OpcUa-Server` 노드가 deploy 되었는지 확인.
-- **`equipment_name` 이 `${LINE_ID:-...}` 그대로 노출** — `sim/config.py` 가
-  치환 안 한 상태. `python -c "from sim.config import load_config; print(load_config('configs/line1/CAST-01.json').equipment_name)"` 로 확인.
-- **포트 충돌** — 같은 라인을 두 번 띄웠을 수 있습니다.
-  `docker compose --env-file .env.line01 ps` 로 점검 후 down.
-- **flow 가 옛날 포트로 접속 시도** — 라인을 바꿨을 때 flow 를 다시 빌드 안 함.
-  `LINE_ID=LINE-0X python nodered/build_flow_das.py --host-mode docker` 재실행 후
-  Node-RED 에서 다시 import.
+- **mcprotocol 노드가 빨강** — Node-RED 컨테이너를 다시 빌드 (`Dockerfile.nodered` 의 `util.log` 패치 미적용 베이스에서 띄운 경우)
+- **OPC UA Server 가 4860 으로 안 열림** — Node-RED 컨테이너가 해당 라인 DAS 포트를 publish 했는지, flow 의 `OpcUa-Server` 노드가 deploy 되었는지 확인
+- **`Server end point are not known yet`** — 컨테이너 hostname 이 외부에서 안 풀려서. docker-compose 의 nodered 서비스에 `hostname: localhost` 또는 호스트 IP advertise 설정 필요
+- **`equipment_name` 이 `${LINE_ID:-...}` 그대로 노출** — `sim/config.py` 가 치환 안 된 상태. `python -c "from sim.config import load_config; print(load_config('configs/line1/CAST-01.json').equipment_name)"` 로 확인
+- **포트 충돌** — 같은 라인을 두 번 띄웠거나, 다른 프로그램이 점유.
+  ```powershell
+  Get-NetTCPConnection -LocalPort 2880,3880,4880,4860,4960,5060 -ErrorAction SilentlyContinue
+  ```
+- **flow 가 옛날 포트로 접속 시도** — 라인을 바꾸고 flow 를 재빌드 안 함. `LINE_ID=LINE-0X python nodered/build_flow_das.py --host-mode docker` 후 import 다시
+- **CNC RTU 가 응답 없음** — `serial-bridge` 컨테이너가 떠 있는지 확인. 컨테이너 안에서 `ls /dev/vserial/cnc01.*` 가 보여야 정상. 도커 볼륨 권한이 막혔으면 `serial-bridge` 의 init 로그 확인
+- **OpcUa-Server 경고 "messageType / namespace / variableName / variableValue missing"** — PUBLISH function 이 옛 메시지 포맷. 새 빌더는 addVariable + Variable 2단계로 발행 (위 NodeId 규약 박스 참조). flow 재빌드 + 재 deploy

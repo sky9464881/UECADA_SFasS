@@ -16,33 +16,41 @@ public final class XDasOpcUaNodeMappings {
             new EquipmentMapping("CNC01", List.of(
                     new MetricMapping("SpindleLoad", "spindle_load"),
                     new MetricMapping("SpindleRPM", "spindle_rpm"),
-                    new MetricMapping("FeedRate", "feed_rate")
+                    new MetricMapping("FeedRate", "feed_rate"),
+                    new MetricMapping("CycleTime", "cycle_time")
             )),
             new EquipmentMapping("CNC02", List.of(
                     new MetricMapping("SpindleLoad", "spindle_load"),
                     new MetricMapping("SpindleRPM", "spindle_rpm"),
-                    new MetricMapping("FeedRate", "feed_rate")
+                    new MetricMapping("FeedRate", "feed_rate"),
+                    new MetricMapping("CycleTime", "cycle_time")
             )),
             new EquipmentMapping("CNC03", List.of(
                     new MetricMapping("SpindleLoad", "spindle_load"),
                     new MetricMapping("SpindleRPM", "spindle_rpm"),
-                    new MetricMapping("FeedRate", "feed_rate")
+                    new MetricMapping("FeedRate", "feed_rate"),
+                    new MetricMapping("CycleTime", "cycle_time")
             )),
             new EquipmentMapping("WASH01", List.of(
                     new MetricMapping("WaterTemp", "water_temp"),
-                    new MetricMapping("FlowRate", "flow_rate")
+                    new MetricMapping("FlowRate", "flow_rate"),
+                    new MetricMapping("CycleTime", "cycle_time")
             )),
             new EquipmentMapping("ASSY01", List.of(
-                    new MetricMapping("TorqueValue", "torque")
+                    new MetricMapping("TorqueValue", "torque"),
+                    new MetricMapping("CycleTime", "cycle_time")
             )),
             new EquipmentMapping("ASSY02", List.of(
-                    new MetricMapping("TorqueValue", "torque")
+                    new MetricMapping("TorqueValue", "torque"),
+                    new MetricMapping("CycleTime", "cycle_time")
             )),
             new EquipmentMapping("TEST01", List.of(
-                    new MetricMapping("LeakPressure", "leak_pressure")
+                    new MetricMapping("LeakPressure", "leak_pressure"),
+                    new MetricMapping("CycleTime", "cycle_time")
             )),
             new EquipmentMapping("TEST02", List.of(
-                    new MetricMapping("LeakPressure", "leak_pressure")
+                    new MetricMapping("LeakPressure", "leak_pressure"),
+                    new MetricMapping("CycleTime", "cycle_time")
             ))
     );
 

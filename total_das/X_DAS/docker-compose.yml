@@ -23,8 +23,12 @@ services:
       total-das-net:
         aliases:
           - x-das-node-red
+      factory-net:
 
 networks:
   total-das-net:
     external: true
     name: total-das-net
+  factory-net:
+    external: true
+    name: factory-net

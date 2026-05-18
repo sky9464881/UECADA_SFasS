@@ -24,7 +24,7 @@
             }
         },
         "debug": {
-            "filter": "filterSelected",
+            "filter": "filterAll",
             "filteredNodes": [
                 "debug_backend_write",
                 "debug_flow_errors",

@@ -1,0 +1,519 @@
+[
+  {
+    "id": "3a6e08452ba04fae",
+    "type": "tab",
+    "label": "통합 DAS — 3개 라인 머지",
+    "disabled": false,
+    "info": ""
+  },
+  {
+    "id": "014b75c6a76848c8",
+    "type": "comment",
+    "z": "3a6e08452ba04fae",
+    "name": "INTEGRATION DAS",
+    "info": "factory-net 안에서 3개 라인 DAS 의 payload 를 폴링 → 디버그 노드 로 stdout 출력 + OPC UA Server 로 평면 태그 재노출.\n  - OPC UA Server: opc.tcp://nodered-das:5860/integration-das\n  - 변수: ns=2;s=<LINE_ID>.payload (원본 JSON), ns=2;s=<LINE_ID>.<EQ>.<tag> (평면 태그)",
+    "x": 150,
+    "y": 40,
+    "wires": []
+  },
+  {
+    "id": "8952c99d88cd4b58",
+    "type": "OpcUa-Server",
+    "z": "3a6e08452ba04fae",
+    "port": 5860,
+    "endpoint": "integration-das",
+    "acceptExternalCommands": true,
+    "maxNodesPerBrowse": 0,
+    "maxNodesPerHistoryReadData": 0,
+    "maxNodesPerHistoryReadEvents": 0,
+    "maxNodesPerWrite": 0,
+    "maxNodesPerMethodCall": 0,
+    "maxNodesPerRegisterNodes": 0,
+    "maxNodesPerNodeManagement": 0,
+    "maxMonitoredItemsPerCall": 0,
+    "maxNodesPerHistoryUpdateData": 0,
+    "maxNodesPerHistoryUpdateEvents": 0,
+    "maxNodesPerRead": 0,
+    "maxNodesPerTranslateBrowsePathsToNodeIds": 0,
+    "name": "INTEGRATION DAS Server :5860",
+    "usersFile": "",
+    "nodesetDir": "",
+    "autoAcceptUnknownCertificate": true,
+    "registerToDiscovery": false,
+    "constructDefaultAddressSpace": true,
+    "allowAnonymous": true,
+    "endpointNone": true,
+    "endpointSign": false,
+    "endpointSignEncrypt": false,
+    "endpointBasic128Rsa15": false,
+    "endpointBasic256": false,
+    "endpointBasic256Sha256": false,
+    "isAuditing": false,
+    "serverDiscovery": true,
+    "maxConnectionsPerEndpoint": 20,
+    "maxMessageSize": "10485760",
+    "maxBufferSize": "10485760",
+    "maxSessions": 20,
+    "users": [],
+    "xmlsetname": "",
+    "xmlsetname2": "",
+    "x": 1280,
+    "y": 200,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "c83396a057de40a0",
+    "type": "OpcUa-Endpoint",
+    "endpoint": "opc.tcp://nodered-line01:4860/line-das/LINE-01",
+    "secpol": "None",
+    "secmode": "None",
+    "none": true,
+    "login": false,
+    "usercert": false,
+    "usercertificate": "",
+    "userprivatekey": ""
+  },
+  {
+    "id": "023ee7549b0c44c1",
+    "type": "comment",
+    "z": "3a6e08452ba04fae",
+    "name": "--- LINE-01 ---",
+    "info": "opc.tcp://nodered-line01:4860/line-das/LINE-01",
+    "x": 150,
+    "y": 90,
+    "wires": []
+  },
+  {
+    "id": "d8ed8348ebc148f6",
+    "type": "inject",
+    "z": "3a6e08452ba04fae",
+    "name": "1s tick LINE-01",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "1",
+    "crontab": "",
+    "once": true,
+    "onceDelay": 0.5,
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 160,
+    "y": 120,
+    "wires": [
+      [
+        "de59cf0a4cec433b"
+      ]
+    ]
+  },
+  {
+    "id": "de59cf0a4cec433b",
+    "type": "OpcUa-Item",
+    "z": "3a6e08452ba04fae",
+    "item": "ns=2;s=LINE-01.payload",
+    "datatype": "String",
+    "value": "",
+    "name": "LINE-01.payload",
+    "x": 380,
+    "y": 120,
+    "wires": [
+      [
+        "414902e6c61e46ce"
+      ]
+    ]
+  },
+  {
+    "id": "414902e6c61e46ce",
+    "type": "OpcUa-Client",
+    "z": "3a6e08452ba04fae",
+    "endpoint": "c83396a057de40a0",
+    "action": "read",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "READ LINE-01",
+    "x": 600,
+    "y": 120,
+    "wires": [
+      [
+        "b27595c049094ef8"
+      ]
+    ]
+  },
+  {
+    "id": "b27595c049094ef8",
+    "type": "function",
+    "z": "3a6e08452ba04fae",
+    "name": "PARSE LINE-01",
+    "func": "// LINE-01 OPC UA Client READ 결과 → JSON 파싱\n// msg.payload 는 OpcUa-Item 의 String 값 (line-DAS 의 EMIT 결과)\nconst raw = msg.payload;\nif (raw === null || raw === undefined || raw === \"\") return null;\nlet obj;\ntry {\n    obj = (typeof raw === 'string') ? JSON.parse(raw) : raw;\n} catch (e) {\n    node.warn(`LINE-01 parse error: ${e.message}`);\n    return null;\n}\nif (!obj || !obj.line_id) {\n    obj = obj || {};\n    obj.line_id = \"LINE-01\";\n}\nmsg.payload = obj;\nmsg.topic = obj.line_id;\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 820,
+    "y": 120,
+    "wires": [
+      [
+        "68e65c810da8413f",
+        "a335948b4c3b4cf5"
+      ]
+    ]
+  },
+  {
+    "id": "68e65c810da8413f",
+    "type": "debug",
+    "z": "3a6e08452ba04fae",
+    "name": "DEBUG LINE-01",
+    "active": true,
+    "tosidebar": true,
+    "console": true,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 1060,
+    "y": 80,
+    "wires": []
+  },
+  {
+    "id": "a335948b4c3b4cf5",
+    "type": "function",
+    "z": "3a6e08452ba04fae",
+    "name": "PUBLISH LINE-01",
+    "func": "// payload 를 OPC UA Server 변수로 발행\n//\n// node-red-contrib-opcua 의 OpcUa-Server 는 2단계 프로토콜:\n//   1) addVariable 명령으로 주소공간에 노드 등록\n//      msg.topic   = 'ns=2;s=<name>;datatype=<DT>'\n//      msg.payload = { opcuaCommand: 'addVariable' }\n//   2) 이후 Variable 명령으로 값 갱신\n//      msg.payload = { messageType:'Variable', namespace:2,\n//                      variableName:<name>, variableValue:<val>, datatype:<DT> }\n//\n// addVariable 과 Variable 을 같은 tick 의 연속된 msg 로 보내면\n// OpcUa-Server 가 주소공간 등록을 끝내기 전에 Variable 갱신이 들어와서\n// \"Variable not found\" 에러가 다수 발생한다.\n//\n// 근본 해결책 (race 완전 제거):\n//   1) 변수별 상태를 3단계로 관리: 'new' -> 'pending' -> 'ready'\n//      - 처음 만난 변수는 addVariable 만 보내고 'pending' 으로 표시\n//      - 다음 tick 부터 'pending' 인 변수는 Variable update SKIP 하고 'ready' 로 승격\n//      - 'ready' 부터 실제 Variable update 전송\n//   2) 즉 addVariable 보낸 tick (1초 간격) + 2 tick 뒤부터 update 시작\n//      → OpcUa-Server 가 등록을 끝낼 약 1초 이상 확보\n//   3) Variable update 는 contrib-opcua array payload 형식으로 한번에 묶어 전송\nconst EXPECTED_TYPES = {\"CAST-01\": {\"power\": \"bool\", \"injection_pressure_sp\": \"float\", \"mold_temperature_sp\": \"float\", \"cooling_flow_sp\": \"float\", \"injection_pressure\": \"float\", \"mold_temperature\": \"float\", \"cooling_flow\": \"float\", \"progress\": \"float\"}, \"CNC-01\": {\"power\": \"bool\", \"spindle_speed_sp\": \"int\", \"tool_usage_sp\": \"float\", \"coolant_flow_sp\": \"float\", \"spindle_speed\": \"int\", \"tool_usage\": \"float\", \"coolant_flow\": \"float\", \"progress\": \"float\"}, \"CNC-02\": {\"power\": \"bool\", \"spindle_speed_sp\": \"int\", \"tool_usage_sp\": \"float\", \"coolant_flow_sp\": \"float\", \"spindle_speed\": \"int\", \"tool_usage\": \"float\", \"coolant_flow\": \"float\", \"progress\": \"float\"}, \"CNC-03\": {\"power\": \"bool\", \"spindle_speed_sp\": \"int\", \"tool_usage_sp\": \"float\", \"coolant_flow_sp\": \"float\", \"spindle_speed\": \"int\", \"tool_usage\": \"float\", \"coolant_flow\": \"float\", \"progress\": \"float\"}, \"WASH-01\": {\"power\": \"bool\", \"cleaning_concentration_sp\": \"float\", \"cleaning_temperature_sp\": \"float\", \"cleaning_pressure_sp\": \"float\", \"cleaning_concentration\": \"float\", \"cleaning_temperature\": \"float\", \"cleaning_pressure\": \"float\", \"progress\": \"float\"}, \"ASSY-01\": {\"power\": \"bool\", \"tightening_torque_sp\": \"float\", \"tightening_angle_sp\": \"float\", \"press_force_sp\": \"float\", \"tightening_torque\": \"float\", \"tightening_angle\": \"float\", \"press_force\": \"float\", \"progress\": \"float\"}, \"ASSY-02\": {\"power\": \"bool\", \"tightening_torque_sp\": \"float\", \"tightening_angle_sp\": \"float\", \"press_force_sp\": \"float\", \"tightening_torque\": \"float\", \"tightening_angle\": \"float\", \"press_force\": \"float\", \"progress\": \"float\"}, \"TEST-01\": {\"power\": \"bool\", \"bore_dimension_sp\": \"float\", \"hole_dimension_sp\": \"float\", \"bore_dimension\": \"float\", \"hole_dimension\": \"float\", \"result_ok\": \"bool\", \"progress\": \"float\"}, \"TEST-02\": {\"power\": \"bool\", \"bore_dimension_sp\": \"float\", \"hole_dimension_sp\": \"float\", \"bore_dimension\": \"float\", \"hole_dimension\": \"float\", \"result_ok\": \"bool\", \"progress\": \"float\"}};\nconst p = msg.payload;\nif (!p) return null;\nconst lineId = p.line_id;\n// state['name'] = 'pending' | 'ready'\nconst state = flow.get('opcua_state') || {};\nconst addMsgs = [];\nconst varList = [];\n\nfunction coerce(value, dtype) {\n  if (value === null || value === undefined) {\n    if (dtype === 'Boolean') return false;\n    if (dtype === 'Int32') return 0;\n    if (dtype === 'Double' || dtype === 'Float') return 0.0;\n    return '';\n  }\n  return value;\n}\n\nfunction publish(name, value, dtype) {\n  const v = coerce(value, dtype);\n  const s = state[name];\n  if (!s) {\n    // 첫 발견: addVariable 만 보냄\n    addMsgs.push({\n      topic: `ns=2;s=${name};datatype=${dtype}`,\n      payload: { opcuaCommand: 'addVariable' },\n    });\n    state[name] = 'pending';\n    return;\n  }\n  if (s === 'pending') {\n    // 한 tick 더 기다림 -> ready 로 승격, 이번 tick 도 update skip\n    state[name] = 'ready';\n    return;\n  }\n  // ready: 실제 update\n  varList.push({\n    messageType: 'Variable',\n    namespace: 2,\n    variableName: name,\n    variableValue: v,\n    datatype: dtype,\n  });\n}\n\npublish(`${lineId}.payload`,         JSON.stringify(p),     'String');\npublish(`${lineId}.line_ts`,         p.ts,                   'String');\npublish(`${lineId}.schema_version`,  p.schema_version,       'String');\nfor (const [eq, slot] of Object.entries(p.equipments || {})) {\n  publish(`${lineId}.${eq}.status`,  slot.status,            'String');\n  publish(`${lineId}.${eq}.ts`,      slot.ts,                'String');\n  publish(`${lineId}.${eq}.quality`, slot.quality,           'String');\n  const typeMap = (EXPECTED_TYPES[eq] || {});\n  for (const [tag, val] of Object.entries(slot.data || {})) {\n    let dtype;\n    const declared = typeMap[tag];\n    if (declared === 'bool') dtype = 'Boolean';\n    else if (declared === 'int') dtype = 'Int32';\n    else if (declared === 'float') dtype = 'Double';\n    else {\n      // 알려지지 않은 동적 tag (cycle_time, progress 등) — 무조건 Double 로 등록.\n      if (typeof val === 'boolean') dtype = 'Boolean';\n      else if (typeof val === 'number') dtype = 'Double';\n      else dtype = 'String';\n    }\n    publish(`${lineId}.${eq}.data.${tag}`, val, dtype);\n  }\n}\nflow.set('opcua_state', state);\n\n// 단계 1: addVariable msg 들 즉시 전송 (array-of-messages 출력 형식)\nif (addMsgs.length > 0) {\n  node.send([addMsgs]);\n}\n\n// 단계 2: Variable update 는 array payload 로 한번에 전송 (state='ready' 인 것만)\n//   addMsgs 가 있는 tick (새 변수 발견된 tick) 은 800ms 지연으로 안전 마진,\n//   안정 상태에선 50ms 정도 지연으로 send 순서만 보장.\nif (varList.length > 0) {\n  const delay = (addMsgs.length > 0) ? 800 : 50;\n  setTimeout(() => {\n    node.send({ payload: varList });\n  }, delay);\n}\n\nreturn null;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 1060,
+    "y": 160,
+    "wires": [
+      [
+        "8952c99d88cd4b58"
+      ]
+    ]
+  },
+  {
+    "id": "f55aeef9b1d8417b",
+    "type": "OpcUa-Endpoint",
+    "endpoint": "opc.tcp://nodered-line02:4960/line-das/LINE-02",
+    "secpol": "None",
+    "secmode": "None",
+    "none": true,
+    "login": false,
+    "usercert": false,
+    "usercertificate": "",
+    "userprivatekey": ""
+  },
+  {
+    "id": "c8547c605dfa4779",
+    "type": "comment",
+    "z": "3a6e08452ba04fae",
+    "name": "--- LINE-02 ---",
+    "info": "opc.tcp://nodered-line02:4960/line-das/LINE-02",
+    "x": 150,
+    "y": 230,
+    "wires": []
+  },
+  {
+    "id": "5dd53114f795483a",
+    "type": "inject",
+    "z": "3a6e08452ba04fae",
+    "name": "1s tick LINE-02",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "1",
+    "crontab": "",
+    "once": true,
+    "onceDelay": 0.5,
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 160,
+    "y": 260,
+    "wires": [
+      [
+        "d662d2407bf74a5b"
+      ]
+    ]
+  },
+  {
+    "id": "d662d2407bf74a5b",
+    "type": "OpcUa-Item",
+    "z": "3a6e08452ba04fae",
+    "item": "ns=2;s=LINE-02.payload",
+    "datatype": "String",
+    "value": "",
+    "name": "LINE-02.payload",
+    "x": 380,
+    "y": 260,
+    "wires": [
+      [
+        "3bc71fa4de004ef3"
+      ]
+    ]
+  },
+  {
+    "id": "3bc71fa4de004ef3",
+    "type": "OpcUa-Client",
+    "z": "3a6e08452ba04fae",
+    "endpoint": "f55aeef9b1d8417b",
+    "action": "read",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "READ LINE-02",
+    "x": 600,
+    "y": 260,
+    "wires": [
+      [
+        "e6b7b53754784a75"
+      ]
+    ]
+  },
+  {
+    "id": "e6b7b53754784a75",
+    "type": "function",
+    "z": "3a6e08452ba04fae",
+    "name": "PARSE LINE-02",
+    "func": "// LINE-02 OPC UA Client READ 결과 → JSON 파싱\n// msg.payload 는 OpcUa-Item 의 String 값 (line-DAS 의 EMIT 결과)\nconst raw = msg.payload;\nif (raw === null || raw === undefined || raw === \"\") return null;\nlet obj;\ntry {\n    obj = (typeof raw === 'string') ? JSON.parse(raw) : raw;\n} catch (e) {\n    node.warn(`LINE-02 parse error: ${e.message}`);\n    return null;\n}\nif (!obj || !obj.line_id) {\n    obj = obj || {};\n    obj.line_id = \"LINE-02\";\n}\nmsg.payload = obj;\nmsg.topic = obj.line_id;\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 820,
+    "y": 260,
+    "wires": [
+      [
+        "abbba9d56b7f413a",
+        "556c4aa9d8974e5a"
+      ]
+    ]
+  },
+  {
+    "id": "abbba9d56b7f413a",
+    "type": "debug",
+    "z": "3a6e08452ba04fae",
+    "name": "DEBUG LINE-02",
+    "active": true,
+    "tosidebar": true,
+    "console": true,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 1060,
+    "y": 220,
+    "wires": []
+  },
+  {
+    "id": "556c4aa9d8974e5a",
+    "type": "function",
+    "z": "3a6e08452ba04fae",
+    "name": "PUBLISH LINE-02",
+    "func": "// payload 를 OPC UA Server 변수로 발행\n//\n// node-red-contrib-opcua 의 OpcUa-Server 는 2단계 프로토콜:\n//   1) addVariable 명령으로 주소공간에 노드 등록\n//      msg.topic   = 'ns=2;s=<name>;datatype=<DT>'\n//      msg.payload = { opcuaCommand: 'addVariable' }\n//   2) 이후 Variable 명령으로 값 갱신\n//      msg.payload = { messageType:'Variable', namespace:2,\n//                      variableName:<name>, variableValue:<val>, datatype:<DT> }\n//\n// addVariable 과 Variable 을 같은 tick 의 연속된 msg 로 보내면\n// OpcUa-Server 가 주소공간 등록을 끝내기 전에 Variable 갱신이 들어와서\n// \"Variable not found\" 에러가 다수 발생한다.\n//\n// 근본 해결책 (race 완전 제거):\n//   1) 변수별 상태를 3단계로 관리: 'new' -> 'pending' -> 'ready'\n//      - 처음 만난 변수는 addVariable 만 보내고 'pending' 으로 표시\n//      - 다음 tick 부터 'pending' 인 변수는 Variable update SKIP 하고 'ready' 로 승격\n//      - 'ready' 부터 실제 Variable update 전송\n//   2) 즉 addVariable 보낸 tick (1초 간격) + 2 tick 뒤부터 update 시작\n//      → OpcUa-Server 가 등록을 끝낼 약 1초 이상 확보\n//   3) Variable update 는 contrib-opcua array payload 형식으로 한번에 묶어 전송\nconst EXPECTED_TYPES = {\"CAST-01\": {\"power\": \"bool\", \"injection_pressure_sp\": \"float\", \"mold_temperature_sp\": \"float\", \"cooling_flow_sp\": \"float\", \"injection_pressure\": \"float\", \"mold_temperature\": \"float\", \"cooling_flow\": \"float\", \"progress\": \"float\"}, \"CNC-01\": {\"power\": \"bool\", \"spindle_speed_sp\": \"int\", \"tool_usage_sp\": \"float\", \"coolant_flow_sp\": \"float\", \"spindle_speed\": \"int\", \"tool_usage\": \"float\", \"coolant_flow\": \"float\", \"progress\": \"float\"}, \"CNC-02\": {\"power\": \"bool\", \"spindle_speed_sp\": \"int\", \"tool_usage_sp\": \"float\", \"coolant_flow_sp\": \"float\", \"spindle_speed\": \"int\", \"tool_usage\": \"float\", \"coolant_flow\": \"float\", \"progress\": \"float\"}, \"CNC-03\": {\"power\": \"bool\", \"spindle_speed_sp\": \"int\", \"tool_usage_sp\": \"float\", \"coolant_flow_sp\": \"float\", \"spindle_speed\": \"int\", \"tool_usage\": \"float\", \"coolant_flow\": \"float\", \"progress\": \"float\"}, \"WASH-01\": {\"power\": \"bool\", \"cleaning_concentration_sp\": \"float\", \"cleaning_temperature_sp\": \"float\", \"cleaning_pressure_sp\": \"float\", \"cleaning_concentration\": \"float\", \"cleaning_temperature\": \"float\", \"cleaning_pressure\": \"float\", \"progress\": \"float\"}, \"ASSY-01\": {\"power\": \"bool\", \"tightening_torque_sp\": \"float\", \"tightening_angle_sp\": \"float\", \"press_force_sp\": \"float\", \"tightening_torque\": \"float\", \"tightening_angle\": \"float\", \"press_force\": \"float\", \"progress\": \"float\"}, \"ASSY-02\": {\"power\": \"bool\", \"tightening_torque_sp\": \"float\", \"tightening_angle_sp\": \"float\", \"press_force_sp\": \"float\", \"tightening_torque\": \"float\", \"tightening_angle\": \"float\", \"press_force\": \"float\", \"progress\": \"float\"}, \"TEST-01\": {\"power\": \"bool\", \"bore_dimension_sp\": \"float\", \"hole_dimension_sp\": \"float\", \"bore_dimension\": \"float\", \"hole_dimension\": \"float\", \"result_ok\": \"bool\", \"progress\": \"float\"}, \"TEST-02\": {\"power\": \"bool\", \"bore_dimension_sp\": \"float\", \"hole_dimension_sp\": \"float\", \"bore_dimension\": \"float\", \"hole_dimension\": \"float\", \"result_ok\": \"bool\", \"progress\": \"float\"}};\nconst p = msg.payload;\nif (!p) return null;\nconst lineId = p.line_id;\n// state['name'] = 'pending' | 'ready'\nconst state = flow.get('opcua_state') || {};\nconst addMsgs = [];\nconst varList = [];\n\nfunction coerce(value, dtype) {\n  if (value === null || value === undefined) {\n    if (dtype === 'Boolean') return false;\n    if (dtype === 'Int32') return 0;\n    if (dtype === 'Double' || dtype === 'Float') return 0.0;\n    return '';\n  }\n  return value;\n}\n\nfunction publish(name, value, dtype) {\n  const v = coerce(value, dtype);\n  const s = state[name];\n  if (!s) {\n    // 첫 발견: addVariable 만 보냄\n    addMsgs.push({\n      topic: `ns=2;s=${name};datatype=${dtype}`,\n      payload: { opcuaCommand: 'addVariable' },\n    });\n    state[name] = 'pending';\n    return;\n  }\n  if (s === 'pending') {\n    // 한 tick 더 기다림 -> ready 로 승격, 이번 tick 도 update skip\n    state[name] = 'ready';\n    return;\n  }\n  // ready: 실제 update\n  varList.push({\n    messageType: 'Variable',\n    namespace: 2,\n    variableName: name,\n    variableValue: v,\n    datatype: dtype,\n  });\n}\n\npublish(`${lineId}.payload`,         JSON.stringify(p),     'String');\npublish(`${lineId}.line_ts`,         p.ts,                   'String');\npublish(`${lineId}.schema_version`,  p.schema_version,       'String');\nfor (const [eq, slot] of Object.entries(p.equipments || {})) {\n  publish(`${lineId}.${eq}.status`,  slot.status,            'String');\n  publish(`${lineId}.${eq}.ts`,      slot.ts,                'String');\n  publish(`${lineId}.${eq}.quality`, slot.quality,           'String');\n  const typeMap = (EXPECTED_TYPES[eq] || {});\n  for (const [tag, val] of Object.entries(slot.data || {})) {\n    let dtype;\n    const declared = typeMap[tag];\n    if (declared === 'bool') dtype = 'Boolean';\n    else if (declared === 'int') dtype = 'Int32';\n    else if (declared === 'float') dtype = 'Double';\n    else {\n      // 알려지지 않은 동적 tag (cycle_time, progress 등) — 무조건 Double 로 등록.\n      if (typeof val === 'boolean') dtype = 'Boolean';\n      else if (typeof val === 'number') dtype = 'Double';\n      else dtype = 'String';\n    }\n    publish(`${lineId}.${eq}.data.${tag}`, val, dtype);\n  }\n}\nflow.set('opcua_state', state);\n\n// 단계 1: addVariable msg 들 즉시 전송 (array-of-messages 출력 형식)\nif (addMsgs.length > 0) {\n  node.send([addMsgs]);\n}\n\n// 단계 2: Variable update 는 array payload 로 한번에 전송 (state='ready' 인 것만)\n//   addMsgs 가 있는 tick (새 변수 발견된 tick) 은 800ms 지연으로 안전 마진,\n//   안정 상태에선 50ms 정도 지연으로 send 순서만 보장.\nif (varList.length > 0) {\n  const delay = (addMsgs.length > 0) ? 800 : 50;\n  setTimeout(() => {\n    node.send({ payload: varList });\n  }, delay);\n}\n\nreturn null;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 1060,
+    "y": 300,
+    "wires": [
+      [
+        "8952c99d88cd4b58"
+      ]
+    ]
+  },
+  {
+    "id": "67281dd94d5e4767",
+    "type": "OpcUa-Endpoint",
+    "endpoint": "opc.tcp://nodered-line03:5060/line-das/LINE-03",
+    "secpol": "None",
+    "secmode": "None",
+    "none": true,
+    "login": false,
+    "usercert": false,
+    "usercertificate": "",
+    "userprivatekey": ""
+  },
+  {
+    "id": "75d1dbf8e42346c2",
+    "type": "comment",
+    "z": "3a6e08452ba04fae",
+    "name": "--- LINE-03 ---",
+    "info": "opc.tcp://nodered-line03:5060/line-das/LINE-03",
+    "x": 150,
+    "y": 370,
+    "wires": []
+  },
+  {
+    "id": "59c1acbf2ccc46a0",
+    "type": "inject",
+    "z": "3a6e08452ba04fae",
+    "name": "1s tick LINE-03",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "1",
+    "crontab": "",
+    "once": true,
+    "onceDelay": 0.5,
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 160,
+    "y": 400,
+    "wires": [
+      [
+        "638fe330fff5451a"
+      ]
+    ]
+  },
+  {
+    "id": "638fe330fff5451a",
+    "type": "OpcUa-Item",
+    "z": "3a6e08452ba04fae",
+    "item": "ns=2;s=LINE-03.payload",
+    "datatype": "String",
+    "value": "",
+    "name": "LINE-03.payload",
+    "x": 380,
+    "y": 400,
+    "wires": [
+      [
+        "b61f07a20e474e23"
+      ]
+    ]
+  },
+  {
+    "id": "b61f07a20e474e23",
+    "type": "OpcUa-Client",
+    "z": "3a6e08452ba04fae",
+    "endpoint": "67281dd94d5e4767",
+    "action": "read",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 10,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "useTransport": false,
+    "maxChunkCount": "1",
+    "maxMessageSize": "8192",
+    "maxBufferSize": "8192",
+    "receiveBufferSize": "8192",
+    "sendBufferSize": "8192",
+    "setstatusandtime": false,
+    "keepsessionalive": false,
+    "name": "READ LINE-03",
+    "x": 600,
+    "y": 400,
+    "wires": [
+      [
+        "2d088f19b8144b69"
+      ]
+    ]
+  },
+  {
+    "id": "2d088f19b8144b69",
+    "type": "function",
+    "z": "3a6e08452ba04fae",
+    "name": "PARSE LINE-03",
+    "func": "// LINE-03 OPC UA Client READ 결과 → JSON 파싱\n// msg.payload 는 OpcUa-Item 의 String 값 (line-DAS 의 EMIT 결과)\nconst raw = msg.payload;\nif (raw === null || raw === undefined || raw === \"\") return null;\nlet obj;\ntry {\n    obj = (typeof raw === 'string') ? JSON.parse(raw) : raw;\n} catch (e) {\n    node.warn(`LINE-03 parse error: ${e.message}`);\n    return null;\n}\nif (!obj || !obj.line_id) {\n    obj = obj || {};\n    obj.line_id = \"LINE-03\";\n}\nmsg.payload = obj;\nmsg.topic = obj.line_id;\nreturn msg;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 820,
+    "y": 400,
+    "wires": [
+      [
+        "8437b881f81f4783",
+        "7679e46f5e2e4c1b"
+      ]
+    ]
+  },
+  {
+    "id": "8437b881f81f4783",
+    "type": "debug",
+    "z": "3a6e08452ba04fae",
+    "name": "DEBUG LINE-03",
+    "active": true,
+    "tosidebar": true,
+    "console": true,
+    "tostatus": false,
+    "complete": "payload",
+    "targetType": "msg",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 1060,
+    "y": 360,
+    "wires": []
+  },
+  {
+    "id": "7679e46f5e2e4c1b",
+    "type": "function",
+    "z": "3a6e08452ba04fae",
+    "name": "PUBLISH LINE-03",
+    "func": "// payload 를 OPC UA Server 변수로 발행\n//\n// node-red-contrib-opcua 의 OpcUa-Server 는 2단계 프로토콜:\n//   1) addVariable 명령으로 주소공간에 노드 등록\n//      msg.topic   = 'ns=2;s=<name>;datatype=<DT>'\n//      msg.payload = { opcuaCommand: 'addVariable' }\n//   2) 이후 Variable 명령으로 값 갱신\n//      msg.payload = { messageType:'Variable', namespace:2,\n//                      variableName:<name>, variableValue:<val>, datatype:<DT> }\n//\n// addVariable 과 Variable 을 같은 tick 의 연속된 msg 로 보내면\n// OpcUa-Server 가 주소공간 등록을 끝내기 전에 Variable 갱신이 들어와서\n// \"Variable not found\" 에러가 다수 발생한다.\n//\n// 근본 해결책 (race 완전 제거):\n//   1) 변수별 상태를 3단계로 관리: 'new' -> 'pending' -> 'ready'\n//      - 처음 만난 변수는 addVariable 만 보내고 'pending' 으로 표시\n//      - 다음 tick 부터 'pending' 인 변수는 Variable update SKIP 하고 'ready' 로 승격\n//      - 'ready' 부터 실제 Variable update 전송\n//   2) 즉 addVariable 보낸 tick (1초 간격) + 2 tick 뒤부터 update 시작\n//      → OpcUa-Server 가 등록을 끝낼 약 1초 이상 확보\n//   3) Variable update 는 contrib-opcua array payload 형식으로 한번에 묶어 전송\nconst EXPECTED_TYPES = {\"CAST-01\": {\"power\": \"bool\", \"injection_pressure_sp\": \"float\", \"mold_temperature_sp\": \"float\", \"cooling_flow_sp\": \"float\", \"injection_pressure\": \"float\", \"mold_temperature\": \"float\", \"cooling_flow\": \"float\", \"progress\": \"float\"}, \"CNC-01\": {\"power\": \"bool\", \"spindle_speed_sp\": \"int\", \"tool_usage_sp\": \"float\", \"coolant_flow_sp\": \"float\", \"spindle_speed\": \"int\", \"tool_usage\": \"float\", \"coolant_flow\": \"float\", \"progress\": \"float\"}, \"CNC-02\": {\"power\": \"bool\", \"spindle_speed_sp\": \"int\", \"tool_usage_sp\": \"float\", \"coolant_flow_sp\": \"float\", \"spindle_speed\": \"int\", \"tool_usage\": \"float\", \"coolant_flow\": \"float\", \"progress\": \"float\"}, \"CNC-03\": {\"power\": \"bool\", \"spindle_speed_sp\": \"int\", \"tool_usage_sp\": \"float\", \"coolant_flow_sp\": \"float\", \"spindle_speed\": \"int\", \"tool_usage\": \"float\", \"coolant_flow\": \"float\", \"progress\": \"float\"}, \"WASH-01\": {\"power\": \"bool\", \"cleaning_concentration_sp\": \"float\", \"cleaning_temperature_sp\": \"float\", \"cleaning_pressure_sp\": \"float\", \"cleaning_concentration\": \"float\", \"cleaning_temperature\": \"float\", \"cleaning_pressure\": \"float\", \"progress\": \"float\"}, \"ASSY-01\": {\"power\": \"bool\", \"tightening_torque_sp\": \"float\", \"tightening_angle_sp\": \"float\", \"press_force_sp\": \"float\", \"tightening_torque\": \"float\", \"tightening_angle\": \"float\", \"press_force\": \"float\", \"progress\": \"float\"}, \"ASSY-02\": {\"power\": \"bool\", \"tightening_torque_sp\": \"float\", \"tightening_angle_sp\": \"float\", \"press_force_sp\": \"float\", \"tightening_torque\": \"float\", \"tightening_angle\": \"float\", \"press_force\": \"float\", \"progress\": \"float\"}, \"TEST-01\": {\"power\": \"bool\", \"bore_dimension_sp\": \"float\", \"hole_dimension_sp\": \"float\", \"bore_dimension\": \"float\", \"hole_dimension\": \"float\", \"result_ok\": \"bool\", \"progress\": \"float\"}, \"TEST-02\": {\"power\": \"bool\", \"bore_dimension_sp\": \"float\", \"hole_dimension_sp\": \"float\", \"bore_dimension\": \"float\", \"hole_dimension\": \"float\", \"result_ok\": \"bool\", \"progress\": \"float\"}};\nconst p = msg.payload;\nif (!p) return null;\nconst lineId = p.line_id;\n// state['name'] = 'pending' | 'ready'\nconst state = flow.get('opcua_state') || {};\nconst addMsgs = [];\nconst varList = [];\n\nfunction coerce(value, dtype) {\n  if (value === null || value === undefined) {\n    if (dtype === 'Boolean') return false;\n    if (dtype === 'Int32') return 0;\n    if (dtype === 'Double' || dtype === 'Float') return 0.0;\n    return '';\n  }\n  return value;\n}\n\nfunction publish(name, value, dtype) {\n  const v = coerce(value, dtype);\n  const s = state[name];\n  if (!s) {\n    // 첫 발견: addVariable 만 보냄\n    addMsgs.push({\n      topic: `ns=2;s=${name};datatype=${dtype}`,\n      payload: { opcuaCommand: 'addVariable' },\n    });\n    state[name] = 'pending';\n    return;\n  }\n  if (s === 'pending') {\n    // 한 tick 더 기다림 -> ready 로 승격, 이번 tick 도 update skip\n    state[name] = 'ready';\n    return;\n  }\n  // ready: 실제 update\n  varList.push({\n    messageType: 'Variable',\n    namespace: 2,\n    variableName: name,\n    variableValue: v,\n    datatype: dtype,\n  });\n}\n\npublish(`${lineId}.payload`,         JSON.stringify(p),     'String');\npublish(`${lineId}.line_ts`,         p.ts,                   'String');\npublish(`${lineId}.schema_version`,  p.schema_version,       'String');\nfor (const [eq, slot] of Object.entries(p.equipments || {})) {\n  publish(`${lineId}.${eq}.status`,  slot.status,            'String');\n  publish(`${lineId}.${eq}.ts`,      slot.ts,                'String');\n  publish(`${lineId}.${eq}.quality`, slot.quality,           'String');\n  const typeMap = (EXPECTED_TYPES[eq] || {});\n  for (const [tag, val] of Object.entries(slot.data || {})) {\n    let dtype;\n    const declared = typeMap[tag];\n    if (declared === 'bool') dtype = 'Boolean';\n    else if (declared === 'int') dtype = 'Int32';\n    else if (declared === 'float') dtype = 'Double';\n    else {\n      // 알려지지 않은 동적 tag (cycle_time, progress 등) — 무조건 Double 로 등록.\n      if (typeof val === 'boolean') dtype = 'Boolean';\n      else if (typeof val === 'number') dtype = 'Double';\n      else dtype = 'String';\n    }\n    publish(`${lineId}.${eq}.data.${tag}`, val, dtype);\n  }\n}\nflow.set('opcua_state', state);\n\n// 단계 1: addVariable msg 들 즉시 전송 (array-of-messages 출력 형식)\nif (addMsgs.length > 0) {\n  node.send([addMsgs]);\n}\n\n// 단계 2: Variable update 는 array payload 로 한번에 전송 (state='ready' 인 것만)\n//   addMsgs 가 있는 tick (새 변수 발견된 tick) 은 800ms 지연으로 안전 마진,\n//   안정 상태에선 50ms 정도 지연으로 send 순서만 보장.\nif (varList.length > 0) {\n  const delay = (addMsgs.length > 0) ? 800 : 50;\n  setTimeout(() => {\n    node.send({ payload: varList });\n  }, delay);\n}\n\nreturn null;\n",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 1060,
+    "y": 440,
+    "wires": [
+      [
+        "8952c99d88cd4b58"
+      ]
+    ]
+  }
+]

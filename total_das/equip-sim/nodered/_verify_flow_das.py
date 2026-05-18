@@ -14,7 +14,7 @@ from pathlib import Path
 
 
 def verify(path: Path) -> int:
-    data = json.loads(path.read_text(encoding="utf-8"))
+    data = json.loads(path.read_text())
     ids: set[str] = {n["id"] for n in data}
     errors: list[str] = []
 

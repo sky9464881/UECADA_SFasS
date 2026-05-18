@@ -1,13 +1,22 @@
-"""Modbus TCP 서버 (role 기반, 쓰기 지원).
+"""Modbus 서버 (TCP / RTU 양쪽 지원, role 기반).
 
-매핑 규칙 (tag 등장 순서):
-- bool  -> coils (FC=1/5/15). 주소 = bool 태그 순번
-- int   -> holding registers (FC=3/6/16). 주소 = int 태그 순번 (16bit signed)
-- float -> holding registers. 주소 = FLOAT_BASE(=1000) + float 태그 순번*2 (big-endian)
+config 의 각 태그에 박힌 `mb` 매핑(kind / address) 을 그대로 사용한다.
+- coil      bool   (FC=1/5/15)
+- hr_int    int    (FC=3/6/16, 16bit signed, 1 워드)
+- hr_float  float  (FC=3/6/16, big-endian, 2 워드)
 
 writable 한 태그(power/setpoint) 의 쓰기 함수코드(FC=5/6/15/16) 는
 EquipmentState.set_external() 로 전달되어 즉시 반영된다.
 read-only 태그는 쓰기 시도해도 무시한다 (값은 다음 tick 에서 다시 덮어쓰임).
+
+protocol 별 listener:
+- protocol="modbus"          -> Modbus TCP (cfg.host:cfg.port)
+- protocol="modbus-rtu"      -> Modbus RTU on serial (cfg.serial_path)
+- protocol="modbus-rtu-tcp"  -> RTU 프레임을 TCP 소켓으로 그대로 전송.
+                                Moxa NPort 질 시리얼 게이트웨이와 동일한 방식으로,
+                                pymodbus 의 StartAsyncTcpServer + Framer.RTU 조합으로 구현.
+                                Node-RED 에서는 modbus-client 를
+                                clienttype=tcp + tcpType=RTU-BUFFERED 로 설정해서 붙이면 됨.
 """
 from __future__ import annotations
 
@@ -21,37 +30,44 @@ from pymodbus.datastore import (
     ModbusServerContext,
     ModbusSlaveContext,
 )
-from pymodbus.server import StartAsyncTcpServer
+from pymodbus.framer import Framer
+from pymodbus.server import StartAsyncTcpServer, StartAsyncSerialServer
 
 from ..config import SimConfig, TagConfig
 from ..log import get_logger
 from ..state import EquipmentState
 
 log = get_logger("modbus")
-FLOAT_BASE = 1000
 
 
 def build_mapping(tags: List[TagConfig]):
-    """name -> ('coil'|'hr_int'|'hr_float', address)"""
+    """config 에 박힌 mb 매핑을 그대로 ({name -> (kind, address)}, {(kind, addr) -> name}) 로 변환.
+
+    coil:     (kind='coil',     address=N)
+    hr_int:   (kind='hr_int',   address=N)
+    hr_float: (kind='hr_float', address=N)   # N, N+1 둘 다 점유
+    """
     mapping: Dict[str, Tuple[str, int]] = {}
     addr_to_tag: Dict[Tuple[str, int], str] = {}
-    coil_i = int_i = float_i = 0
+    coil_max = -1
+    hr_max = -1
     for t in tags:
-        if t.data_type == "bool":
-            mapping[t.name] = ("coil", coil_i)
-            addr_to_tag[("coil", coil_i)] = t.name
-            coil_i += 1
-        elif t.data_type == "int":
-            mapping[t.name] = ("hr_int", int_i)
-            addr_to_tag[("hr", int_i)] = t.name  # int 1워드
-            int_i += 1
-        elif t.data_type == "float":
-            addr = FLOAT_BASE + float_i * 2
-            mapping[t.name] = ("hr_float", addr)
-            addr_to_tag[("hr", addr)] = t.name      # hi 워드
-            addr_to_tag[("hr", addr + 1)] = t.name  # lo 워드 (같은 태그)
-            float_i += 1
-    return mapping, addr_to_tag, coil_i, int_i, float_i
+        if t.mb is None:
+            raise ValueError(f"tag {t.name} missing mb mapping")
+        kind = t.mb.kind
+        addr = t.mb.address
+        mapping[t.name] = (kind, addr)
+        if kind == "coil":
+            addr_to_tag[("coil", addr)] = t.name
+            coil_max = max(coil_max, addr)
+        elif kind == "hr_int":
+            addr_to_tag[("hr", addr)] = t.name
+            hr_max = max(hr_max, addr)
+        elif kind == "hr_float":
+            addr_to_tag[("hr", addr)] = t.name
+            addr_to_tag[("hr", addr + 1)] = t.name
+            hr_max = max(hr_max, addr + 1)
+    return mapping, addr_to_tag, coil_max, hr_max
 
 
 def to_int16(v: int) -> int:
@@ -81,7 +97,6 @@ class WriteAwareSlaveContext(ModbusSlaveContext):
         self._state = state
         self._mapping = mapping
         self._addr_to_tag = addr_to_tag
-        # 외부 쓰기 표시용 플래그 (재진입 가드)
         self._internal_write = False
 
     def _internal_set(self, fx, address, values):
@@ -91,12 +106,10 @@ class WriteAwareSlaveContext(ModbusSlaveContext):
         finally:
             self._internal_write = False
 
-    # 외부 클라이언트가 쓰기 요청을 보낼 때 사용하는 FC
-    _WRITE_COIL_FCS = {5, 15}      # write_single_coil, write_multi_coils
-    _WRITE_HR_FCS = {6, 16, 22, 23}  # write_single_reg, write_multi_regs, mask, rw
+    _WRITE_COIL_FCS = {5, 15}
+    _WRITE_HR_FCS = {6, 16, 22, 23}
 
     def setValues(self, fx, address, values):
-        # 클라이언트 쓰기 요청이면 EquipmentState 에 반영
         if not self._internal_write:
             try:
                 if fx in self._WRITE_COIL_FCS:
@@ -109,7 +122,6 @@ class WriteAwareSlaveContext(ModbusSlaveContext):
             except Exception as e:
                 log.warning("write hook err: %s", e)
 
-        # 데이터스토어 기록 (다음 tick 에서 sensor/counter 만 덮어씀)
         super().setValues(fx, address, values)
 
     def _handle_hr_write(self, address: int, values: List[int]) -> None:
@@ -135,11 +147,11 @@ class WriteAwareSlaveContext(ModbusSlaveContext):
                 i += 1
 
 
-async def _serve(cfg: SimConfig, state: EquipmentState, stop_event: threading.Event) -> None:
-    mapping, addr_to_tag, coil_n, int_n, float_n = build_mapping(cfg.tags)
+def _build_slave(cfg: SimConfig, state: EquipmentState):
+    mapping, addr_to_tag, coil_max, hr_max = build_mapping(cfg.tags)
 
-    hr_size = max(FLOAT_BASE + float_n * 2 + 2, int_n + 2, 16)
-    coil_size = max(coil_n + 1, 16)
+    hr_size = max(hr_max + 2, 16)
+    coil_size = max(coil_max + 2, 16)
 
     slave = WriteAwareSlaveContext(
         state, mapping, addr_to_tag,
@@ -148,21 +160,35 @@ async def _serve(cfg: SimConfig, state: EquipmentState, stop_event: threading.Ev
         hr=ModbusSequentialDataBlock(0, [0] * hr_size),
         ir=ModbusSequentialDataBlock(0, [0] * hr_size),
     )
-    context = ModbusServerContext(slaves=slave, single=True)
+    return slave, mapping
 
+
+def _log_mapping(cfg: SimConfig, mapping) -> None:
     log.info("=== %s modbus mapping ===", cfg.equipment_name)
     for name, (kind, addr) in mapping.items():
         tag = next(t for t in cfg.tags if t.name == name)
         log.info(
-            "  %-22s role=%-8s %-9s @ %d  %s",
+            "  %-26s role=%-8s %-9s @ %d  %s",
             name, tag.role, kind, addr,
             "(RW)" if tag.writable else "(RO)",
         )
 
+
+async def _serve(cfg: SimConfig, state: EquipmentState,
+                 stop_event: threading.Event) -> None:
+    slave, mapping = _build_slave(cfg, state)
+    # RTU / RTU-over-TCP 는 slave_id 기반 multi-slave context,
+    # 순수 Modbus-TCP 는 single-slave context.
+    if cfg.protocol in ("modbus-rtu", "modbus-rtu-tcp"):
+        context = ModbusServerContext(slaves={cfg.slave_id: slave}, single=False)
+    else:
+        context = ModbusServerContext(slaves=slave, single=True)
+
+    _log_mapping(cfg, mapping)
+
     period = cfg.sampling_ms / 1000.0
 
     def push_to_datastore() -> None:
-        """state 의 현재값을 datastore 에 반영 (내부 갱신)."""
         values = state.read_all()
         for name, (kind, addr) in mapping.items():
             v = values[name]
@@ -178,19 +204,46 @@ async def _serve(cfg: SimConfig, state: EquipmentState, stop_event: threading.Ev
                 log.warning("datastore set %s err: %s", name, e)
 
     async def updater() -> None:
-        # 처음 한 번 즉시 반영
         push_to_datastore()
         while not stop_event.is_set():
             state.tick()
             push_to_datastore()
             await asyncio.sleep(period)
 
-    log.info("start tcp=%s:%s tags=%d period=%.3fs",
-             cfg.host, cfg.port, len(cfg.tags), period)
+    if cfg.protocol == "modbus-rtu":
+        log.info("start rtu=%s baud=%d parity=%s stopbits=%d slave_id=%d tags=%d period=%.3fs",
+                 cfg.serial_path, cfg.baudrate, cfg.parity, cfg.stopbits,
+                 cfg.slave_id, len(cfg.tags), period)
+        server_task = asyncio.create_task(
+            StartAsyncSerialServer(
+                context=context,
+                port=cfg.serial_path,
+                baudrate=cfg.baudrate,
+                parity=cfg.parity,
+                stopbits=cfg.stopbits,
+                bytesize=cfg.bytesize,
+                framer=Framer.RTU,
+            )
+        )
+    elif cfg.protocol == "modbus-rtu-tcp":
+        # Moxa NPort 스타일: RTU 프레임(unitId+PDU+CRC16) 을 TCP 소켓에
+        # 그대로 흠려보낸다. Node-RED 에서는 TCP + RTU-BUFFERED 로 읽으면 됨.
+        log.info("start rtu-over-tcp=%s:%s slave_id=%d tags=%d period=%.3fs",
+                 cfg.host, cfg.port, cfg.slave_id, len(cfg.tags), period)
+        server_task = asyncio.create_task(
+            StartAsyncTcpServer(
+                context=context,
+                address=(cfg.host, cfg.port),
+                framer=Framer.RTU,
+            )
+        )
+    else:
+        log.info("start tcp=%s:%s tags=%d period=%.3fs",
+                 cfg.host, cfg.port, len(cfg.tags), period)
+        server_task = asyncio.create_task(
+            StartAsyncTcpServer(context=context, address=(cfg.host, cfg.port))
+        )
 
-    server_task = asyncio.create_task(
-        StartAsyncTcpServer(context=context, address=(cfg.host, cfg.port))
-    )
     updater_task = asyncio.create_task(updater())
     stopper_task = asyncio.create_task(asyncio.to_thread(stop_event.wait))
 
@@ -208,6 +261,5 @@ async def _serve(cfg: SimConfig, state: EquipmentState, stop_event: threading.Ev
             pass
 
 
-def run(cfg: SimConfig, stop_event: threading.Event) -> None:
-    state = EquipmentState(cfg)
+def run(cfg: SimConfig, state: EquipmentState, stop_event: threading.Event) -> None:
     asyncio.run(_serve(cfg, state, stop_event))

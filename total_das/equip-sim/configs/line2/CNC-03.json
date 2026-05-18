@@ -1,50 +1,94 @@
 {
   "equipment_name": "${LINE_ID:-LINE-00}_CNC-03",
-  "protocol": "opcua",
-  "host": "0.0.0.0",
-  "port": 5183,
+  "protocol": "modbus-rtu-tcp",
   "sampling_ms": 1000,
   "tags": [
     {
       "name": "power",
       "role": "power",
       "data_type": "bool",
-      "base_value": true
+      "base_value": true,
+      "mb": {
+        "kind": "coil",
+        "address": 0
+      }
     },
     {
       "name": "spindle_speed_sp",
       "role": "setpoint",
       "data_type": "int",
-      "base_value": 5500
+      "base_value": 5500,
+      "mb": {
+        "kind": "hr_int",
+        "address": 0
+      }
+    },
+    {
+      "name": "tool_usage_sp",
+      "role": "setpoint",
+      "data_type": "float",
+      "base_value": 30.0,
+      "mb": {
+        "kind": "hr_float",
+        "address": 1000
+      }
+    },
+    {
+      "name": "coolant_flow_sp",
+      "role": "setpoint",
+      "data_type": "float",
+      "base_value": 18.0,
+      "mb": {
+        "kind": "hr_float",
+        "address": 1004
+      }
     },
     {
       "name": "spindle_speed",
       "role": "sensor",
       "data_type": "int",
       "source_sp": "spindle_speed_sp",
-      "stddev": 25.0
+      "stddev": 25.0,
+      "mb": {
+        "kind": "hr_int",
+        "address": 2
+      }
     },
     {
       "name": "tool_usage",
       "role": "sensor",
       "data_type": "float",
-      "base_value": 30.0,
-      "stddev": 1.5
+      "source_sp": "tool_usage_sp",
+      "stddev": 1.5,
+      "mb": {
+        "kind": "hr_float",
+        "address": 1002
+      }
     },
     {
       "name": "coolant_flow",
       "role": "sensor",
       "data_type": "float",
-      "base_value": 18.0,
-      "stddev": 0.8
+      "source_sp": "coolant_flow_sp",
+      "stddev": 0.8,
+      "mb": {
+        "kind": "hr_float",
+        "address": 1006
+      }
     },
     {
       "name": "progress",
       "role": "sensor",
       "data_type": "float",
       "base_value": 0.005555555555555556,
-      "stddev": 0.0005555555555555556
+      "stddev": 0.0005555555555555556,
+      "mb": {
+        "kind": "hr_float",
+        "address": 1008
+      }
     }
   ],
-  "namespace": "${LINE_ID:-LINE-00}_CNC-03"
+  "host": "0.0.0.0",
+  "port": 5103,
+  "slave_id": 1
 }

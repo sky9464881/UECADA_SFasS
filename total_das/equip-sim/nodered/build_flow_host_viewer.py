@@ -300,7 +300,8 @@ def main() -> None:
     flow = build_flow(lines, args.host)
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(flow, indent=2, ensure_ascii=False))
+    out.write_text(json.dumps(flow, indent=2, ensure_ascii=False),
+                   encoding="utf-8")
     print(f"wrote {out} ({len(flow)} nodes) lines={lines} host={args.host}")
 
 
