@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
+import * as echarts from 'echarts'
+import { useQuery } from '@tanstack/vue-query'
 import { RouterLink } from 'vue-router'
 import {
   Activity,
@@ -27,6 +29,7 @@ import type { Component } from 'vue'
 import EquipmentCategoryGrid from '@/components/equipment/EquipmentCategoryGrid.vue'
 import CategorySummaryPanel from '@/components/equipment/CategorySummaryPanel.vue'
 import CategoryEquipmentList from '@/components/equipment/CategoryEquipmentList.vue'
+import { fetchRealtimeVibration } from '@/api/vibrationApi'
 
 const { navItems } = useAppNav()
 const logout = useLogout()
@@ -55,6 +58,18 @@ const categories = computed<CategoryWithIcon[]>(() =>
 const selectedCategoryId = ref('casting')
 const selectedEquipmentId = ref('CAST-02')
 const isEquipmentPopupOpen = ref(false)
+const rawVibrationChartEl = ref<HTMLDivElement | null>(null)
+const fftChartEl = ref<HTMLDivElement | null>(null)
+const trendChartEl = ref<HTMLDivElement | null>(null)
+const vibrationTrendHistory = ref<Array<{
+  windowIndex: number | string
+  timestamp: number
+  rms: number
+  peakToPeak: number
+  anomalyScore: number
+}>>([])
+const chartInstances: Partial<Record<'raw' | 'fft' | 'trend', echarts.ECharts>> = {}
+let chartRenderPending = false
 
 const EMPTY_CATEGORY = Object.freeze({
   id: '',
@@ -100,6 +115,21 @@ const selectedEquipment = computed(() => {
   )
 })
 
+const realtimeVibrationQuery = useQuery({
+  queryKey: computed(() => ['equipment-vibration-realtime', selectedEquipment.value.id]),
+  queryFn: () => fetchRealtimeVibration(selectedEquipment.value.id),
+  enabled: computed(() => isEquipmentPopupOpen.value && !!selectedEquipment.value.id && selectedEquipment.value.id !== '-'),
+  refetchInterval: 1000,
+  staleTime: 500,
+})
+
+const realtimeVibration = computed(() => realtimeVibrationQuery.data.value ?? null)
+const realtimeAnalysis = computed(() => realtimeVibration.value?.analysis ?? null)
+const vibrationValues = computed(() => realtimeVibration.value?.values ?? [])
+const vibrationSampleCount = computed(() =>
+  realtimeVibration.value?.window?.valuesLength ?? vibrationValues.value.length,
+)
+
 // 백엔드 데이터 로드 후, 비어있던 selection 을 첫 카테고리/첫 설비로 자동 보정.
 watch(
   categories,
@@ -138,7 +168,67 @@ const metricNumber = (value: unknown) => {
 const getCommonMetric = (label: string): string =>
   selectedEquipment.value.common.find((metric) => metric.label === label)?.value ?? '-'
 
+const getCommonMetricLike = (...keywords: string[]): string =>
+  selectedEquipment.value.common.find((metric) =>
+    keywords.some((keyword) => metric.label.includes(keyword)),
+  )?.value ?? '-'
+
 const clampPercent = (value: number) => Math.max(0, Math.min(100, Math.round(value)))
+
+function fixedMetric(value: number | null | undefined, digits = 3): string {
+  return value == null || Number.isNaN(Number(value)) ? '-' : Number(value).toFixed(digits)
+}
+
+function predictionLabel(value: string | null | undefined): string {
+  if (!value) return '-'
+  if (value.toLowerCase() === 'normal') return '정상'
+  return value
+}
+
+const popupSummaryItems = computed(() => [
+  { label: '운전상태', value: selectedEquipment.value.state },
+  { label: '가동률', value: `${selectedEquipment.value.rate}%` },
+  { label: '싸이클 타임', value: selectedEquipment.value.cycle },
+  { label: '온도', value: getCommonMetricLike('온도') },
+  { label: '전류', value: getCommonMetricLike('전류') },
+  { label: '전압', value: getCommonMetricLike('전압') },
+])
+
+const vibrationAnalysisCards = computed(() => {
+  const analysis = realtimeAnalysis.value
+  const features = analysis?.features
+  return [
+    { label: 'RMS', value: fixedMetric(features?.rms, 5) },
+    { label: 'Peak-to-Peak', value: fixedMetric(features?.peakToPeak, 5) },
+    { label: 'Crest Factor', value: fixedMetric(features?.crestFactor, 3) },
+    { label: 'Kurtosis', value: fixedMetric(features?.kurtosis, 3) },
+    { label: 'AI 예측 후보', value: predictionLabel(analysis?.prediction) },
+    { label: '신뢰도', value: analysis?.confidence == null ? '-' : `${fixedMetric(analysis.confidence * 100, 1)}%` },
+    { label: '분석 샘플', value: `${vibrationSampleCount.value}` },
+    { label: 'FFT Bin', value: `${analysis?.fft?.binCount ?? analysis?.fft?.frequencies?.length ?? '-'}` },
+  ]
+})
+
+const vibrationTimeRange = computed(() => {
+  const window = realtimeVibration.value?.window
+  const samplingRate = window?.samplingRate || realtimeAnalysis.value?.samplingRate || 16000
+  const endMs = Date.parse(window?.timestamp ?? realtimeAnalysis.value?.timestamp ?? realtimeVibration.value?.receivedAt ?? '')
+  if (!Number.isFinite(endMs)) return '-'
+  const startMs = endMs - (vibrationValues.value.length / samplingRate) * 1000
+  return `${formatCompactDateTime(startMs)} ~ ${formatCompactDateTime(endMs)}`
+})
+
+function formatCompactDateTime(value: number): string {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '-'
+  const yyyy = date.getFullYear()
+  const mm = String(date.getMonth() + 1).padStart(2, '0')
+  const dd = String(date.getDate()).padStart(2, '0')
+  const hh = String(date.getHours()).padStart(2, '0')
+  const mi = String(date.getMinutes()).padStart(2, '0')
+  const ss = String(date.getSeconds()).padStart(2, '0')
+  return `${yyyy}. ${mm}. ${dd} ${hh}:${mi}:${ss}`
+}
 
 const qualityPercent = computed(() => {
   const ok = metricNumber(getCommonMetric('OK'))
@@ -242,6 +332,324 @@ const specificMetricPercent = (metric: EquipmentSpecificMetric) => {
 
   return clampPercent(value)
 }
+
+function ensureChart(name: 'raw' | 'fft' | 'trend', el: HTMLDivElement | null) {
+  if (!el) return null
+  if (!chartInstances[name] || chartInstances[name]?.isDisposed?.()) {
+    chartInstances[name] = echarts.init(el)
+  }
+  return chartInstances[name] ?? null
+}
+
+function disposeEquipmentCharts() {
+  Object.values(chartInstances).forEach((chart) => chart?.dispose())
+  delete chartInstances.raw
+  delete chartInstances.fft
+  delete chartInstances.trend
+}
+
+function downsampleIndexed(values: number[], maxPoints = 3600) {
+  if (!values.length) return []
+  if (values.length <= maxPoints) {
+    return values.map((value, index) => ({ index, value: Number(Number(value || 0).toFixed(5)) }))
+  }
+
+  const bucketSize = Math.max(1, Math.ceil(values.length / Math.max(1, Math.floor(maxPoints / 2))))
+  const points: Array<{ index: number; value: number }> = []
+
+  for (let start = 0; start < values.length; start += bucketSize) {
+    const end = Math.min(values.length, start + bucketSize)
+    let minIndex = start
+    let maxIndex = start
+    let minValue = Number(values[start] || 0)
+    let maxValue = minValue
+
+    for (let index = start + 1; index < end; index += 1) {
+      const value = Number(values[index] || 0)
+      if (value < minValue) {
+        minValue = value
+        minIndex = index
+      }
+      if (value > maxValue) {
+        maxValue = value
+        maxIndex = index
+      }
+    }
+
+    if (minIndex <= maxIndex) {
+      points.push({ index: minIndex, value: Number(minValue.toFixed(5)) })
+      if (minIndex !== maxIndex) points.push({ index: maxIndex, value: Number(maxValue.toFixed(5)) })
+    } else {
+      points.push({ index: maxIndex, value: Number(maxValue.toFixed(5)) })
+      points.push({ index: minIndex, value: Number(minValue.toFixed(5)) })
+    }
+  }
+
+  return points
+}
+
+function rawVibrationSeries() {
+  const values = vibrationValues.value
+  const window = realtimeVibration.value?.window
+  const samplingRate = window?.samplingRate || realtimeAnalysis.value?.samplingRate || 16000
+  const end = Date.parse(window?.timestamp ?? realtimeAnalysis.value?.timestamp ?? realtimeVibration.value?.receivedAt ?? '')
+  const endMs = Number.isFinite(end) ? end : Date.now()
+  const start = endMs - (values.length / samplingRate) * 1000
+  return downsampleIndexed(values).map((point) => [
+    start + (point.index / samplingRate) * 1000,
+    point.value,
+  ])
+}
+
+function fftSeries() {
+  const fft = realtimeAnalysis.value?.fft
+  const frequencies = fft?.frequencies ?? []
+  const magnitudes = fft?.magnitudes ?? []
+  const length = Math.min(frequencies.length, magnitudes.length)
+  if (!length) return []
+  const step = Math.max(1, Math.ceil(length / 1200))
+  const points: number[][] = []
+  for (let i = 0; i < length; i += step) {
+    points.push([Number(frequencies[i].toFixed(2)), Number((magnitudes[i] ?? 0).toFixed(6))])
+  }
+  return points
+}
+
+function recordTrendPoint() {
+  const analysis = realtimeAnalysis.value
+  const features = analysis?.features
+  if (!features) return
+  const windowIndex = realtimeVibration.value?.window?.windowIndex ?? analysis?.windowIndex ?? Date.now()
+  const timestamp = Date.parse(realtimeVibration.value?.receivedAt ?? analysis?.timestamp ?? '') || Date.now()
+  const last = vibrationTrendHistory.value.at(-1)
+  if (last?.windowIndex === windowIndex) return
+
+  vibrationTrendHistory.value = [
+    ...vibrationTrendHistory.value,
+    {
+      windowIndex,
+      timestamp,
+      rms: features.rms ?? 0,
+      peakToPeak: features.peakToPeak ?? 0,
+      anomalyScore: analysis?.anomalyScore ?? 0,
+    },
+  ].slice(-90)
+}
+
+function queueChartRender() {
+  if (!isEquipmentPopupOpen.value || chartRenderPending) return
+  chartRenderPending = true
+  window.requestAnimationFrame(() => {
+    chartRenderPending = false
+    nextTick(renderEquipmentCharts)
+  })
+}
+
+function renderEquipmentCharts() {
+  renderRawVibrationChart()
+  renderFftChart()
+  renderTrendChart()
+}
+
+function renderRawVibrationChart() {
+  const chart = ensureChart('raw', rawVibrationChartEl.value)
+  if (!chart) return
+  const data = rawVibrationSeries()
+  const startX = data[0]?.[0]
+  const endX = data.at(-1)?.[0]
+  const span = startX && endX ? endX - startX : 0
+
+  chart.setOption({
+    animation: false,
+    tooltip: { trigger: 'axis' },
+    grid: { left: 54, right: 18, top: 34, bottom: 56 },
+    toolbox: {
+      right: 8,
+      top: 2,
+      feature: { dataZoom: { yAxisIndex: 'none' }, restore: {}, saveAsImage: {} },
+    },
+    graphic: data.length ? [] : [{
+      type: 'text',
+      left: 'center',
+      top: 'middle',
+      style: { text: '실시간 진동 데이터 수신 대기', fill: '#64748b', fontWeight: 800 },
+    }],
+    xAxis: {
+      type: 'time',
+      axisLabel: { formatter: (value: number) => echarts.time.format(value, '{HH}:{mm}:{ss}', false) },
+    },
+    yAxis: {
+      type: 'value',
+      name: '진동 진폭 (a.u.)',
+      min: 'dataMin',
+      max: 'dataMax',
+      splitLine: { lineStyle: { color: '#e3ebf5' } },
+    },
+    dataZoom: [
+      { type: 'inside', xAxisIndex: 0 },
+      { type: 'slider', xAxisIndex: 0, height: 24, bottom: 16 },
+    ],
+    series: [{
+      name: '측정값',
+      type: 'line',
+      symbol: 'none',
+      sampling: 'lttb',
+      lineStyle: { width: 1, color: '#0f5e8c' },
+      areaStyle: { color: 'rgba(23, 121, 178, 0.08)' },
+      data,
+      markArea: span ? {
+        silent: true,
+        itemStyle: { color: 'rgba(34, 197, 94, 0.09)' },
+        label: { color: '#334155', fontWeight: 800 },
+        data: [
+          [{ name: '회복 확인 구간', xAxis: startX + span * 0.30 }, { xAxis: startX + span * 0.44 }],
+          [{ name: '회복 확인 구간', xAxis: startX + span * 0.62 }, { xAxis: startX + span * 0.78 }],
+        ],
+      } : undefined,
+    }],
+  }, true)
+}
+
+function renderFftChart() {
+  const chart = ensureChart('fft', fftChartEl.value)
+  if (!chart) return
+  const data = fftSeries()
+  chart.setOption({
+    animation: false,
+    tooltip: { trigger: 'axis' },
+    grid: { left: 54, right: 18, top: 34, bottom: 48 },
+    toolbox: {
+      right: 8,
+      top: 2,
+      feature: { dataZoom: { yAxisIndex: 'none' }, restore: {}, saveAsImage: {} },
+    },
+    graphic: data.length ? [] : [{
+      type: 'text',
+      left: 'center',
+      top: 'middle',
+      style: { text: 'FFT 데이터 수신 대기', fill: '#64748b', fontWeight: 800 },
+    }],
+    xAxis: {
+      type: 'value',
+      name: '주파수 (Hz)',
+      splitLine: { lineStyle: { color: '#e3ebf5' } },
+    },
+    yAxis: {
+      type: 'value',
+      name: 'FFT 크기',
+      min: 0,
+      splitLine: { lineStyle: { color: '#e3ebf5' } },
+    },
+    dataZoom: [
+      { type: 'inside', xAxisIndex: 0 },
+      { type: 'slider', xAxisIndex: 0, height: 20, bottom: 12 },
+    ],
+    series: [{
+      name: 'FFT',
+      type: 'line',
+      symbol: 'none',
+      lineStyle: { width: 1.2, color: '#645bff' },
+      areaStyle: { color: 'rgba(100, 91, 255, 0.08)' },
+      data,
+    }],
+  }, true)
+}
+
+function renderTrendChart() {
+  const chart = ensureChart('trend', trendChartEl.value)
+  if (!chart) return
+  const rows = vibrationTrendHistory.value
+  const anomalyPoints: [number, number][] = rows.map((row) => [row.timestamp, row.anomalyScore])
+  const maxAnomaly = anomalyPoints.reduce(
+    (max, point) => point[1] > max[1] ? point : max,
+    [null, -Infinity] as [number | null, number],
+  )
+
+  chart.setOption({
+    animation: false,
+    legend: { top: 2, right: 44, itemWidth: 14, textStyle: { color: '#334155', fontWeight: 700 } },
+    tooltip: { trigger: 'axis' },
+    grid: { left: 48, right: 18, top: 42, bottom: 46 },
+    toolbox: {
+      right: 8,
+      top: 2,
+      feature: { dataZoom: { yAxisIndex: 'none' }, restore: {}, saveAsImage: {} },
+    },
+    graphic: rows.length ? [] : [{
+      type: 'text',
+      left: 'center',
+      top: 'middle',
+      style: { text: '구간 특징값 수집 중', fill: '#64748b', fontWeight: 800 },
+    }],
+    xAxis: {
+      type: 'time',
+      axisLabel: { formatter: (value: number) => echarts.time.format(value, '{HH}:{mm}:{ss}', false) },
+    },
+    yAxis: {
+      type: 'value',
+      name: '특징값',
+      min: 0,
+      splitLine: { lineStyle: { color: '#e3ebf5' } },
+    },
+    dataZoom: [{ type: 'inside', xAxisIndex: 0 }],
+    series: [
+      {
+        name: 'RMS',
+        type: 'line',
+        symbolSize: 4,
+        lineStyle: { width: 1.5, color: '#4f6df5' },
+        itemStyle: { color: '#4f6df5' },
+        data: rows.map((row) => [row.timestamp, Number(row.rms.toFixed(4))]),
+      },
+      {
+        name: 'Peak-to-Peak',
+        type: 'line',
+        symbolSize: 4,
+        lineStyle: { width: 1.5, color: '#f59e0b' },
+        itemStyle: { color: '#f59e0b' },
+        data: rows.map((row) => [row.timestamp, Number(row.peakToPeak.toFixed(4))]),
+      },
+      {
+        name: '이상 점수',
+        type: 'line',
+        symbolSize: 4,
+        lineStyle: { width: 1.5, color: '#ef4444' },
+        itemStyle: { color: '#ef4444' },
+        data: anomalyPoints,
+        markPoint: maxAnomaly[0] ? {
+          symbol: 'pin',
+          symbolSize: 56,
+          label: { formatter: '최고 위험', color: '#ffffff', fontSize: 10, fontWeight: 900 },
+          data: [{ coord: maxAnomaly, value: fixedMetric(maxAnomaly[1], 3) }],
+        } : undefined,
+      },
+    ],
+  }, true)
+}
+
+watch(
+  () => selectedEquipment.value.id,
+  () => {
+    vibrationTrendHistory.value = []
+    disposeEquipmentCharts()
+    if (isEquipmentPopupOpen.value) queueChartRender()
+  },
+)
+
+watch(
+  () => realtimeVibration.value?.window?.windowIndex,
+  () => {
+    recordTrendPoint()
+    queueChartRender()
+  },
+)
+
+watch(isEquipmentPopupOpen, (open) => {
+  if (open) queueChartRender()
+  else disposeEquipmentCharts()
+})
+
+onUnmounted(disposeEquipmentCharts)
 </script>
 
 <template>
@@ -420,21 +828,9 @@ const specificMetricPercent = (metric: EquipmentSpecificMetric) => {
           </div>
 
           <div class="equipment-popup-summary">
-            <article>
-              <span>운전 상태</span>
-              <strong>{{ selectedEquipment.state }}</strong>
-            </article>
-            <article>
-              <span>가동률</span>
-              <strong>{{ selectedEquipment.rate }}%</strong>
-            </article>
-            <article>
-              <span>싸이클 타임</span>
-              <strong>{{ selectedEquipment.cycle }}</strong>
-            </article>
-            <article>
-              <span>불량수량</span>
-              <strong>{{ selectedEquipment.defects }}</strong>
+            <article v-for="metric in popupSummaryItems" :key="`popup-summary-${metric.label}`">
+              <span>{{ metric.label }}</span>
+              <strong>{{ metric.value }}</strong>
             </article>
           </div>
 
@@ -500,64 +896,44 @@ const specificMetricPercent = (metric: EquipmentSpecificMetric) => {
             </div>
 
             <div class="equipment-popup-graph-grid">
-              <article class="equipment-popup-chart-card">
+              <article class="equipment-popup-chart-card equipment-vibration-raw-card">
                 <div class="equipment-chart-head">
-                  <strong>가동률 추이</strong>
-                  <span>{{ selectedEquipment.rate }}%</span>
-                </div>
-                <div class="equipment-trend-bars">
-                  <i
-                    v-for="item in operationTrend"
-                    :key="item.label"
-                    :style="{ height: `${item.value}%` }"
-                  >
-                    <b>{{ item.value }}%</b>
-                    <span>{{ item.label }}</span>
-                  </i>
-                </div>
-              </article>
-
-              <article class="equipment-popup-chart-card">
-                <div class="equipment-chart-head">
-                  <strong>OK / NG 품질</strong>
-                  <span>{{ qualityPercent }}%</span>
-                </div>
-                <div class="equipment-quality-donut" :style="{ '--value': `${qualityPercent}%` }">
-                  <strong>{{ qualityPercent }}%</strong>
-                  <span>OK 기준</span>
-                </div>
-                <div class="equipment-quality-row">
-                  <span>OK {{ getCommonMetric('OK') }}</span>
-                  <span>NG {{ getCommonMetric('NG') }}</span>
-                </div>
-              </article>
-
-              <article class="equipment-popup-chart-card">
-                <div class="equipment-chart-head">
-                  <strong>공통 센서 데이터</strong>
-                  <span>현재값</span>
-                </div>
-                <div class="equipment-horizontal-bars">
-                  <div v-for="item in sensorChart" :key="item.label">
-                    <span>{{ item.label }}</span>
-                    <i><b :style="{ width: `${item.percent}%` }"></b></i>
-                    <strong>{{ item.value }}</strong>
+                  <div>
+                    <strong>진동 진폭 (a.u.)</strong>
+                    <span>회복 확인 구간</span>
                   </div>
+                  <small>{{ vibrationSampleCount }} samples</small>
                 </div>
+                <div ref="rawVibrationChartEl" class="equipment-echart equipment-echart--raw"></div>
+              </article>
+
+              <aside class="equipment-popup-chart-card equipment-vibration-metric-card">
+                <article v-for="metric in vibrationAnalysisCards" :key="`vibration-${metric.label}`">
+                  <span>{{ metric.label }}</span>
+                  <strong>{{ metric.value }}</strong>
+                </article>
+              </aside>
+
+              <article class="equipment-popup-chart-card">
+                <div class="equipment-chart-head">
+                  <div>
+                    <strong>선택 구간 FFT</strong>
+                    <span>FFT 크기</span>
+                  </div>
+                  <small>{{ realtimeAnalysis?.fft?.binCount ?? realtimeAnalysis?.fft?.frequencies?.length ?? 0 }} bin</small>
+                </div>
+                <div ref="fftChartEl" class="equipment-echart equipment-echart--small"></div>
               </article>
 
               <article class="equipment-popup-chart-card">
                 <div class="equipment-chart-head">
-                  <strong>{{ selectedCategory.name }} 유형별 지표</strong>
-                  <span>{{ selectedEquipment.specific.length }}개</span>
-                </div>
-                <div class="equipment-horizontal-bars">
-                  <div v-for="metric in selectedEquipment.specific" :key="`chart-${metric.label}`">
-                    <span>{{ metric.label }}</span>
-                    <i><b :style="{ width: `${specificMetricPercent(metric)}%` }"></b></i>
-                    <strong>{{ metric.value }}</strong>
+                  <div>
+                    <strong>{{ selectedEquipment.id }} 구간 특징값 흐름</strong>
+                    <span>최근 {{ vibrationTrendHistory.length }} window</span>
                   </div>
+                  <small>{{ vibrationTimeRange }}</small>
                 </div>
+                <div ref="trendChartEl" class="equipment-echart equipment-echart--small"></div>
               </article>
             </div>
           </section>

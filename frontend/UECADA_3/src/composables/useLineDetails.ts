@@ -1,25 +1,51 @@
 import { computed } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
-import { fetchEquipments } from '@/api/equipmentApi'
+import { fetchEquipments, fetchEquipmentStatuses } from '@/api/equipmentApi'
 import { fetchLines } from '@/api/lineApi'
 import { fetchSensorLatestValues, type SensorBufferLatest } from '@/api/sensorApi'
 import { POLL_INTERVAL_MS } from '@/constants/polling'
-import type { Equipment } from '@/types/equipment'
+import type { Equipment, EquipmentStatusCode } from '@/types/equipment'
 import type { LineSummary } from '@/types/line'
-import { realtimeBufferKey } from '@/utils/realtimeBuffers'
+import { realtimeBufferKey, type RealtimeMetric } from '@/utils/realtimeBuffers'
+
+export interface LineEquipmentNode {
+  id: string
+  code: string
+  name: string
+  state: 'normal' | 'warn' | 'standby'
+  cycle: number | null
+  cycleLabel: string
+  tempLabel: string
+}
+
+export interface LineProcessStage {
+  key: 'casting' | 'machining' | 'washing' | 'assembly' | 'inspection'
+  label: string
+  nodes: LineEquipmentNode[]
+}
+
+export interface LineStationMetric {
+  label: string
+  value: number
+  cycle: number | null
+}
 
 export interface LineDetailRow {
+  id: string
   name: string
   oee: number
   equipment: number
+  active: number
+  alarm: number
   status: {
     run: number
     stop: number
     wait: number
     stopEnd: number
   }
+  stages: LineProcessStage[]
   balance: number
-  stations: number[]
+  stations: LineStationMetric[]
   upmh: number
   uph: number
   productivity: number
@@ -44,7 +70,36 @@ function derivedLineOee(line: LineSummary): number {
   return Math.round(score)
 }
 
-function latestCycleMap(items: readonly SensorBufferLatest[]): Map<string, number> {
+const PROCESS_ORDER: readonly LineProcessStage[] = [
+  { key: 'casting', label: '주조', nodes: [] },
+  { key: 'machining', label: '가공', nodes: [] },
+  { key: 'washing', label: '세척', nodes: [] },
+  { key: 'assembly', label: '조립', nodes: [] },
+  { key: 'inspection', label: '검사', nodes: [] },
+]
+
+function shortEquipmentCode(equipment: Equipment): string {
+  return equipment.equipmentCode.split('_').pop() ?? equipment.equipmentCode
+}
+
+function processKey(equipment: Equipment): LineProcessStage['key'] {
+  const type = equipment.processType ?? ''
+  const code = shortEquipmentCode(equipment)
+  if (type.includes('주조') || code.startsWith('CAST')) return 'casting'
+  if (type.includes('가공') || code.startsWith('CNC')) return 'machining'
+  if (type.includes('세척') || code.startsWith('WASH')) return 'washing'
+  if (type.includes('조립') || code.startsWith('ASSY')) return 'assembly'
+  if (type.includes('검사') || code.startsWith('TEST')) return 'inspection'
+  return 'machining'
+}
+
+function equipmentState(status: EquipmentStatusCode | undefined): LineEquipmentNode['state'] {
+  if (status === 'ALARM') return 'warn'
+  if (status === 'STANDBY' || status === 'MAINTENANCE') return 'standby'
+  return 'normal'
+}
+
+function latestValueMap(items: readonly SensorBufferLatest[]): Map<string, number> {
   const map = new Map<string, number>()
   for (const item of items) {
     const value = item.latest?.value
@@ -55,26 +110,55 @@ function latestCycleMap(items: readonly SensorBufferLatest[]): Map<string, numbe
   return map
 }
 
-function cycleTime(equipment: Equipment, cycles: Map<string, number>): number | null {
-  const key = realtimeBufferKey(equipment.equipmentCode, 'cycle_time')
-  const value = key ? cycles.get(key) : null
+function metricValue(equipment: Equipment, values: Map<string, number>, metric: RealtimeMetric): number | null {
+  const key = realtimeBufferKey(equipment.equipmentCode, metric)
+  const value = key ? values.get(key) : null
   return typeof value === 'number' && value > 0 ? value : null
 }
 
-function lineCycleStats(line: LineSummary, equipments: readonly Equipment[], cycles: Map<string, number>) {
-  const values = equipments
-    .filter((equipment) => equipment.location === line.lineId)
-    .map((equipment) => cycleTime(equipment, cycles))
-    .filter((value): value is number => value != null)
+function processStages(
+  line: LineSummary,
+  equipments: readonly Equipment[],
+  values: Map<string, number>,
+  statuses: Map<string, EquipmentStatusCode>,
+): LineProcessStage[] {
+  const lineEquipments = equipments.filter((equipment) => equipment.location === line.lineId)
+  return PROCESS_ORDER.map((process) => ({
+    ...process,
+    nodes: lineEquipments
+      .filter((equipment) => processKey(equipment) === process.key)
+      .sort((a, b) => shortEquipmentCode(a).localeCompare(shortEquipmentCode(b)))
+      .map((equipment) => {
+        const cycle = metricValue(equipment, values, 'cycle_time')
+        const temperature = metricValue(equipment, values, 'sensor_temperature')
+        return {
+          id: equipment.equipmentCode,
+          code: shortEquipmentCode(equipment),
+          name: equipment.equipmentName,
+          state: equipmentState(statuses.get(equipment.equipmentCode)),
+          cycle,
+          cycleLabel: cycle == null ? 'CT 대기' : `CT ${cycle.toFixed(1)}s`,
+          tempLabel: temperature == null ? '온도 대기' : `${temperature.toFixed(1)}°C`,
+        }
+      }),
+  }))
+}
+
+function lineCycleStats(stages: readonly LineProcessStage[], activeEquipmentCount: number, oee: number) {
+  const processCycles = stages.map((stage) => {
+    const values = stage.nodes.map((node) => node.cycle).filter((value): value is number => value != null)
+    const avg = values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null
+    return { label: stage.label, value: avg }
+  })
+  const values = processCycles.map((item) => item.value).filter((value): value is number => value != null)
 
   if (!values.length) {
-    const productivity = derivedLineOee(line)
     return {
       balance: 0,
-      stations: [0, 0, 0, 0, 0, 0],
+      stations: processCycles.map((item) => ({ label: item.label, value: 0, cycle: item.value })),
       upmh: 0,
       uph: 0,
-      productivity,
+      productivity: oee,
       upmhPercent: 0,
       uphPercent: 0,
     }
@@ -86,13 +170,17 @@ function lineCycleStats(line: LineSummary, equipments: readonly Equipment[], cyc
   const balance = max > 0 ? Math.max(0, Math.round((min / max) * 100)) : 0
   const bottleneckCycle = max || avg
   const uph = bottleneckCycle > 0 ? Math.round(3600 / bottleneckCycle) : 0
-  const upmh = uph * values.length
-  const productivity = derivedLineOee(line)
-  const stationPercents = values.slice(0, 6).map((value) => Math.max(8, Math.round((min / value) * 100)))
+  const upmh = uph * Math.max(1, activeEquipmentCount)
+  const productivity = oee
+  const stations = processCycles.map((item) => ({
+    label: item.label,
+    value: item.value == null ? 0 : Math.max(8, Math.round((min / item.value) * 100)),
+    cycle: item.value,
+  }))
 
   return {
     balance,
-    stations: [...stationPercents, ...Array(Math.max(0, 6 - stationPercents.length)).fill(0)].slice(0, 6),
+    stations,
     upmh,
     uph,
     productivity,
@@ -101,17 +189,28 @@ function lineCycleStats(line: LineSummary, equipments: readonly Equipment[], cyc
   }
 }
 
-function toLineDetail(line: LineSummary, equipments: readonly Equipment[], cycles: Map<string, number>): LineDetailRow {
+function toLineDetail(
+  line: LineSummary,
+  equipments: readonly Equipment[],
+  values: Map<string, number>,
+  statuses: Map<string, EquipmentStatusCode>,
+): LineDetailRow {
   const total = line.equipmentTotal || 0
   const run = pctRound(line.equipmentRunning, total)
   const stop = pctRound(line.equipmentAlarm, total)
   const wait = pctRound(line.equipmentStandby + line.equipmentMaintenance, total)
-  const cycleStats = lineCycleStats(line, equipments, cycles)
+  const oee = derivedLineOee(line)
+  const stages = processStages(line, equipments, values, statuses)
+  const cycleStats = lineCycleStats(stages, line.equipmentRunning, oee)
   return {
+    id: line.lineId,
     name: line.lineName ?? line.lineId,
-    oee: derivedLineOee(line),
+    oee,
     equipment: total,
+    active: line.equipmentRunning,
+    alarm: line.equipmentAlarm,
     status: { run, stop, wait, stopEnd: run + stop },
+    stages,
     ...cycleStats,
   }
 }
@@ -130,24 +229,40 @@ export function useLineDetails() {
     staleTime: 60_000,
   })
 
-  const cycleKeys = computed(() =>
+  const equipmentCodes = computed(() => (equipmentsQuery.data.value ?? []).map((equipment) => equipment.equipmentCode))
+
+  const statusQuery = useQuery({
+    queryKey: ['line-details', 'equipment-statuses', equipmentCodes],
+    queryFn: () => fetchEquipmentStatuses(equipmentCodes.value),
+    enabled: computed(() => equipmentCodes.value.length > 0),
+    refetchInterval: POLL_INTERVAL_MS.equipmentCategory,
+    staleTime: 5_000,
+  })
+
+  const realtimeKeys = computed(() =>
     [...new Set((equipmentsQuery.data.value ?? [])
-      .map((equipment) => realtimeBufferKey(equipment.equipmentCode, 'cycle_time'))
+      .flatMap((equipment) => [
+        realtimeBufferKey(equipment.equipmentCode, 'cycle_time'),
+        realtimeBufferKey(equipment.equipmentCode, 'sensor_temperature'),
+      ])
       .filter((key): key is string => !!key))],
   )
 
-  const cycleQuery = useQuery({
-    queryKey: ['line-details', 'cycle-time-latest', cycleKeys],
-    queryFn: () => fetchSensorLatestValues(cycleKeys.value),
-    enabled: computed(() => cycleKeys.value.length > 0),
+  const realtimeQuery = useQuery({
+    queryKey: ['line-details', 'realtime-latest', realtimeKeys],
+    queryFn: () => fetchSensorLatestValues(realtimeKeys.value),
+    enabled: computed(() => realtimeKeys.value.length > 0),
     refetchInterval: POLL_INTERVAL_MS.equipmentRealtime,
     staleTime: 1_000,
   })
 
-  const cycles = computed(() => latestCycleMap(cycleQuery.data.value ?? []))
+  const realtimeValues = computed(() => latestValueMap(realtimeQuery.data.value ?? []))
+  const statuses = computed(() =>
+    new Map((statusQuery.data.value ?? []).map((status) => [status.equipId, status.statusCode])),
+  )
   const lines = computed<LineDetailRow[]>(() =>
     (query.data.value ?? []).map((line) =>
-      toLineDetail(line, equipmentsQuery.data.value ?? [], cycles.value),
+      toLineDetail(line, equipmentsQuery.data.value ?? [], realtimeValues.value, statuses.value),
     ),
   )
 
