@@ -1,0 +1,172 @@
+name: ${COMPOSE_PROJECT_NAME:-equip-sim}
+
+# ---------------------------------------------------------------------------
+# 라인 1개 (9 설비 + Node-RED 라인 DAS) compose.
+#
+# 같은 docker-compose.yml 을 .env.line01 / .env.line02 / .env.line03 + 다른
+# COMPOSE_PROJECT_NAME 로 띄우면 라인 1/2/3 이 한 호스트에서 동시 실행 가능.
+#   docker compose up -d --build                 # defaults to LINE-01 via .env
+#   docker compose --env-file .env.line01 up -d --build
+#   docker compose --env-file .env.line02 up -d --build
+#   docker compose --env-file .env.line03 up -d --build
+#
+# 환경변수 (모두 .env.lineN 에 정의):
+#   LINE_ID                LINE-01 / LINE-02 / LINE-03
+#   LINE_DIR               line1 / line2 / line3          (configs 하위)
+#   COMPOSE_PROJECT_NAME   equip-sim-line01 ...           (격리)
+#   PORT_CAST_01           5021 / 5121 / 5221
+#   PORT_CNC_01..03        5081..5083 / 5181.. / 5281..
+#   PORT_WASH_01           4841 / 4941 / 5041
+#   PORT_ASSY_01/02        4851/52 ...
+#   PORT_TEST_01/02        4861/62 ...
+#   PORT_NODERED_UI        1880 / 1881 / 1882
+#   PORT_DAS_OPCUA         4870 / 4970 / 5070
+#
+# 시뮬레이터 컨테이너 내부 포트 = 호스트 publish 포트 (1:1).
+# Node-RED 가 컨테이너 내부에서 cast-01:${PORT_CAST_01} 로 접근.
+# ---------------------------------------------------------------------------
+
+x-sim-common: &sim-common
+  build:
+    context: .
+    dockerfile: Dockerfile
+  image: equip-sim:latest
+  restart: unless-stopped
+  networks:
+    - line-internal
+
+services:
+  cast-01:
+    <<: *sim-common
+    container_name: ${LINE_ID}_CAST-01
+    environment:
+      LINE_ID: ${LINE_ID}
+      SIM_CONFIG: /app/configs/${LINE_DIR}/CAST-01.json
+    ports:
+      - "${PORT_CAST_01}:${PORT_CAST_01}"
+
+  cnc-01:
+    <<: *sim-common
+    container_name: ${LINE_ID}_CNC-01
+    environment:
+      LINE_ID: ${LINE_ID}
+      SIM_CONFIG: /app/configs/${LINE_DIR}/CNC-01.json
+    ports:
+      - "${PORT_CNC_01}:${PORT_CNC_01}"
+
+  cnc-02:
+    <<: *sim-common
+    container_name: ${LINE_ID}_CNC-02
+    environment:
+      LINE_ID: ${LINE_ID}
+      SIM_CONFIG: /app/configs/${LINE_DIR}/CNC-02.json
+    ports:
+      - "${PORT_CNC_02}:${PORT_CNC_02}"
+
+  cnc-03:
+    <<: *sim-common
+    container_name: ${LINE_ID}_CNC-03
+    environment:
+      LINE_ID: ${LINE_ID}
+      SIM_CONFIG: /app/configs/${LINE_DIR}/CNC-03.json
+    ports:
+      - "${PORT_CNC_03}:${PORT_CNC_03}"
+
+  wash-01:
+    <<: *sim-common
+    container_name: ${LINE_ID}_WASH-01
+    environment:
+      LINE_ID: ${LINE_ID}
+      SIM_CONFIG: /app/configs/${LINE_DIR}/WASH-01.json
+    ports:
+      - "${PORT_WASH_01}:${PORT_WASH_01}"
+
+  assy-01:
+    <<: *sim-common
+    container_name: ${LINE_ID}_ASSY-01
+    environment:
+      LINE_ID: ${LINE_ID}
+      SIM_CONFIG: /app/configs/${LINE_DIR}/ASSY-01.json
+    ports:
+      - "${PORT_ASSY_01}:${PORT_ASSY_01}"
+
+  assy-02:
+    <<: *sim-common
+    container_name: ${LINE_ID}_ASSY-02
+    environment:
+      LINE_ID: ${LINE_ID}
+      SIM_CONFIG: /app/configs/${LINE_DIR}/ASSY-02.json
+    ports:
+      - "${PORT_ASSY_02}:${PORT_ASSY_02}"
+
+  test-01:
+    <<: *sim-common
+    container_name: ${LINE_ID}_TEST-01
+    environment:
+      LINE_ID: ${LINE_ID}
+      SIM_CONFIG: /app/configs/${LINE_DIR}/TEST-01.json
+    ports:
+      - "${PORT_TEST_01}:${PORT_TEST_01}"
+
+  test-02:
+    <<: *sim-common
+    container_name: ${LINE_ID}_TEST-02
+    environment:
+      LINE_ID: ${LINE_ID}
+      SIM_CONFIG: /app/configs/${LINE_DIR}/TEST-02.json
+    ports:
+      - "${PORT_TEST_02}:${PORT_TEST_02}"
+
+  nodered:
+    build:
+      context: .
+      dockerfile: Dockerfile.nodered
+    image: equip-sim-nodered:4.1.10-22
+    container_name: ${LINE_ID}_nodered
+    restart: unless-stopped
+    entrypoint:
+      - sh
+      - -c
+    command:
+      - >
+        FLOW_FILE="/host-flows/flows_das_$${LINE_ID}.json";
+        if [ ! -f "$$FLOW_FILE" ]; then
+          echo "Missing fixed line DAS flow file: $$FLOW_FILE" >&2;
+          exit 1;
+        fi;
+        cp -f "$$FLOW_FILE" /data/flows.json &&
+        exec /usr/local/bin/node $${NODE_OPTIONS:-} /usr/src/node-red/node_modules/node-red/red.js --userDir /data flows.json
+    environment:
+      LINE_ID: ${LINE_ID}
+      LINE_DIR: ${LINE_DIR}
+      TZ: Asia/Seoul
+    ports:
+      - "${PORT_NODERED_UI}:1880"      # admin UI (라인별로 다른 호스트 포트)
+      - "${PORT_DAS_OPCUA}:${PORT_DAS_OPCUA}"  # 라인 DAS OPC UA Server
+    volumes:
+      - nodered-data:/data
+      - ./nodered:/host-flows:ro
+    networks:
+      line-internal:
+      total-das-net:
+        aliases:
+          - ${COMPOSE_PROJECT_NAME}-nodered
+    depends_on:
+      - cast-01
+      - cnc-01
+      - cnc-02
+      - cnc-03
+      - wash-01
+      - assy-01
+      - assy-02
+      - test-01
+      - test-02
+
+volumes:
+  nodered-data:
+
+networks:
+  line-internal:
+  total-das-net:
+    external: true
+    name: total-das-net
