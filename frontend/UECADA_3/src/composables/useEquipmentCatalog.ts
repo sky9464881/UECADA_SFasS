@@ -90,13 +90,31 @@ function alarmLevelLabel(level: string | null | undefined): string {
   return level
 }
 
+function formatCycle(sec: number | null | undefined): string {
+  if (sec == null || sec <= 0) return '-'
+  return `${sec.toFixed(1)}s`
+}
+
 function buildCommon(equipment: Equipment): EquipmentCommonMetric[] {
-  return [
+  const metrics: EquipmentCommonMetric[] = [
     { label: '설비코드', value: equipment.equipmentCode },
     { label: '라인', value: equipment.location ?? '-' },
     { label: '모델', value: equipment.model ?? '-' },
     { label: '설치일', value: equipment.installDate ?? '-' },
   ]
+  if (equipment.currentAmp != null) {
+    metrics.push({ label: '전류', value: `${equipment.currentAmp.toFixed(1)} A` })
+  }
+  if (equipment.temperatureC != null) {
+    metrics.push({ label: '온도', value: `${equipment.temperatureC.toFixed(1)} ℃` })
+  }
+  if (equipment.humidityPct != null) {
+    metrics.push({ label: '습도', value: `${equipment.humidityPct.toFixed(1)} %` })
+  }
+  if (equipment.vibrationMmS != null) {
+    metrics.push({ label: '진동', value: `${equipment.vibrationMmS.toFixed(2)} mm/s` })
+  }
+  return metrics
 }
 
 function buildSpecific(analysis: AnalysisResult | null): EquipmentSpecificMetric[] {
@@ -193,10 +211,10 @@ export function useEquipmentCatalog() {
           name: e.equipmentName,
           line: e.location ?? '-',
           state,
-          rate: 0,
-          defects: 0,
-          operator: '-',
-          cycle: '-',
+          rate: e.utilizationRate ?? 0,
+          defects: e.defectCount ?? 0,
+          operator: e.operatorName ?? '-',
+          cycle: formatCycle(e.cycleTimeSec),
           common: buildCommon(e),
           specific: buildSpecific(analysis),
         }
@@ -205,6 +223,11 @@ export function useEquipmentCatalog() {
       const running = items.filter((it) => it.state === '운전').length
       const stopped = items.filter((it) => it.state === '정지').length
       const waiting = items.filter((it) => it.state === '대기' || it.state === '점검').length
+      const avgRate =
+        items.length > 0
+          ? Math.round(items.reduce((sum, it) => sum + it.rate, 0) / items.length)
+          : 0
+      const defectCount = items.reduce((sum, it) => sum + it.defects, 0)
 
       return {
         id: def.id,
@@ -215,8 +238,8 @@ export function useEquipmentCatalog() {
         running,
         stopped,
         waiting,
-        avgRate: 0,
-        defectCount: 0,
+        avgRate,
+        defectCount,
         description: def.description,
         equipment: items,
       }

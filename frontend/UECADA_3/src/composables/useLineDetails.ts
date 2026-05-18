@@ -5,6 +5,7 @@ import type { LineSummary } from '@/types/line'
 import { POLL_INTERVAL_MS } from '@/constants/polling'
 
 export interface LineDetailRow {
+  lineId: string
   name: string
   oee: number
   equipment: number
@@ -14,7 +15,6 @@ export interface LineDetailRow {
     wait: number
     stopEnd: number
   }
-  /** 백엔드 미제공 — 0 placeholder */
   balance: number
   stations: number[]
   upmh: number
@@ -29,25 +29,39 @@ function pctRound(value: number, total: number): number {
   return Math.round((value / total) * 100)
 }
 
+function upmhPercent(upmh: number): number {
+  if (upmh <= 0) return 0
+  return Math.min(100, Math.round(upmh / 15))
+}
+
+function uphPercent(uph: number): number {
+  if (uph <= 0) return 0
+  return Math.min(100, Math.round(uph / 6))
+}
+
 function toLineDetail(line: LineSummary): LineDetailRow {
   const total = line.equipmentTotal || 0
   const run = pctRound(line.equipmentRunning, total)
   const stop = pctRound(line.equipmentAlarm, total)
   const wait = pctRound(line.equipmentStandby + line.equipmentMaintenance, total)
+  const upmh = line.upmh ?? 0
+  const uph = line.uph ?? 0
+  const stations =
+    line.stationUtilization?.length ? [...line.stationUtilization] : [0, 0, 0, 0, 0, 0]
+
   return {
+    lineId: line.lineId,
     name: line.lineName ?? line.lineId,
     oee: line.latestOee == null ? 0 : Math.round(Number(line.latestOee)),
     equipment: total,
     status: { run, stop, wait, stopEnd: run + stop },
-    // 백엔드 미제공 영역: 라인밸런싱, UPMH/UPH, 생산성.
-    // TODO: backend 가 station-level 시계열 / UPMH 제공 시 매핑.
-    balance: 0,
-    stations: [0, 0, 0, 0, 0, 0],
-    upmh: 0,
-    uph: 0,
-    productivity: 0,
-    upmhPercent: 0,
-    uphPercent: 0,
+    balance: line.balanceRate ?? 0,
+    stations,
+    upmh,
+    uph,
+    productivity: line.productivity ?? 0,
+    upmhPercent: upmhPercent(upmh),
+    uphPercent: uphPercent(uph),
   }
 }
 

@@ -1066,6 +1066,8 @@ select {
   min-height: 26px;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  text-align: center;
   padding: 0 9px;
   border-radius: 999px;
   font-size: 12px;
@@ -1454,12 +1456,17 @@ select {
 }
 
 .line-state {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
   padding: 5px 8px;
   border-radius: 999px;
   background: rgba(10, 159, 104, 0.13);
   color: #05764d;
   font-size: 12px;
   font-weight: 900;
+  line-height: 1.2;
 }
 
 .line-state.주의 {
@@ -4378,11 +4385,20 @@ select {
 
 .factory-detail-status-pill {
   flex-direction: column;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
+  text-align: center;
   gap: 2px;
+  min-width: 76px;
   min-height: 44px;
-  padding: 7px 11px;
+  padding: 7px 14px;
+}
+
+.factory-detail-status-pill > span {
+  display: block;
+  width: 100%;
+  text-align: center;
+  line-height: 1.2;
 }
 
 .factory-detail-status-pill-en {
@@ -4390,6 +4406,17 @@ select {
   font-weight: 900;
   letter-spacing: 0.08em;
   opacity: 0.9;
+}
+
+/* 상세 설비 정보 패널 — 설비 행 상태 칩(정상/주의/경고) 가운데 정렬 */
+.factory-equipment-detail-pane .factory-stage-equip-status.line-state {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-width: 52px;
+  padding: 5px 12px;
+  line-height: 1.2;
 }
 
 .factory-equipment-detail-body {
@@ -4535,6 +4562,47 @@ select {
   border-radius: 8px;
   border: 1px solid #dce5ef;
   background: #f8fafc;
+}
+
+button.factory-line-summary-card--scada {
+  margin: 0;
+  font: inherit;
+  text-align: inherit;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.1s ease;
+}
+
+button.factory-line-summary-card--scada:hover {
+  border-color: var(--hyundai-blue-2, #4a7fc1);
+  box-shadow: 0 4px 14px rgba(15, 31, 56, 0.1);
+}
+
+button.factory-line-summary-card--scada:active {
+  transform: scale(0.98);
+}
+
+button.factory-line-summary-card--scada:focus-visible {
+  outline: 2px solid var(--hyundai-blue-2, #4a7fc1);
+  outline-offset: 2px;
+}
+
+.factory-webscada-hint {
+  font-size: 11px;
+  font-weight: 700;
+  color: #4a7fc1;
+  white-space: nowrap;
+}
+
+.factory-webscada-hint--off {
+  color: #94a3b8;
+}
+
+button.factory-webscada-open-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .factory-line-summary-code {
@@ -4977,7 +5045,8 @@ select {
 }
 
 .factory-stage-equip-status {
-  align-self: start;
+  align-self: center;
+  justify-self: end;
 }
 
 .factory-stage-equip-summary {
@@ -10161,5 +10230,56 @@ select {
 
   .module-strip article:last-child {
     border-bottom: 0;
+  }
+}
+
+/* Web SCADA line popup (공장 레이아웃 → 팝업) */
+.web-scada-popup-shell {
+  min-height: 100vh;
+  padding: 18px 20px 28px;
+  background: linear-gradient(180deg, #eef3f8 0%, #f8fafc 42%, #ffffff 100%);
+  color: #0f172a;
+  box-sizing: border-box;
+}
+
+.web-scada-popup-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.web-scada-popup-head h1 {
+  margin: 4px 0 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+}
+
+.web-scada-popup-actions {
+  flex-shrink: 0;
+}
+
+.web-scada-popup-alarms {
+  margin-bottom: 14px;
+}
+
+.web-scada-popup-shell .line-popup-quadrant-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.web-scada-popup-shell .line-oee-donut-grid,
+.web-scada-popup-shell .line-status-donut-grid {
+  grid-template-columns: 1fr;
+}
+
+.web-scada-popup-shell .line-popup-single-metric .line-oee-donut-card,
+.web-scada-popup-shell .line-popup-single-metric .line-status-card {
+  min-height: 176px;
+}
+
+@media (max-width: 900px) {
+  .web-scada-popup-shell .line-popup-quadrant-grid {
+    grid-template-columns: 1fr;
   }
 }

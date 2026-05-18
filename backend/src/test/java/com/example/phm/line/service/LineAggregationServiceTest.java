@@ -19,6 +19,7 @@ import com.example.phm.equipment.repository.EquipmentRepository;
 import com.example.phm.equipment.repository.EquipmentStatusRepository;
 import com.example.phm.line.entity.ProductionLine;
 import com.example.phm.line.repository.ProductionLineRepository;
+import com.example.phm.demo.service.DemoMetricsService;
 import com.example.phm.vibration.dto.VibrationRealtimeResponse;
 import com.example.phm.vibration.service.VibrationWindowMonitorService;
 import org.junit.jupiter.api.Test;
@@ -51,15 +52,18 @@ class LineAggregationServiceTest {
         EquipmentStatusRepository statusRepo = mock(EquipmentStatusRepository.class);
         AnalysisResultRepository analysisRepo = mock(AnalysisResultRepository.class);
         VibrationWindowMonitorService monitor = mock(VibrationWindowMonitorService.class);
+        DemoMetricsService demoMetrics = mock(DemoMetricsService.class);
 
         when(lineRepo.findByFactoryId("FACTORY-01")).thenReturn(List.of(line));
         when(equipmentRepo.findAll()).thenReturn(List.of(e1, e2));
         when(statusRepo.findAll()).thenReturn(List.of(s1));
         when(analysisRepo.findLatestForEquipmentCodes(any())).thenReturn(List.<AnalysisResult>of());
         when(monitor.latestRealtime(anyString())).thenReturn(VibrationRealtimeResponse.empty("any"));
+        when(demoMetrics.lineMetrics(anyString()))
+                .thenReturn(new DemoMetricsService.LineMetricsDto(0.0, 0.0, 0.0, 0.0, List.of()));
 
         LineAggregationService service = new LineAggregationService(
-                lineRepo, equipmentRepo, statusRepo, analysisRepo, monitor
+                lineRepo, equipmentRepo, statusRepo, analysisRepo, monitor, demoMetrics
         );
 
         var result = service.getLines("FACTORY-01");

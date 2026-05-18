@@ -17,12 +17,17 @@ import type { Component } from 'vue'
 import { useAppNav } from '@/composables/useAppNav'
 import { useLogout } from '@/composables/useLogout'
 import { useFactoryLayout } from '@/composables/useFactoryLayout'
+import {
+  canOpenWebScadaPopup,
+  openWebScadaPopup,
+  type WebScadaStageKey,
+} from '@/composables/useWebScadaLinks'
 import type { LineSummary, LineStatusCode } from '@/types/line'
 import type { Equipment, EquipmentStatusItem, EquipmentStatusCode } from '@/types/equipment'
 
 type StatusLabel = '정상' | '주의' | '경고'
 type StatusKind = 'ok' | 'warn' | 'alert'
-type StageKey = 'cast' | 'mach' | 'wash' | 'assy' | 'insp'
+type StageKey = WebScadaStageKey
 type LineTone = 'blue' | 'yellow' | 'neutral' | 'red'
 
 interface EquipmentMetric {
@@ -239,8 +244,20 @@ function equipmentStatusClass(status: StatusLabel): string {
   return 'factory-stage-equip-row--alert'
 }
 
+const webScadaReady = canOpenWebScadaPopup()
+const webScadaHint = webScadaReady
+  ? '웹스카다 → SMWP 자동로그인 (Pro=yhh0518 #LDV)'
+  : '웹스카다: .env에 VITE_SWMP_DEFAULT_URL 설정'
+
 function selectStage(lineId: string, stageKey: StageKey): void {
   selectedStage.value = { lineId, stageKey }
+}
+
+function openWebScada(lineId?: string): void {
+  const id = lineId ?? factoryLines.value[0]?.id ?? 'LINE-A'
+  if (!openWebScadaPopup(id)) {
+    window.alert('웹스카다 팝업을 열 수 없습니다. 팝업 차단을 해제하거나 .env 설정을 확인하세요.')
+  }
 }
 
 function isStageSelected(lineId: string, stageKey: StageKey): boolean {
@@ -328,6 +345,16 @@ function stageIconToneClass(kind: StatusKind): string {
             <BarChart3 :size="16" />
             <span>라인 상세</span>
           </RouterLink>
+          <button
+            type="button"
+            class="ghost-button factory-webscada-open-btn"
+            :disabled="!webScadaReady"
+            title="웹스카다 SMWP #LDV (팝업)"
+            @click="openWebScada()"
+          >
+            <Factory :size="16" />
+            <span>웹스카다</span>
+          </button>
           <button type="button" class="icon-link" @click="logout">
             <LogOut :size="16" />
             <span>로그아웃</span>
@@ -343,6 +370,9 @@ function stageIconToneClass(kind: StatusKind): string {
               <h2>라인별 공정 흐름</h2>
             </div>
             <div class="section-title-trail">
+              <span class="factory-webscada-hint" :class="{ 'factory-webscada-hint--off': !webScadaReady }">
+                {{ webScadaHint }}
+              </span>
               <div class="factory-status-legend" aria-label="설비 상태 범례">
                 <span class="normal">정상</span>
                 <span class="caution">주의</span>
@@ -359,7 +389,13 @@ function stageIconToneClass(kind: StatusKind): string {
               class="factory-line-process-row"
               :class="`factory-line-process-row--${line.tone}`"
             >
-              <div class="factory-line-summary-card" :aria-label="`${line.code} 요약`">
+              <button
+                type="button"
+                class="factory-line-summary-card factory-line-summary-card--scada"
+                :aria-label="`${line.code} 요약 — 클릭 시 웹스카다`"
+                :title="webScadaReady ? '웹스카다 열기 (팝업)' : 'VITE_SWMP_DEFAULT_URL 미설정'"
+                @click="openWebScada(line.id)"
+              >
                 <strong class="factory-line-summary-code">{{ line.code }}</strong>
                 <div class="factory-line-summary-spark" aria-hidden="true">
                   <svg
@@ -385,7 +421,7 @@ function stageIconToneClass(kind: StatusKind): string {
                 >
                   OEE {{ line.oee }}%
                 </span>
-              </div>
+              </button>
 
               <div class="factory-line-stages" :aria-label="`${line.name} 공정 순서`">
                 <template v-for="(stage, si) in STAGE_ORDER" :key="stage.key">

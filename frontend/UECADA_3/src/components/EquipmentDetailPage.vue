@@ -27,6 +27,11 @@ import type { Component } from 'vue'
 import EquipmentCategoryGrid from '@/components/equipment/EquipmentCategoryGrid.vue'
 import CategorySummaryPanel from '@/components/equipment/CategorySummaryPanel.vue'
 import CategoryEquipmentList from '@/components/equipment/CategoryEquipmentList.vue'
+import {
+  canAutoLoginWebScada,
+  isWebScadaConfigured,
+  openEquipmentWebScada,
+} from '@/composables/useWebScadaLinks'
 
 const { navItems } = useAppNav()
 const logout = useLogout()
@@ -53,7 +58,7 @@ const categories = computed<CategoryWithIcon[]>(() =>
 )
 
 const selectedCategoryId = ref('casting')
-const selectedEquipmentId = ref('CAST-02')
+const selectedEquipmentId = ref('LINE-01_CAST-01')
 const isEquipmentPopupOpen = ref(false)
 
 const EMPTY_CATEGORY = Object.freeze({
@@ -122,8 +127,16 @@ const selectCategory = (category: CategoryWithIcon) => {
   isEquipmentPopupOpen.value = false
 }
 
+const webScadaReady = canAutoLoginWebScada() || isWebScadaConfigured()
+
 const openEquipmentPopup = () => {
-  isEquipmentPopupOpen.value = true
+  if (!openEquipmentWebScada()) {
+    window.alert(
+      webScadaReady
+        ? 'SMWP 팝업을 열 수 없습니다. 브라우저 팝업 차단을 해제해 주세요.'
+        : 'SMWP가 설정되지 않았습니다. .env 에 VITE_SWMP_DEFAULT_URL 과 계정을 설정하세요.',
+    )
+  }
 }
 
 const closeEquipmentPopup = () => {
@@ -328,7 +341,13 @@ const specificMetricPercent = (metric: EquipmentSpecificMetric) => {
             <h2>{{ selectedEquipment.id }} · {{ selectedEquipment.name }}</h2>
           </div>
           <div class="equipment-detail-actions">
-            <button class="equipment-detail-open-button" type="button" @click="openEquipmentPopup">
+            <button
+              class="equipment-detail-open-button"
+              type="button"
+              :disabled="!webScadaReady"
+              title="SMWP 설비 화면 (#ED) 팝업"
+              @click="openEquipmentPopup"
+            >
               <Factory :size="16" />
               <span>설비 상세보기</span>
             </button>

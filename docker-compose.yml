@@ -20,6 +20,7 @@ services:
       - ./database/init/init.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
       - ./database/init/02_seed.sql:/docker-entrypoint-initdb.d/02_seed.sql:ro
       - ./database/init/03_indexes.sql:/docker-entrypoint-initdb.d/03_indexes.sql:ro
+      - ./database/init/04_demo_metrics.sql:/docker-entrypoint-initdb.d/04_demo_metrics.sql:ro
     healthcheck:
       test: ["CMD", "mysql", "-h", "localhost", "-uuecada_user", "-puecada1234", "-e", "SELECT 1 FROM uecada.analysis_result LIMIT 1"]
       interval: 10s

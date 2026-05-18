@@ -63,3 +63,58 @@
 - ApexCharts → ECharts 통일로 1 MB 청크 제거
 - 라인 / 설비 목록 `@Cacheable` 또는 ETag 캐싱
 - JWT 통합
+
+---
+
+## 2026-05-18 통합 작업 요약 (`feat/FE_BE_fin_0518`)
+
+### SMWP(WebSCADA) 연동 — 최소 구성
+
+| 항목 | 설명 |
+|------|------|
+| **의도** | UECADA에서 **버튼/라인 카드**로 SMWP 화면을 **팝업 창**으로 연다. DB·OPC는 별도(SMWP가 처리). |
+| **URL** | `.env`(로컬 전용, git 제외) 또는 `.env.example` — `VITE_SWMP_DEFAULT_URL` 예: `http://222.108.180.36:11005/#LDV` 또는 `?Pro=프로젝트ID#LDV` |
+| **코드** | `frontend/UECADA_3/src/composables/useWebScadaLinks.ts` — 호스트 화이트리스트, `window.open(..., 'uecada-webscada')` |
+| **UI** | `FactoryLayoutPage.vue` — 상단 **웹스카다** 버튼, 라인 요약 카드 클릭 시 팝업 |
+| **테스트 화면** | `SwmpTestPage.vue` — 동일 팝업 (구 iframe 모달 제거) |
+| **로그인 연동** | UECADA 로그인 직후 SMWP 자동 오픈·자동 SMWP 로그인 **사용 안 함** (`LoginPage`에서 호출 제거, `.env`에 계정 주입 패턴 제거) |
+
+### 설비 상세 · 공장 레이아웃 UI
+
+- `style.css` — **상세 설비 정보** 우측 상태 배지(경고/ALERT 등) 및 공통 `.pill` / `.line-state` **가운데 정렬**
+- 라인·설비 응답 확장 및 설비 상세 페이지 등 프론트/백엔드 조회 경로 정리(라인별 KPI·런타임 연동)
+
+### 로컬 백엔드 기동·스키마
+
+| 항목 | 설명 |
+|------|------|
+| **데모 KPI SQL** | `database/init/04_demo_metrics.sql` — `line_station_balance`, `equipment_runtime_demo`, `line_kpi_log` 시드 등 |
+| **Docker 로컬 DB** | `docker-compose.local-infra.yml`에 `04_demo_metrics.sql` 마운트 추가(최초 `up` 시 적용) |
+| **컬럼 타입** | `line_station_balance.station_no` — Hibernate `Integer`와 맞추기 위해 **`INT`** (기존 `TINYINT`와 불일치 시 검증 실패) |
+| **버그 수정** | `DemoMetricsService` — `findLatestByLineId` 존재하지 않음 → `findTopByLineIdOrderByRecordedAtDesc` 사용 |
+
+### 실시간 데모(1초 폴링용)
+
+| 처리 | 설명 |
+|------|------|
+| **Push API** | `POST /api/demo/metrics/push` — 메모리 스토어(`DemoMetricsLiveStore`)에 라인·설비 KPI 반영 → `/api/lines`, 설비 API 등에서 조회 |
+| **스크립트** | `scripts/demo-metrics-pusher.mjs` — 기본 1초마다 sin 파형 데이터 POST (`API_BASE`, `INTERVAL_MS` 환경변수) |
+| **프론트** | `VITE_REALTIME_DEMO=true` 시 `src/constants/polling.ts`에서 일부 화면 **1초** 폴링 |
+
+> SMWP LDV 화면의 「로드 실패」는 **UECADA API와 무관**하며, SMWP 프로젝트의 태그·HTTP·OPC 설정이 필요합니다. UECADA 쪽 데모는 `demo-metrics-pusher` + 백엔드 + Vue만으로 확인할 수 있습니다.
+
+### 로컬 실행 참고(요약)
+
+```bash
+# DB + Mosquitto (로컬 인프라)
+docker compose -f docker-compose.local-infra.yml up -d
+
+# 백엔드 (Docker MySQL 8600 포트)
+cd backend && ./gradlew bootRun --args='--spring.profiles.active=local-docker'
+
+# (선택) 1초 데모 수치
+node scripts/demo-metrics-pusher.mjs
+
+# 프론트 — .env 에 VITE_API_BASE_URL 등 설정 후
+cd frontend/UECADA_3 && npm run dev
+```

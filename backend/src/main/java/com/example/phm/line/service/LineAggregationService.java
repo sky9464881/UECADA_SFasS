@@ -15,6 +15,7 @@ import com.example.phm.equipment.entity.Equipment;
 import com.example.phm.equipment.entity.EquipmentStatus;
 import com.example.phm.equipment.repository.EquipmentRepository;
 import com.example.phm.equipment.repository.EquipmentStatusRepository;
+import com.example.phm.demo.service.DemoMetricsService;
 import com.example.phm.line.dto.LineResponse;
 import com.example.phm.line.entity.ProductionLine;
 import com.example.phm.line.repository.ProductionLineRepository;
@@ -31,19 +32,22 @@ public class LineAggregationService {
     private final EquipmentStatusRepository statusRepository;
     private final AnalysisResultRepository analysisResultRepository;
     private final VibrationWindowMonitorService vibrationWindowMonitorService;
+    private final DemoMetricsService demoMetricsService;
 
     public LineAggregationService(
             ProductionLineRepository lineRepository,
             EquipmentRepository equipmentRepository,
             EquipmentStatusRepository statusRepository,
             AnalysisResultRepository analysisResultRepository,
-            VibrationWindowMonitorService vibrationWindowMonitorService
+            VibrationWindowMonitorService vibrationWindowMonitorService,
+            DemoMetricsService demoMetricsService
     ) {
         this.lineRepository = lineRepository;
         this.equipmentRepository = equipmentRepository;
         this.statusRepository = statusRepository;
         this.analysisResultRepository = analysisResultRepository;
         this.vibrationWindowMonitorService = vibrationWindowMonitorService;
+        this.demoMetricsService = demoMetricsService;
     }
 
     @Transactional(readOnly = true)
@@ -91,6 +95,7 @@ public class LineAggregationService {
         long maintenance = countStatus(lineEquipments, statusByEquipment, latestAlarmLevelByEquipment, "MAINTENANCE");
         long openAlarmCount = alarm;
         String lineStatus = alarm > 0 ? "ALARM" : line.getLineStatus();
+        DemoMetricsService.LineMetricsDto metrics = demoMetricsService.lineMetrics(line.getLineId());
 
         return new LineResponse(
                 line.getLineId(),
@@ -103,7 +108,12 @@ public class LineAggregationService {
                 standby,
                 maintenance,
                 openAlarmCount,
-                derivedOee(total, running, standby, maintenance)
+                derivedOee(total, running, standby, maintenance),
+                metrics.balanceRate(),
+                metrics.uph(),
+                metrics.upmh(),
+                metrics.productivity(),
+                metrics.stationUtilization()
         );
     }
 

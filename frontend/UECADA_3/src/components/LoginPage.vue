@@ -26,9 +26,9 @@ async function submitLogin() {
   const redirect = Array.isArray(raw) ? raw[0] : raw
   if (redirect && typeof redirect === 'string') {
     await router.push(redirect)
-    return
+  } else {
+    await router.push({ name: 'dashboard' })
   }
-  await router.push({ name: 'dashboard' })
 }
 
 const openModal = (id: ModalId) => {

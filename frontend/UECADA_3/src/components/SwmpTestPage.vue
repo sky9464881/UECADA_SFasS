@@ -9,37 +9,29 @@ import {
   Gauge,
   LogOut,
   Wrench,
-  X,
 } from 'lucide-vue-next'
 import { useAppNav } from '@/composables/useAppNav'
 import { useLogout } from '@/composables/useLogout'
+import { isWebScadaConfigured, openWebScadaPopup } from '@/composables/useWebScadaLinks'
 
 const { navItems } = useAppNav()
 const logout = useLogout()
 
-const defaultSwmp = import.meta.env.VITE_SWMP_DEFAULT_URL ?? ''
-// SWMP 주소를 받으면 여기에 넣어 웹스카다 팝업으로 표시할 수 있습니다.
-const swmpUrl = ref(defaultSwmp)
-const connectionMessage = ref('SWMP URL 등록 완료')
-const isSwmpPopupOpen = ref(false)
+const webScadaReady = isWebScadaConfigured()
+const connectionMessage = ref(
+  webScadaReady ? 'SWMP URL 등록 완료' : 'VITE_SWMP_DEFAULT_URL 을 .env 에 설정하세요',
+)
 
 const openWebScada = () => {
-  if (!swmpUrl.value) {
-    connectionMessage.value = '나중에 전달받은 SWMP URL을 등록하면 웹스카다 버튼으로 화면을 띄웁니다.'
+  if (!openWebScadaPopup()) {
+    connectionMessage.value = '웹스카다 URL이 없습니다. .env 에 VITE_SWMP_DEFAULT_URL 을 설정하세요.'
     return
   }
-
   connectionMessage.value = '웹스카다 팝업 실행 중'
-  isSwmpPopupOpen.value = true
-}
-
-const closeWebScada = () => {
-  isSwmpPopupOpen.value = false
-  connectionMessage.value = 'SWMP URL 등록 완료'
 }
 
 const testItems = [
-  { label: '접속 방식', value: '팝업 표시', detail: '등록된 URL을 팝업 iframe으로 표시' },
+  { label: '접속 방식', value: '팝업 창', detail: '등록된 URL을 브라우저 팝업으로 표시' },
   { label: '연동 대상', value: 'SWMP', detail: '웹스카다 화면 호출 예정' },
   { label: '현재 상태', value: '등록 완료', detail: '웹스카다 버튼으로 SWMP 팝업 호출 가능' },
 ]
@@ -168,25 +160,6 @@ const checklist = [
         </article>
       </section>
 
-      <div
-        v-if="isSwmpPopupOpen"
-        class="swmp-modal-backdrop"
-        @click.self="closeWebScada"
-      >
-        <article class="swmp-modal" role="dialog" aria-modal="true" aria-label="웹스카다 팝업">
-          <div class="swmp-modal-head">
-            <button class="swmp-modal-close" type="button" aria-label="팝업 닫기" @click="closeWebScada">
-              <X :size="18" />
-            </button>
-          </div>
-
-          <iframe
-            class="swmp-frame"
-            :src="swmpUrl"
-            title="SWMP 웹스카다"
-          ></iframe>
-        </article>
-      </div>
     </section>
   </main>
 </template>

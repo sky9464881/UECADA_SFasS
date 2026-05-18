@@ -9,7 +9,12 @@ declare module '*.vue' {
 interface ImportMetaEnv {
   readonly VITE_API_BASE_URL?: string
   readonly VITE_USE_MOCK_ALARMS?: string
+  /** true 이면 라인/설비/대시보드 API 를 1초마다 폴링 */
+  readonly VITE_REALTIME_DEMO?: string
   readonly VITE_SWMP_DEFAULT_URL?: string
+  readonly VITE_SWMP_OPEN_MODE?: string
+  readonly VITE_SWMP_USERNAME?: string
+  readonly VITE_SWMP_PASSWORD?: string
 }
 
 interface ImportMeta {
