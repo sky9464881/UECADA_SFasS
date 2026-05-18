@@ -12,6 +12,7 @@ import com.example.phm.equipment.dto.EquipmentStatusResponse;
 import com.example.phm.equipment.dto.EquipmentStatusUpdateRequest;
 import com.example.phm.equipment.entity.EquipmentStatus;
 import com.example.phm.equipment.repository.EquipmentStatusRepository;
+import com.example.phm.sensor.service.RealtimeEquipmentService;
 import com.example.phm.vibration.dto.VibrationRealtimeResponse;
 import com.example.phm.vibration.service.VibrationWindowMonitorService;
 import jakarta.validation.Valid;
@@ -30,15 +31,18 @@ public class EquipmentStatusController {
     private final EquipmentStatusRepository equipmentStatusRepository;
     private final AnalysisResultRepository analysisResultRepository;
     private final VibrationWindowMonitorService vibrationWindowMonitorService;
+    private final RealtimeEquipmentService realtimeEquipmentService;
 
     public EquipmentStatusController(
             EquipmentStatusRepository equipmentStatusRepository,
             AnalysisResultRepository analysisResultRepository,
-            VibrationWindowMonitorService vibrationWindowMonitorService
+            VibrationWindowMonitorService vibrationWindowMonitorService,
+            RealtimeEquipmentService realtimeEquipmentService
     ) {
         this.equipmentStatusRepository = equipmentStatusRepository;
         this.analysisResultRepository = analysisResultRepository;
         this.vibrationWindowMonitorService = vibrationWindowMonitorService;
+        this.realtimeEquipmentService = realtimeEquipmentService;
     }
 
     @GetMapping
@@ -82,6 +86,11 @@ public class EquipmentStatusController {
         }
         if ("normal".equals(realtimeAlarmLevel) && "ALARM".equals(normalizedBase)) {
             return "RUNNING";
+        }
+
+        String sensorStatus = realtimeEquipmentService.statusOverride(equipId);
+        if (sensorStatus != null) {
+            return sensorStatus;
         }
 
         String latestAlarmLevel = analysisResultRepository

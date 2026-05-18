@@ -18,6 +18,7 @@ import com.example.phm.equipment.repository.EquipmentStatusRepository;
 import com.example.phm.line.dto.LineResponse;
 import com.example.phm.line.entity.ProductionLine;
 import com.example.phm.line.repository.ProductionLineRepository;
+import com.example.phm.sensor.service.RealtimeEquipmentService;
 import com.example.phm.vibration.dto.VibrationRealtimeResponse;
 import com.example.phm.vibration.service.VibrationWindowMonitorService;
 import org.springframework.stereotype.Service;
@@ -31,19 +32,22 @@ public class LineAggregationService {
     private final EquipmentStatusRepository statusRepository;
     private final AnalysisResultRepository analysisResultRepository;
     private final VibrationWindowMonitorService vibrationWindowMonitorService;
+    private final RealtimeEquipmentService realtimeEquipmentService;
 
     public LineAggregationService(
             ProductionLineRepository lineRepository,
             EquipmentRepository equipmentRepository,
             EquipmentStatusRepository statusRepository,
             AnalysisResultRepository analysisResultRepository,
-            VibrationWindowMonitorService vibrationWindowMonitorService
+            VibrationWindowMonitorService vibrationWindowMonitorService,
+            RealtimeEquipmentService realtimeEquipmentService
     ) {
         this.lineRepository = lineRepository;
         this.equipmentRepository = equipmentRepository;
         this.statusRepository = statusRepository;
         this.analysisResultRepository = analysisResultRepository;
         this.vibrationWindowMonitorService = vibrationWindowMonitorService;
+        this.realtimeEquipmentService = realtimeEquipmentService;
     }
 
     @Transactional(readOnly = true)
@@ -133,6 +137,11 @@ public class LineAggregationService {
         }
         if ("normal".equals(realtimeAlarmLevel) && "ALARM".equals(baseStatus)) {
             return "RUNNING";
+        }
+
+        String sensorStatus = realtimeEquipmentService.statusOverride(equipment.getEquipmentCode());
+        if (sensorStatus != null) {
+            return sensorStatus;
         }
 
         String latestAlarmLevel = latestAlarmLevelByEquipment.get(equipment.getEquipmentCode());

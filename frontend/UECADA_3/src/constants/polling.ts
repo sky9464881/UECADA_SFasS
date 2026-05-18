@@ -11,11 +11,11 @@
 export const POLL_INTERVAL_MS = {
   alarm: 1_000,
   equipmentRealtime: 1_000,
-  dashboard: 10_000,
-  equipmentCategory: 15_000,
+  dashboard: 2_000,
+  equipmentCategory: 2_000,
   equipmentAnalysis: 30_000,
-  factoryLayout: 15_000,
-  lineDetail: 15_000,
+  factoryLayout: 2_000,
+  lineDetail: 2_000,
   posts: 60_000,
   alarmInsights: 60_000,
 } as const

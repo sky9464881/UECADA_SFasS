@@ -1,0 +1,57 @@
+{
+  "equipment_name": "${LINE_ID:-LINE-00}_WASH-01",
+  "protocol": "opcua",
+  "host": "0.0.0.0",
+  "port": 5041,
+  "sampling_ms": 1000,
+  "tags": [
+    {
+      "name": "power",
+      "role": "power",
+      "data_type": "bool",
+      "base_value": true
+    },
+    {
+      "name": "cleaning_temperature_sp",
+      "role": "setpoint",
+      "data_type": "float",
+      "base_value": 62.0
+    },
+    {
+      "name": "cleaning_concentration",
+      "role": "sensor",
+      "data_type": "float",
+      "base_value": 3.2,
+      "stddev": 0.15
+    },
+    {
+      "name": "cleaning_temperature",
+      "role": "sensor",
+      "data_type": "float",
+      "source_sp": "cleaning_temperature_sp",
+      "stddev": 1.0
+    },
+    {
+      "name": "cleaning_pressure",
+      "role": "sensor",
+      "data_type": "float",
+      "base_value": 4.0,
+      "stddev": 0.2
+    },
+    {
+      "name": "cleaning_flow",
+      "role": "sensor",
+      "data_type": "float",
+      "base_value": 50.0,
+      "stddev": 2.5
+    },
+    {
+      "name": "progress",
+      "role": "sensor",
+      "data_type": "float",
+      "base_value": 0.016666666666666666,
+      "stddev": 0.0016666666666666668
+    }
+  ],
+  "namespace": "${LINE_ID:-LINE-00}_WASH-01"
+}

@@ -6,6 +6,14 @@ import { fetchSensorLatestValues, type SensorBufferLatest, type SensorFrame } fr
 import type { Equipment, EquipmentStatusCode, EquipmentStatusItem } from '@/types/equipment'
 import type { AnalysisResult } from '@/types/analysis'
 import { POLL_INTERVAL_MS, STALE_TIME_MS } from '@/constants/polling'
+import {
+  MONITORING_REALTIME_METRICS,
+  processRealtimeMetricConfigs,
+  realtimeBufferKey,
+  realtimeKeysForEquipments,
+  type RealtimeMetric,
+  type RealtimeMetricConfig,
+} from '@/utils/realtimeBuffers'
 
 export type EquipmentState = '운전' | '정지' | '대기' | '점검'
 
@@ -56,16 +64,7 @@ export interface CategoryDefinition {
   iconKey: 'flame' | 'cog' | 'droplets' | 'wrench' | 'search'
 }
 
-type RealtimeMetric = 'cycle_time' | 'sensor_current' | 'sensor_voltage' | 'sensor_temperature' | 'sensor_vibration'
 type LatestFrameMap = Map<string, SensorFrame>
-
-const REALTIME_METRICS: readonly RealtimeMetric[] = [
-  'cycle_time',
-  'sensor_current',
-  'sensor_voltage',
-  'sensor_temperature',
-  'sensor_vibration',
-] as const
 
 const FRESH_MS = 5_000
 const STALE_MS = 30_000
@@ -110,26 +109,8 @@ function alarmLevelLabel(level: string | null | undefined): string {
   return level
 }
 
-function normalizeEquipmentCode(equipmentCode: string): { line: string; equipment: string } | null {
-  const match = equipmentCode.match(/^(LINE-\d{2})_(.+)$/)
-  if (!match) return null
-  return {
-    line: match[1].replace('-', ''),
-    equipment: match[2].replace(/-/g, ''),
-  }
-}
-
-function bufferKey(equipmentCode: string, metric: RealtimeMetric): string | null {
-  const parsed = normalizeEquipmentCode(equipmentCode)
-  if (!parsed) return null
-  return `${parsed.line}.${parsed.equipment}:${metric}`
-}
-
 function buildRealtimeKeys(equipments: readonly Equipment[]): string[] {
-  const keys = equipments.flatMap((equipment) =>
-    REALTIME_METRICS.map((metric) => bufferKey(equipment.equipmentCode, metric)).filter((key): key is string => !!key),
-  )
-  return [...new Set(keys)]
+  return realtimeKeysForEquipments(equipments)
 }
 
 function latestFrameMap(items: readonly SensorBufferLatest[]): LatestFrameMap {
@@ -141,7 +122,7 @@ function latestFrameMap(items: readonly SensorBufferLatest[]): LatestFrameMap {
 }
 
 function latestValue(map: LatestFrameMap, equipmentCode: string, metric: RealtimeMetric): number | null {
-  const key = bufferKey(equipmentCode, metric)
+  const key = realtimeBufferKey(equipmentCode, metric)
   if (!key) return null
   const value = map.get(key)?.value
   return typeof value === 'number' && Number.isFinite(value) ? value : null
@@ -149,8 +130,8 @@ function latestValue(map: LatestFrameMap, equipmentCode: string, metric: Realtim
 
 function latestTimestamp(map: LatestFrameMap, equipmentCode: string): number | null {
   let latest: number | null = null
-  for (const metric of REALTIME_METRICS) {
-    const key = bufferKey(equipmentCode, metric)
+  for (const metric of MONITORING_REALTIME_METRICS) {
+    const key = realtimeBufferKey(equipmentCode, metric)
     const ts = key ? map.get(key)?.timestampMs : null
     if (typeof ts === 'number' && (latest == null || ts > latest)) latest = ts
   }
@@ -197,10 +178,23 @@ function buildCommon(equipment: Equipment, realtime: LatestFrameMap): EquipmentC
   ]
 }
 
-function buildSpecific(analysis: AnalysisResult | null): EquipmentSpecificMetric[] {
-  if (!analysis) return [{ label: '분석 결과', value: '데이터 없음', status: '실시간 분석 대기' }]
+function buildRealtimeSpecific(
+  equipment: Equipment,
+  realtime: LatestFrameMap,
+): EquipmentSpecificMetric[] {
+  return processRealtimeMetricConfigs(equipment.processType).map((config: RealtimeMetricConfig) => {
+    const value = latestValue(realtime, equipment.equipmentCode, config.metric)
+    return {
+      label: config.label,
+      value: formatMetric(value, config.unit, config.digits),
+      status: value == null ? '버퍼 수신 대기' : config.status,
+    }
+  })
+}
 
+function buildAnalysisSpecific(analysis: AnalysisResult | null): EquipmentSpecificMetric[] {
   const items: EquipmentSpecificMetric[] = []
+  if (!analysis) return items
   if (analysis.prediction) {
     items.push({ label: '예측', value: analysis.prediction, status: `모델 ${analysis.modelVersion ?? '-'}` })
   }
@@ -226,7 +220,19 @@ function buildSpecific(analysis: AnalysisResult | null): EquipmentSpecificMetric
     items.push({ label: 'Crest Factor', value: formatNumber(analysis.crestFactor, 3), status: '피크 대 RMS' })
   }
 
-  return items.length ? items : [{ label: '분석 결과', value: '항목 없음', status: '-' }]
+  return items
+}
+
+function buildSpecific(
+  equipment: Equipment,
+  realtime: LatestFrameMap,
+  analysis: AnalysisResult | null,
+): EquipmentSpecificMetric[] {
+  const items = [
+    ...buildRealtimeSpecific(equipment, realtime),
+    ...buildAnalysisSpecific(analysis),
+  ]
+  return items.length ? items : [{ label: '분석 결과', value: '데이터 없음', status: '실시간 분석 대기' }]
 }
 
 export function useEquipmentCatalog() {
@@ -310,7 +316,7 @@ export function useEquipmentCatalog() {
           operator: '-',
           cycle: cycleTime == null ? '-' : `${formatNumber(cycleTime, 1)}s`,
           common: buildCommon(e, rMap),
-          specific: buildSpecific(analysis),
+          specific: buildSpecific(e, rMap, analysis),
         }
       })
 

@@ -393,11 +393,12 @@ const specificMetricPercent = (metric: EquipmentSpecificMetric) => {
         </div>
         </section>
 
-        <div
-          v-if="selectedEquipment && isEquipmentPopupOpen"
-          class="equipment-modal-backdrop"
-          @click.self="closeEquipmentPopup"
-        >
+        <Teleport to="body">
+          <div
+            v-if="selectedEquipment && isEquipmentPopupOpen"
+            class="equipment-modal-backdrop"
+            @click.self="closeEquipmentPopup"
+          >
         <article
           class="equipment-detail-modal"
           role="dialog"
@@ -561,7 +562,8 @@ const specificMetricPercent = (metric: EquipmentSpecificMetric) => {
             </div>
           </section>
         </article>
-        </div>
+          </div>
+        </Teleport>
       </div>
 
       <Teleport to="body">

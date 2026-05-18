@@ -12,11 +12,13 @@ import {
   LogOut,
   Search,
   Wrench,
+  X,
 } from 'lucide-vue-next'
 import type { Component } from 'vue'
 import { useAppNav } from '@/composables/useAppNav'
 import { useLogout } from '@/composables/useLogout'
 import { realtimeBufferKey, useFactoryLayout, type FactoryRealtimeMetric } from '@/composables/useFactoryLayout'
+import { processRealtimeMetricConfigs } from '@/utils/realtimeBuffers'
 import type { LineSummary, LineStatusCode } from '@/types/line'
 import type { Equipment, EquipmentStatusItem, EquipmentStatusCode } from '@/types/equipment'
 
@@ -80,6 +82,15 @@ const PROCESS_TYPE_TO_STAGE_KEY: Record<string, StageKey> = {
 }
 
 const LINE_TONE_BY_INDEX: readonly LineTone[] = ['blue', 'yellow', 'neutral']
+const REALTIME_FRESH_MS = 5_000
+const REALTIME_STALE_MS = 30_000
+const COMMON_METRICS: readonly FactoryRealtimeMetric[] = [
+  'cycle_time',
+  'sensor_current',
+  'sensor_voltage',
+  'sensor_temperature',
+  'sensor_vibration',
+]
 
 function lineStatusToLabel(status: LineStatusCode | undefined): StatusLabel {
   if (status === 'ALARM') return '경고'
@@ -127,26 +138,84 @@ function realtimeValue(equipmentCode: string, metric: FactoryRealtimeMetric): nu
   return typeof value === 'number' && Number.isFinite(value) ? value : null
 }
 
+function realtimeTimestamp(equipmentCode: string, metric: FactoryRealtimeMetric): number | null {
+  const key = realtimeBufferKey(equipmentCode, metric)
+  const timestampMs = key ? realtimeData.value.get(key)?.timestampMs : null
+  return typeof timestampMs === 'number' && Number.isFinite(timestampMs) ? timestampMs : null
+}
+
+function latestRealtimeTimestamp(e: Equipment): number | null {
+  const metrics = [
+    ...new Set([
+      ...processRealtimeMetricConfigs(e.processType).map((config) => config.metric),
+      ...COMMON_METRICS,
+    ]),
+  ]
+  return metrics.reduce<number | null>((latest, metric) => {
+    const timestampMs = realtimeTimestamp(e.equipmentCode, metric)
+    return timestampMs != null && (latest == null || timestampMs > latest) ? timestampMs : latest
+  }, null)
+}
+
+function realtimeReceiveLabel(e: Equipment): string {
+  const timestampMs = latestRealtimeTimestamp(e)
+  if (timestampMs == null) return '미수신'
+  const ageMs = Date.now() - timestampMs
+  if (ageMs <= REALTIME_FRESH_MS) return '실시간'
+  if (ageMs <= REALTIME_STALE_MS) return '지연'
+  return '오프라인'
+}
+
+function effectiveEquipmentStatus(e: Equipment, dbStatus: EquipmentStatusCode | undefined): StatusLabel {
+  if (dbStatus === 'ALARM') return '경고'
+  const timestampMs = latestRealtimeTimestamp(e)
+  if (timestampMs == null) return equipmentStatusToLabel(dbStatus)
+  return Date.now() - timestampMs <= REALTIME_STALE_MS ? '정상' : '주의'
+}
+
+function derivedLineOee(line: LineSummary): number {
+  if (line.latestOee != null) return Math.round(Number(line.latestOee))
+  const total = line.equipmentTotal || 0
+  if (!total) return 0
+  const score = (
+    line.equipmentRunning
+    + (line.equipmentStandby * 0.35)
+    + (line.equipmentMaintenance * 0.15)
+  ) / total * 100
+  return Math.round(score)
+}
+
 function fmt(value: number | null, unit: string, digits = 1): string {
   if (value == null) return '-'
   return `${value.toFixed(digits)}${unit}`
 }
 
 function realtimeMetrics(e: Equipment): EquipmentMetric[] {
-  return [
+  const processMetrics = processRealtimeMetricConfigs(e.processType).map((config) => ({
+    label: config.label,
+    value: fmt(realtimeValue(e.equipmentCode, config.metric), config.unit, config.digits),
+  }))
+  const commonMetrics = [
+    { label: '수신', value: realtimeReceiveLabel(e) },
     { label: '싸이클', value: fmt(realtimeValue(e.equipmentCode, 'cycle_time'), 's', 1) },
     { label: '전류', value: fmt(realtimeValue(e.equipmentCode, 'sensor_current'), 'A', 1) },
     { label: '전압', value: fmt(realtimeValue(e.equipmentCode, 'sensor_voltage'), 'V', 1) },
     { label: '온도', value: fmt(realtimeValue(e.equipmentCode, 'sensor_temperature'), '°C', 1) },
     { label: '진동', value: fmt(realtimeValue(e.equipmentCode, 'sensor_vibration'), '', 3) },
   ]
+  const seen = new Set<string>()
+  return [...processMetrics, ...commonMetrics].filter((metric) => {
+    if (seen.has(metric.label)) return false
+    seen.add(metric.label)
+    return true
+  })
 }
 
 const factoryLines = computed<FactoryLine[]>(() => {
   const lines = (linesData.value ?? []) as LineSummary[]
   return lines.map((line, idx) => {
     const baseTone = LINE_TONE_BY_INDEX[idx] ?? 'neutral'
-    const oeeRounded = line.latestOee == null ? 0 : Math.round(Number(line.latestOee))
+    const oeeRounded = derivedLineOee(line)
     return {
       id: line.lineId,
       name: line.lineName,
@@ -175,7 +244,7 @@ const equipmentMatrix = computed<EquipmentMatrix>(() => {
       matrix[lineId] = { cast: [], mach: [], wash: [], assy: [], insp: [] }
     }
 
-    const status = equipmentStatusToLabel(statusMap.get(eq.equipmentCode))
+    const status = effectiveEquipmentStatus(eq, statusMap.get(eq.equipmentCode))
     matrix[lineId][stageKey].push({
       id: eq.equipmentCode,
       name: eq.equipmentName,
@@ -192,6 +261,7 @@ const selectedStage = ref<{ lineId: string; stageKey: StageKey }>({
   lineId: '',
   stageKey: 'cast',
 })
+const isStagePopupOpen = ref(false)
 
 watch(
   factoryLines,
@@ -263,6 +333,20 @@ function equipmentStatusClass(status: StatusLabel): string {
 
 function selectStage(lineId: string, stageKey: StageKey): void {
   selectedStage.value = { lineId, stageKey }
+}
+
+function defaultStageForLine(lineId: string): StageKey {
+  if (selectedStage.value.lineId === lineId) return selectedStage.value.stageKey
+  return STAGE_ORDER.find((stage) => equipmentsForLineStage(lineId, stage.key).length > 0)?.key ?? 'cast'
+}
+
+function openStagePopup(lineId: string, stageKey = defaultStageForLine(lineId)): void {
+  selectStage(lineId, stageKey)
+  isStagePopupOpen.value = true
+}
+
+function closeStagePopup(): void {
+  isStagePopupOpen.value = false
 }
 
 function isStageSelected(lineId: string, stageKey: StageKey): boolean {
@@ -381,7 +465,12 @@ function stageIconToneClass(kind: StatusKind): string {
               class="factory-line-process-row"
               :class="`factory-line-process-row--${line.tone}`"
             >
-              <div class="factory-line-summary-card" :aria-label="`${line.code} 요약`">
+              <button
+                type="button"
+                class="factory-line-summary-card"
+                :aria-label="`${line.code} 상세 팝업 열기`"
+                @click="openStagePopup(line.id)"
+              >
                 <strong class="factory-line-summary-code">{{ line.code }}</strong>
                 <div class="factory-line-summary-spark" aria-hidden="true">
                   <svg
@@ -407,7 +496,7 @@ function stageIconToneClass(kind: StatusKind): string {
                 >
                   OEE {{ line.oee }}%
                 </span>
-              </div>
+              </button>
 
               <div class="factory-line-stages" :aria-label="`${line.name} 공정 순서`">
                 <template v-for="(stage, si) in STAGE_ORDER" :key="stage.key">
@@ -419,7 +508,7 @@ function stageIconToneClass(kind: StatusKind): string {
                       { 'factory-stage-box--selected': isStageSelected(line.id, stage.key) },
                     ]"
                     :aria-pressed="isStageSelected(line.id, stage.key)"
-                    @click="selectStage(line.id, stage.key)"
+                    @click="openStagePopup(line.id, stage.key)"
                   >
                     <span
                       class="factory-stage-box-icon-wrap"
@@ -512,6 +601,76 @@ function stageIconToneClass(kind: StatusKind): string {
             </div>
           </aside>
       </div>
+
+      <Teleport to="body">
+        <div
+          v-if="isStagePopupOpen && stageDetailContext"
+          class="factory-stage-dialog-backdrop"
+          @click.self="closeStagePopup"
+        >
+          <article
+            class="factory-stage-dialog"
+            role="dialog"
+            aria-modal="true"
+            :aria-label="`${stageDetailContext.line.code} ${stageDetailContext.stage.label} 공정 상세`"
+          >
+            <header class="factory-stage-dialog-head">
+              <div class="factory-stage-dialog-title-block">
+                <component
+                  :is="stageDetailContext.stage.icon"
+                  class="factory-stage-dialog-icon"
+                  :size="28"
+                  stroke-width="2"
+                  aria-hidden="true"
+                />
+                <div>
+                  <p class="panel-kicker">Line Process Detail</p>
+                  <h2 class="factory-stage-dialog-title">
+                    {{ stageDetailContext.line.code }} — {{ stageDetailContext.stage.label }}
+                  </h2>
+                  <p class="factory-stage-dialog-sub">
+                    OEE {{ stageDetailContext.line.oee }}% · 설비 {{ stageDetailContext.equipments.length }}대 ·
+                    {{ worstStatusLabel(stageDetailContext.equipments) }}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                class="factory-stage-dialog-close"
+                aria-label="공정 상세 팝업 닫기"
+                @click="closeStagePopup"
+              >
+                <X :size="18" />
+              </button>
+            </header>
+
+            <div class="factory-stage-dialog-body">
+              <ul v-if="stageDetailContext.equipments.length" class="factory-stage-equip-list">
+                <li
+                  v-for="eq in stageDetailContext.equipments"
+                  :key="`popup-${eq.id}`"
+                  class="factory-stage-equip-row"
+                  :class="equipmentStatusClass(eq.status)"
+                >
+                  <div class="factory-stage-equip-row-main">
+                    <strong>{{ eq.name }}</strong>
+                    <span class="factory-stage-equip-id">{{ eq.id }}</span>
+                  </div>
+                  <span :class="['factory-stage-equip-status', 'line-state', eq.status]">{{ eq.status }}</span>
+                  <p class="factory-stage-equip-summary">{{ eq.summary }}</p>
+                  <dl v-if="eq.metrics?.length" class="factory-detail-metrics factory-detail-metrics--popup">
+                    <template v-for="metric in eq.metrics" :key="`popup-${eq.id}-${metric.label}`">
+                      <dt>{{ metric.label }}</dt>
+                      <dd>{{ metric.value }}</dd>
+                    </template>
+                  </dl>
+                </li>
+              </ul>
+              <p v-else class="factory-stage-dialog-empty">등록된 설비가 없습니다.</p>
+            </div>
+          </article>
+        </div>
+      </Teleport>
     </section>
   </main>
 </template>

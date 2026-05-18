@@ -1,0 +1,2065 @@
+[
+  {
+    "id": "tab_verify_v2",
+    "type": "tab",
+    "label": "Equip Sim Verify (LOCAL)",
+    "disabled": false,
+    "info": "127.0.0.1 + \ub85c\uceec \ud3ec\ud2b8\ub85c 9\ub300 \uc124\ube44 \uac80\uc99d"
+  },
+  {
+    "id": "trg_0e3af089eb534f7eac18",
+    "type": "inject",
+    "z": "tab_verify_v2",
+    "name": "read tick 2s",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "2",
+    "once": true,
+    "onceDelay": "4",
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 130,
+    "y": 60,
+    "wires": [
+      [
+        "rdc_8764588b3bbf4a58a3c9",
+        "rdi_9d3e2788f8bb4b4db1ef",
+        "rdf_26a91593a4844bda9a04",
+        "rdc_b41f61750bbf49dd9ccc",
+        "rdi_456c66ac2dbd4a00bfbc",
+        "rdf_70f2ec78f1dc4f2aada8",
+        "rdc_2296691d4c1f4778ab42",
+        "rdi_88708c9d6946489ea6ae",
+        "rdf_084594e1423b4b73b1a5",
+        "rdc_223be5b861b54a3ea20d",
+        "rdi_19f265a3b0484e6782b7",
+        "rdf_6f02f68bf92747e0b554",
+        "rdc_59586699e44543a3a632",
+        "rdi_f6fc5948df754762ad30",
+        "rdf_48c3d2c14d5c4e1d8225",
+        "rdc_fa4f4991f7d24a57bd30",
+        "rdi_867b22d2fa9347008439",
+        "rdf_cae06f0d271c45f8be5a"
+      ]
+    ]
+  },
+  {
+    "id": "col_d833f96dde624bcd94e6",
+    "type": "function",
+    "z": "tab_verify_v2",
+    "name": "collect 9-equipments",
+    "func": "const eq = msg.topic;\nif (!eq) return null;\nconst store = flow.get('store') || {};\nstore[eq] = Object.assign(store[eq] || {}, msg.payload);\nflow.set('store', store);\nif (Object.keys(store).length >= 9) {\n  msg.topic = 'ALL';\n  msg.payload = store;\n  flow.set('store', {});\n  return msg;\n}\nreturn null;\n",
+    "outputs": 1,
+    "x": 1100,
+    "y": 400,
+    "wires": [
+      [
+        "dbg_99863a769d2e433a8120"
+      ]
+    ]
+  },
+  {
+    "id": "dbg_99863a769d2e433a8120",
+    "type": "debug",
+    "z": "tab_verify_v2",
+    "name": "ALL EQUIPMENT",
+    "active": true,
+    "tosidebar": true,
+    "complete": "payload",
+    "targetType": "msg",
+    "x": 1330,
+    "y": 400,
+    "wires": []
+  },
+  {
+    "id": "mb_d9f1cdf8576647d48c34e",
+    "type": "modbus-client",
+    "name": "casting_01",
+    "clienttype": "tcp",
+    "bufferCommands": true,
+    "stateLogEnabled": false,
+    "queueLogEnabled": false,
+    "tcpHost": "127.0.0.1",
+    "tcpPort": "5021",
+    "tcpType": "DEFAULT",
+    "unit_id": "1",
+    "commandDelay": "1",
+    "clientTimeout": "2000",
+    "reconnectOnTimeout": true,
+    "reconnectTimeout": "2000",
+    "parallelUnitIdsAllowed": true
+  },
+  {
+    "id": "rdc_8764588b3bbf4a58a3c9",
+    "type": "modbus-read",
+    "z": "tab_verify_v2",
+    "name": "casting_01 coils",
+    "topic": "",
+    "showStatusActivities": false,
+    "logIOActivities": false,
+    "showErrors": true,
+    "unitid": "",
+    "dataType": "Coil",
+    "adr": "0",
+    "quantity": "2",
+    "rate": "2",
+    "rateUnit": "s",
+    "delayOnStart": false,
+    "startDelayTime": "",
+    "server": "mb_d9f1cdf8576647d48c34e",
+    "useIOFile": false,
+    "useIOForPayload": false,
+    "emptyMsgOnFail": false,
+    "x": 280,
+    "y": 100,
+    "wires": [
+      [
+        "fnc_9f107f03e3bd4bf2a782"
+      ],
+      []
+    ]
+  },
+  {
+    "id": "fnc_9f107f03e3bd4bf2a782",
+    "type": "function",
+    "z": "tab_verify_v2",
+    "name": "casting_01 coils->json",
+    "func": "const names = [\"power\", \"alarm\"];\nconst bits = Array.isArray(msg.payload) ? msg.payload : (msg.payload.data || []);\nconst out = {};\nnames.forEach((n,i) => out[n] = !!bits[i]);\nmsg.topic = 'casting_01';\nmsg.payload = out;\nreturn msg;\n",
+    "outputs": 1,
+    "x": 510,
+    "y": 100,
+    "wires": [
+      [
+        "col_d833f96dde624bcd94e6"
+      ]
+    ]
+  },
+  {
+    "id": "rdi_9d3e2788f8bb4b4db1ef",
+    "type": "modbus-read",
+    "z": "tab_verify_v2",
+    "name": "casting_01 ints",
+    "topic": "",
+    "showStatusActivities": false,
+    "logIOActivities": false,
+    "showErrors": true,
+    "unitid": "",
+    "dataType": "HoldingRegister",
+    "adr": "0",
+    "quantity": "3",
+    "rate": "2",
+    "rateUnit": "s",
+    "delayOnStart": false,
+    "startDelayTime": "",
+    "server": "mb_d9f1cdf8576647d48c34e",
+    "useIOFile": false,
+    "useIOForPayload": false,
+    "emptyMsgOnFail": false,
+    "x": 280,
+    "y": 135,
+    "wires": [
+      [
+        "fni_62a523694f83457f8722"
+      ],
+      []
+    ]
+  },
+  {
+    "id": "fni_62a523694f83457f8722",
+    "type": "function",
+    "z": "tab_verify_v2",
+    "name": "casting_01 ints->json",
+    "func": "const names = [\"motor_rpm_sp\", \"motor_rpm\", \"shot_count\"];\nconst regs = Array.isArray(msg.payload) ? msg.payload : (msg.payload.data || []);\nfunction s16(v){return (v&0x8000)?v-0x10000:v;}\nconst out = {};\nnames.forEach((n,i) => out[n] = s16(regs[i]||0));\nmsg.topic = 'casting_01';\nmsg.payload = out;\nreturn msg;\n",
+    "outputs": 1,
+    "x": 510,
+    "y": 135,
+    "wires": [
+      [
+        "col_d833f96dde624bcd94e6"
+      ]
+    ]
+  },
+  {
+    "id": "rdf_26a91593a4844bda9a04",
+    "type": "modbus-read",
+    "z": "tab_verify_v2",
+    "name": "casting_01 floats",
+    "topic": "",
+    "showStatusActivities": false,
+    "logIOActivities": false,
+    "showErrors": true,
+    "unitid": "",
+    "dataType": "HoldingRegister",
+    "adr": "1000",
+    "quantity": "12",
+    "rate": "2",
+    "rateUnit": "s",
+    "delayOnStart": false,
+    "startDelayTime": "",
+    "server": "mb_d9f1cdf8576647d48c34e",
+    "useIOFile": false,
+    "useIOForPayload": false,
+    "emptyMsgOnFail": false,
+    "x": 280,
+    "y": 170,
+    "wires": [
+      [
+        "fnf_d305fdb5ad3c4ddf9566"
+      ],
+      []
+    ]
+  },
+  {
+    "id": "fnf_d305fdb5ad3c4ddf9566",
+    "type": "function",
+    "z": "tab_verify_v2",
+    "name": "casting_01 floats->json",
+    "func": "const names = [\"melt_temp_sp\", \"mold_pressure_sp\", \"cooling_water_temp_sp\", \"melt_temp\", \"mold_pressure\", \"cooling_water_temp\"];\nconst regs = Array.isArray(msg.payload) ? msg.payload : (msg.payload.data || []);\nfunction f(i){const b=Buffer.alloc(4);b.writeUInt16BE(regs[i*2]&0xFFFF,0);b.writeUInt16BE(regs[i*2+1]&0xFFFF,2);return b.readFloatBE(0);}\nconst out = {};\nnames.forEach((n,i) => out[n] = Number(f(i).toFixed(3)));\nmsg.topic = 'casting_01';\nmsg.payload = out;\nreturn msg;\n",
+    "outputs": 1,
+    "x": 510,
+    "y": 170,
+    "wires": [
+      [
+        "col_d833f96dde624bcd94e6"
+      ]
+    ]
+  },
+  {
+    "id": "mb_790d9944a5a647a295fd9",
+    "type": "modbus-client",
+    "name": "washing_01",
+    "clienttype": "tcp",
+    "bufferCommands": true,
+    "stateLogEnabled": false,
+    "queueLogEnabled": false,
+    "tcpHost": "127.0.0.1",
+    "tcpPort": "5031",
+    "tcpType": "DEFAULT",
+    "unit_id": "1",
+    "commandDelay": "1",
+    "clientTimeout": "2000",
+    "reconnectOnTimeout": true,
+    "reconnectTimeout": "2000",
+    "parallelUnitIdsAllowed": true
+  },
+  {
+    "id": "rdc_b41f61750bbf49dd9ccc",
+    "type": "modbus-read",
+    "z": "tab_verify_v2",
+    "name": "washing_01 coils",
+    "topic": "",
+    "showStatusActivities": false,
+    "logIOActivities": false,
+    "showErrors": true,
+    "unitid": "",
+    "dataType": "Coil",
+    "adr": "0",
+    "quantity": "2",
+    "rate": "2",
+    "rateUnit": "s",
+    "delayOnStart": false,
+    "startDelayTime": "",
+    "server": "mb_790d9944a5a647a295fd9",
+    "useIOFile": false,
+    "useIOForPayload": false,
+    "emptyMsgOnFail": false,
+    "x": 280,
+    "y": 240,
+    "wires": [
+      [
+        "fnc_e0d436ae5961406b840f"
+      ],
+      []
+    ]
+  },
+  {
+    "id": "fnc_e0d436ae5961406b840f",
+    "type": "function",
+    "z": "tab_verify_v2",
+    "name": "washing_01 coils->json",
+    "func": "const names = [\"power\", \"alarm\"];\nconst bits = Array.isArray(msg.payload) ? msg.payload : (msg.payload.data || []);\nconst out = {};\nnames.forEach((n,i) => out[n] = !!bits[i]);\nmsg.topic = 'washing_01';\nmsg.payload = out;\nreturn msg;\n",
+    "outputs": 1,
+    "x": 510,
+    "y": 240,
+    "wires": [
+      [
+        "col_d833f96dde624bcd94e6"
+      ]
+    ]
+  },
+  {
+    "id": "rdi_456c66ac2dbd4a00bfbc",
+    "type": "modbus-read",
+    "z": "tab_verify_v2",
+    "name": "washing_01 ints",
+    "topic": "",
+    "showStatusActivities": false,
+    "logIOActivities": false,
+    "showErrors": true,
+    "unitid": "",
+    "dataType": "HoldingRegister",
+    "adr": "0",
+    "quantity": "3",
+    "rate": "2",
+    "rateUnit": "s",
+    "delayOnStart": false,
+    "startDelayTime": "",
+    "server": "mb_790d9944a5a647a295fd9",
+    "useIOFile": false,
+    "useIOForPayload": false,
+    "emptyMsgOnFail": false,
+    "x": 280,
+    "y": 275,
+    "wires": [
+      [
+        "fni_9822169de53141459144"
+      ],
+      []
+    ]
+  },
+  {
+    "id": "fni_9822169de53141459144",
+    "type": "function",
+    "z": "tab_verify_v2",
+    "name": "washing_01 ints->json",
+    "func": "const names = [\"pump_rpm_sp\", \"pump_rpm\", \"wash_count\"];\nconst regs = Array.isArray(msg.payload) ? msg.payload : (msg.payload.data || []);\nfunction s16(v){return (v&0x8000)?v-0x10000:v;}\nconst out = {};\nnames.forEach((n,i) => out[n] = s16(regs[i]||0));\nmsg.topic = 'washing_01';\nmsg.payload = out;\nreturn msg;\n",
+    "outputs": 1,
+    "x": 510,
+    "y": 275,
+    "wires": [
+      [
+        "col_d833f96dde624bcd94e6"
+      ]
+    ]
+  },
+  {
+    "id": "rdf_70f2ec78f1dc4f2aada8",
+    "type": "modbus-read",
+    "z": "tab_verify_v2",
+    "name": "washing_01 floats",
+    "topic": "",
+    "showStatusActivities": false,
+    "logIOActivities": false,
+    "showErrors": true,
+    "unitid": "",
+    "dataType": "HoldingRegister",
+    "adr": "1000",
+    "quantity": "12",
+    "rate": "2",
+    "rateUnit": "s",
+    "delayOnStart": false,
+    "startDelayTime": "",
+    "server": "mb_790d9944a5a647a295fd9",
+    "useIOFile": false,
+    "useIOForPayload": false,
+    "emptyMsgOnFail": false,
+    "x": 280,
+    "y": 310,
+    "wires": [
+      [
+        "fnf_2434750876744a20906f"
+      ],
+      []
+    ]
+  },
+  {
+    "id": "fnf_2434750876744a20906f",
+    "type": "function",
+    "z": "tab_verify_v2",
+    "name": "washing_01 floats->json",
+    "func": "const names = [\"tank_temp_sp\", \"spray_pressure_sp\", \"conductivity_sp\", \"tank_temp\", \"spray_pressure\", \"conductivity\"];\nconst regs = Array.isArray(msg.payload) ? msg.payload : (msg.payload.data || []);\nfunction f(i){const b=Buffer.alloc(4);b.writeUInt16BE(regs[i*2]&0xFFFF,0);b.writeUInt16BE(regs[i*2+1]&0xFFFF,2);return b.readFloatBE(0);}\nconst out = {};\nnames.forEach((n,i) => out[n] = Number(f(i).toFixed(3)));\nmsg.topic = 'washing_01';\nmsg.payload = out;\nreturn msg;\n",
+    "outputs": 1,
+    "x": 510,
+    "y": 310,
+    "wires": [
+      [
+        "col_d833f96dde624bcd94e6"
+      ]
+    ]
+  },
+  {
+    "id": "mb_d8efeb9837614045af968",
+    "type": "modbus-client",
+    "name": "assembly_01",
+    "clienttype": "tcp",
+    "bufferCommands": true,
+    "stateLogEnabled": false,
+    "queueLogEnabled": false,
+    "tcpHost": "127.0.0.1",
+    "tcpPort": "5041",
+    "tcpType": "DEFAULT",
+    "unit_id": "1",
+    "commandDelay": "1",
+    "clientTimeout": "2000",
+    "reconnectOnTimeout": true,
+    "reconnectTimeout": "2000",
+    "parallelUnitIdsAllowed": true
+  },
+  {
+    "id": "rdc_2296691d4c1f4778ab42",
+    "type": "modbus-read",
+    "z": "tab_verify_v2",
+    "name": "assembly_01 coils",
+    "topic": "",
+    "showStatusActivities": false,
+    "logIOActivities": false,
+    "showErrors": true,
+    "unitid": "",
+    "dataType": "Coil",
+    "adr": "0",
+    "quantity": "2",
+    "rate": "2",
+    "rateUnit": "s",
+    "delayOnStart": false,
+    "startDelayTime": "",
+    "server": "mb_d8efeb9837614045af968",
+    "useIOFile": false,
+    "useIOForPayload": false,
+    "emptyMsgOnFail": false,
+    "x": 280,
+    "y": 380,
+    "wires": [
+      [
+        "fnc_3d58111f6721422b99bb"
+      ],
+      []
+    ]
+  },
+  {
+    "id": "fnc_3d58111f6721422b99bb",
+    "type": "function",
+    "z": "tab_verify_v2",
+    "name": "assembly_01 coils->json",
+    "func": "const names = [\"power\", \"alarm\"];\nconst bits = Array.isArray(msg.payload) ? msg.payload : (msg.payload.data || []);\nconst out = {};\nnames.forEach((n,i) => out[n] = !!bits[i]);\nmsg.topic = 'assembly_01';\nmsg.payload = out;\nreturn msg;\n",
+    "outputs": 1,
+    "x": 510,
+    "y": 380,
+    "wires": [
+      [
+        "col_d833f96dde624bcd94e6"
+      ]
+    ]
+  },
+  {
+    "id": "rdi_88708c9d6946489ea6ae",
+    "type": "modbus-read",
+    "z": "tab_verify_v2",
+    "name": "assembly_01 ints",
+    "topic": "",
+    "showStatusActivities": false,
+    "logIOActivities": false,
+    "showErrors": true,
+    "unitid": "",
+    "dataType": "HoldingRegister",
+    "adr": "0",
+    "quantity": "3",
+    "rate": "2",
+    "rateUnit": "s",
+    "delayOnStart": false,
+    "startDelayTime": "",
+    "server": "mb_d8efeb9837614045af968",
+    "useIOFile": false,
+    "useIOForPayload": false,
+    "emptyMsgOnFail": false,
+    "x": 280,
+    "y": 415,
+    "wires": [
+      [
+        "fni_2bf63dd30c494d1291fb"
+      ],
+      []
+    ]
+  },
+  {
+    "id": "fni_2bf63dd30c494d1291fb",
+    "type": "function",
+    "z": "tab_verify_v2",
+    "name": "assembly_01 ints->json",
+    "func": "const names = [\"robot_speed_sp\", \"robot_speed\", \"assemble_count\"];\nconst regs = Array.isArray(msg.payload) ? msg.payload : (msg.payload.data || []);\nfunction s16(v){return (v&0x8000)?v-0x10000:v;}\nconst out = {};\nnames.forEach((n,i) => out[n] = s16(regs[i]||0));\nmsg.topic = 'assembly_01';\nmsg.payload = out;\nreturn msg;\n",
+    "outputs": 1,
+    "x": 510,
+    "y": 415,
+    "wires": [
+      [
+        "col_d833f96dde624bcd94e6"
+      ]
+    ]
+  },
+  {
+    "id": "rdf_084594e1423b4b73b1a5",
+    "type": "modbus-read",
+    "z": "tab_verify_v2",
+    "name": "assembly_01 floats",
+    "topic": "",
+    "showStatusActivities": false,
+    "logIOActivities": false,
+    "showErrors": true,
+    "unitid": "",
+    "dataType": "HoldingRegister",
+    "adr": "1000",
+    "quantity": "12",
+    "rate": "2",
+    "rateUnit": "s",
+    "delayOnStart": false,
+    "startDelayTime": "",
+    "server": "mb_d8efeb9837614045af968",
+    "useIOFile": false,
+    "useIOForPayload": false,
+    "emptyMsgOnFail": false,
+    "x": 280,
+    "y": 450,
+    "wires": [
+      [
+        "fnf_bb9c89a3d8fc4a3abea9"
+      ],
+      []
+    ]
+  },
+  {
+    "id": "fnf_bb9c89a3d8fc4a3abea9",
+    "type": "function",
+    "z": "tab_verify_v2",
+    "name": "assembly_01 floats->json",
+    "func": "const names = [\"torque_sp\", \"cycle_time_sp\", \"air_pressure_sp\", \"torque\", \"cycle_time\", \"air_pressure\"];\nconst regs = Array.isArray(msg.payload) ? msg.payload : (msg.payload.data || []);\nfunction f(i){const b=Buffer.alloc(4);b.writeUInt16BE(regs[i*2]&0xFFFF,0);b.writeUInt16BE(regs[i*2+1]&0xFFFF,2);return b.readFloatBE(0);}\nconst out = {};\nnames.forEach((n,i) => out[n] = Number(f(i).toFixed(3)));\nmsg.topic = 'assembly_01';\nmsg.payload = out;\nreturn msg;\n",
+    "outputs": 1,
+    "x": 510,
+    "y": 450,
+    "wires": [
+      [
+        "col_d833f96dde624bcd94e6"
+      ]
+    ]
+  },
+  {
+    "id": "mb_8b04e99be1234e8481702",
+    "type": "modbus-client",
+    "name": "assembly_02",
+    "clienttype": "tcp",
+    "bufferCommands": true,
+    "stateLogEnabled": false,
+    "queueLogEnabled": false,
+    "tcpHost": "127.0.0.1",
+    "tcpPort": "5042",
+    "tcpType": "DEFAULT",
+    "unit_id": "1",
+    "commandDelay": "1",
+    "clientTimeout": "2000",
+    "reconnectOnTimeout": true,
+    "reconnectTimeout": "2000",
+    "parallelUnitIdsAllowed": true
+  },
+  {
+    "id": "rdc_223be5b861b54a3ea20d",
+    "type": "modbus-read",
+    "z": "tab_verify_v2",
+    "name": "assembly_02 coils",
+    "topic": "",
+    "showStatusActivities": false,
+    "logIOActivities": false,
+    "showErrors": true,
+    "unitid": "",
+    "dataType": "Coil",
+    "adr": "0",
+    "quantity": "2",
+    "rate": "2",
+    "rateUnit": "s",
+    "delayOnStart": false,
+    "startDelayTime": "",
+    "server": "mb_8b04e99be1234e8481702",
+    "useIOFile": false,
+    "useIOForPayload": false,
+    "emptyMsgOnFail": false,
+    "x": 280,
+    "y": 520,
+    "wires": [
+      [
+        "fnc_367f119a20c84f3a8bc1"
+      ],
+      []
+    ]
+  },
+  {
+    "id": "fnc_367f119a20c84f3a8bc1",
+    "type": "function",
+    "z": "tab_verify_v2",
+    "name": "assembly_02 coils->json",
+    "func": "const names = [\"power\", \"alarm\"];\nconst bits = Array.isArray(msg.payload) ? msg.payload : (msg.payload.data || []);\nconst out = {};\nnames.forEach((n,i) => out[n] = !!bits[i]);\nmsg.topic = 'assembly_02';\nmsg.payload = out;\nreturn msg;\n",
+    "outputs": 1,
+    "x": 510,
+    "y": 520,
+    "wires": [
+      [
+        "col_d833f96dde624bcd94e6"
+      ]
+    ]
+  },
+  {
+    "id": "rdi_19f265a3b0484e6782b7",
+    "type": "modbus-read",
+    "z": "tab_verify_v2",
+    "name": "assembly_02 ints",
+    "topic": "",
+    "showStatusActivities": false,
+    "logIOActivities": false,
+    "showErrors": true,
+    "unitid": "",
+    "dataType": "HoldingRegister",
+    "adr": "0",
+    "quantity": "3",
+    "rate": "2",
+    "rateUnit": "s",
+    "delayOnStart": false,
+    "startDelayTime": "",
+    "server": "mb_8b04e99be1234e8481702",
+    "useIOFile": false,
+    "useIOForPayload": false,
+    "emptyMsgOnFail": false,
+    "x": 280,
+    "y": 555,
+    "wires": [
+      [
+        "fni_abf1d665d3d744d494a6"
+      ],
+      []
+    ]
+  },
+  {
+    "id": "fni_abf1d665d3d744d494a6",
+    "type": "function",
+    "z": "tab_verify_v2",
+    "name": "assembly_02 ints->json",
+    "func": "const names = [\"robot_speed_sp\", \"robot_speed\", \"assemble_count\"];\nconst regs = Array.isArray(msg.payload) ? msg.payload : (msg.payload.data || []);\nfunction s16(v){return (v&0x8000)?v-0x10000:v;}\nconst out = {};\nnames.forEach((n,i) => out[n] = s16(regs[i]||0));\nmsg.topic = 'assembly_02';\nmsg.payload = out;\nreturn msg;\n",
+    "outputs": 1,
+    "x": 510,
+    "y": 555,
+    "wires": [
+      [
+        "col_d833f96dde624bcd94e6"
+      ]
+    ]
+  },
+  {
+    "id": "rdf_6f02f68bf92747e0b554",
+    "type": "modbus-read",
+    "z": "tab_verify_v2",
+    "name": "assembly_02 floats",
+    "topic": "",
+    "showStatusActivities": false,
+    "logIOActivities": false,
+    "showErrors": true,
+    "unitid": "",
+    "dataType": "HoldingRegister",
+    "adr": "1000",
+    "quantity": "12",
+    "rate": "2",
+    "rateUnit": "s",
+    "delayOnStart": false,
+    "startDelayTime": "",
+    "server": "mb_8b04e99be1234e8481702",
+    "useIOFile": false,
+    "useIOForPayload": false,
+    "emptyMsgOnFail": false,
+    "x": 280,
+    "y": 590,
+    "wires": [
+      [
+        "fnf_e6a8edaa203344e6bb7b"
+      ],
+      []
+    ]
+  },
+  {
+    "id": "fnf_e6a8edaa203344e6bb7b",
+    "type": "function",
+    "z": "tab_verify_v2",
+    "name": "assembly_02 floats->json",
+    "func": "const names = [\"torque_sp\", \"cycle_time_sp\", \"air_pressure_sp\", \"torque\", \"cycle_time\", \"air_pressure\"];\nconst regs = Array.isArray(msg.payload) ? msg.payload : (msg.payload.data || []);\nfunction f(i){const b=Buffer.alloc(4);b.writeUInt16BE(regs[i*2]&0xFFFF,0);b.writeUInt16BE(regs[i*2+1]&0xFFFF,2);return b.readFloatBE(0);}\nconst out = {};\nnames.forEach((n,i) => out[n] = Number(f(i).toFixed(3)));\nmsg.topic = 'assembly_02';\nmsg.payload = out;\nreturn msg;\n",
+    "outputs": 1,
+    "x": 510,
+    "y": 590,
+    "wires": [
+      [
+        "col_d833f96dde624bcd94e6"
+      ]
+    ]
+  },
+  {
+    "id": "mb_7cccc1798f6d468ab7f0e",
+    "type": "modbus-client",
+    "name": "inspection_01",
+    "clienttype": "tcp",
+    "bufferCommands": true,
+    "stateLogEnabled": false,
+    "queueLogEnabled": false,
+    "tcpHost": "127.0.0.1",
+    "tcpPort": "5051",
+    "tcpType": "DEFAULT",
+    "unit_id": "1",
+    "commandDelay": "1",
+    "clientTimeout": "2000",
+    "reconnectOnTimeout": true,
+    "reconnectTimeout": "2000",
+    "parallelUnitIdsAllowed": true
+  },
+  {
+    "id": "rdc_59586699e44543a3a632",
+    "type": "modbus-read",
+    "z": "tab_verify_v2",
+    "name": "inspection_01 coils",
+    "topic": "",
+    "showStatusActivities": false,
+    "logIOActivities": false,
+    "showErrors": true,
+    "unitid": "",
+    "dataType": "Coil",
+    "adr": "0",
+    "quantity": "2",
+    "rate": "2",
+    "rateUnit": "s",
+    "delayOnStart": false,
+    "startDelayTime": "",
+    "server": "mb_7cccc1798f6d468ab7f0e",
+    "useIOFile": false,
+    "useIOForPayload": false,
+    "emptyMsgOnFail": false,
+    "x": 280,
+    "y": 660,
+    "wires": [
+      [
+        "fnc_b811e5fbc2914b6ea5aa"
+      ],
+      []
+    ]
+  },
+  {
+    "id": "fnc_b811e5fbc2914b6ea5aa",
+    "type": "function",
+    "z": "tab_verify_v2",
+    "name": "inspection_01 coils->json",
+    "func": "const names = [\"power\", \"alarm\"];\nconst bits = Array.isArray(msg.payload) ? msg.payload : (msg.payload.data || []);\nconst out = {};\nnames.forEach((n,i) => out[n] = !!bits[i]);\nmsg.topic = 'inspection_01';\nmsg.payload = out;\nreturn msg;\n",
+    "outputs": 1,
+    "x": 510,
+    "y": 660,
+    "wires": [
+      [
+        "col_d833f96dde624bcd94e6"
+      ]
+    ]
+  },
+  {
+    "id": "rdi_f6fc5948df754762ad30",
+    "type": "modbus-read",
+    "z": "tab_verify_v2",
+    "name": "inspection_01 ints",
+    "topic": "",
+    "showStatusActivities": false,
+    "logIOActivities": false,
+    "showErrors": true,
+    "unitid": "",
+    "dataType": "HoldingRegister",
+    "adr": "0",
+    "quantity": "3",
+    "rate": "2",
+    "rateUnit": "s",
+    "delayOnStart": false,
+    "startDelayTime": "",
+    "server": "mb_7cccc1798f6d468ab7f0e",
+    "useIOFile": false,
+    "useIOForPayload": false,
+    "emptyMsgOnFail": false,
+    "x": 280,
+    "y": 695,
+    "wires": [
+      [
+        "fni_0c587d9dd362445182a4"
+      ],
+      []
+    ]
+  },
+  {
+    "id": "fni_0c587d9dd362445182a4",
+    "type": "function",
+    "z": "tab_verify_v2",
+    "name": "inspection_01 ints->json",
+    "func": "const names = [\"ng_count_sp\", \"ng_count\", \"inspect_count\"];\nconst regs = Array.isArray(msg.payload) ? msg.payload : (msg.payload.data || []);\nfunction s16(v){return (v&0x8000)?v-0x10000:v;}\nconst out = {};\nnames.forEach((n,i) => out[n] = s16(regs[i]||0));\nmsg.topic = 'inspection_01';\nmsg.payload = out;\nreturn msg;\n",
+    "outputs": 1,
+    "x": 510,
+    "y": 695,
+    "wires": [
+      [
+        "col_d833f96dde624bcd94e6"
+      ]
+    ]
+  },
+  {
+    "id": "rdf_48c3d2c14d5c4e1d8225",
+    "type": "modbus-read",
+    "z": "tab_verify_v2",
+    "name": "inspection_01 floats",
+    "topic": "",
+    "showStatusActivities": false,
+    "logIOActivities": false,
+    "showErrors": true,
+    "unitid": "",
+    "dataType": "HoldingRegister",
+    "adr": "1000",
+    "quantity": "12",
+    "rate": "2",
+    "rateUnit": "s",
+    "delayOnStart": false,
+    "startDelayTime": "",
+    "server": "mb_7cccc1798f6d468ab7f0e",
+    "useIOFile": false,
+    "useIOForPayload": false,
+    "emptyMsgOnFail": false,
+    "x": 280,
+    "y": 730,
+    "wires": [
+      [
+        "fnf_9cc6aa7668a4439db1bd"
+      ],
+      []
+    ]
+  },
+  {
+    "id": "fnf_9cc6aa7668a4439db1bd",
+    "type": "function",
+    "z": "tab_verify_v2",
+    "name": "inspection_01 floats->json",
+    "func": "const names = [\"score_sp\", \"line_speed_sp\", \"lux_sp\", \"score\", \"line_speed\", \"lux\"];\nconst regs = Array.isArray(msg.payload) ? msg.payload : (msg.payload.data || []);\nfunction f(i){const b=Buffer.alloc(4);b.writeUInt16BE(regs[i*2]&0xFFFF,0);b.writeUInt16BE(regs[i*2+1]&0xFFFF,2);return b.readFloatBE(0);}\nconst out = {};\nnames.forEach((n,i) => out[n] = Number(f(i).toFixed(3)));\nmsg.topic = 'inspection_01';\nmsg.payload = out;\nreturn msg;\n",
+    "outputs": 1,
+    "x": 510,
+    "y": 730,
+    "wires": [
+      [
+        "col_d833f96dde624bcd94e6"
+      ]
+    ]
+  },
+  {
+    "id": "mb_ebcb10e5d2704b359c941",
+    "type": "modbus-client",
+    "name": "inspection_02",
+    "clienttype": "tcp",
+    "bufferCommands": true,
+    "stateLogEnabled": false,
+    "queueLogEnabled": false,
+    "tcpHost": "127.0.0.1",
+    "tcpPort": "5052",
+    "tcpType": "DEFAULT",
+    "unit_id": "1",
+    "commandDelay": "1",
+    "clientTimeout": "2000",
+    "reconnectOnTimeout": true,
+    "reconnectTimeout": "2000",
+    "parallelUnitIdsAllowed": true
+  },
+  {
+    "id": "rdc_fa4f4991f7d24a57bd30",
+    "type": "modbus-read",
+    "z": "tab_verify_v2",
+    "name": "inspection_02 coils",
+    "topic": "",
+    "showStatusActivities": false,
+    "logIOActivities": false,
+    "showErrors": true,
+    "unitid": "",
+    "dataType": "Coil",
+    "adr": "0",
+    "quantity": "2",
+    "rate": "2",
+    "rateUnit": "s",
+    "delayOnStart": false,
+    "startDelayTime": "",
+    "server": "mb_ebcb10e5d2704b359c941",
+    "useIOFile": false,
+    "useIOForPayload": false,
+    "emptyMsgOnFail": false,
+    "x": 280,
+    "y": 800,
+    "wires": [
+      [
+        "fnc_5f6aa9d8bd7746d8a716"
+      ],
+      []
+    ]
+  },
+  {
+    "id": "fnc_5f6aa9d8bd7746d8a716",
+    "type": "function",
+    "z": "tab_verify_v2",
+    "name": "inspection_02 coils->json",
+    "func": "const names = [\"power\", \"alarm\"];\nconst bits = Array.isArray(msg.payload) ? msg.payload : (msg.payload.data || []);\nconst out = {};\nnames.forEach((n,i) => out[n] = !!bits[i]);\nmsg.topic = 'inspection_02';\nmsg.payload = out;\nreturn msg;\n",
+    "outputs": 1,
+    "x": 510,
+    "y": 800,
+    "wires": [
+      [
+        "col_d833f96dde624bcd94e6"
+      ]
+    ]
+  },
+  {
+    "id": "rdi_867b22d2fa9347008439",
+    "type": "modbus-read",
+    "z": "tab_verify_v2",
+    "name": "inspection_02 ints",
+    "topic": "",
+    "showStatusActivities": false,
+    "logIOActivities": false,
+    "showErrors": true,
+    "unitid": "",
+    "dataType": "HoldingRegister",
+    "adr": "0",
+    "quantity": "3",
+    "rate": "2",
+    "rateUnit": "s",
+    "delayOnStart": false,
+    "startDelayTime": "",
+    "server": "mb_ebcb10e5d2704b359c941",
+    "useIOFile": false,
+    "useIOForPayload": false,
+    "emptyMsgOnFail": false,
+    "x": 280,
+    "y": 835,
+    "wires": [
+      [
+        "fni_aaaf5e9ea8694e0c9db3"
+      ],
+      []
+    ]
+  },
+  {
+    "id": "fni_aaaf5e9ea8694e0c9db3",
+    "type": "function",
+    "z": "tab_verify_v2",
+    "name": "inspection_02 ints->json",
+    "func": "const names = [\"ng_count_sp\", \"ng_count\", \"inspect_count\"];\nconst regs = Array.isArray(msg.payload) ? msg.payload : (msg.payload.data || []);\nfunction s16(v){return (v&0x8000)?v-0x10000:v;}\nconst out = {};\nnames.forEach((n,i) => out[n] = s16(regs[i]||0));\nmsg.topic = 'inspection_02';\nmsg.payload = out;\nreturn msg;\n",
+    "outputs": 1,
+    "x": 510,
+    "y": 835,
+    "wires": [
+      [
+        "col_d833f96dde624bcd94e6"
+      ]
+    ]
+  },
+  {
+    "id": "rdf_cae06f0d271c45f8be5a",
+    "type": "modbus-read",
+    "z": "tab_verify_v2",
+    "name": "inspection_02 floats",
+    "topic": "",
+    "showStatusActivities": false,
+    "logIOActivities": false,
+    "showErrors": true,
+    "unitid": "",
+    "dataType": "HoldingRegister",
+    "adr": "1000",
+    "quantity": "12",
+    "rate": "2",
+    "rateUnit": "s",
+    "delayOnStart": false,
+    "startDelayTime": "",
+    "server": "mb_ebcb10e5d2704b359c941",
+    "useIOFile": false,
+    "useIOForPayload": false,
+    "emptyMsgOnFail": false,
+    "x": 280,
+    "y": 870,
+    "wires": [
+      [
+        "fnf_fe648ae8f96f45ffa679"
+      ],
+      []
+    ]
+  },
+  {
+    "id": "fnf_fe648ae8f96f45ffa679",
+    "type": "function",
+    "z": "tab_verify_v2",
+    "name": "inspection_02 floats->json",
+    "func": "const names = [\"score_sp\", \"line_speed_sp\", \"lux_sp\", \"score\", \"line_speed\", \"lux\"];\nconst regs = Array.isArray(msg.payload) ? msg.payload : (msg.payload.data || []);\nfunction f(i){const b=Buffer.alloc(4);b.writeUInt16BE(regs[i*2]&0xFFFF,0);b.writeUInt16BE(regs[i*2+1]&0xFFFF,2);return b.readFloatBE(0);}\nconst out = {};\nnames.forEach((n,i) => out[n] = Number(f(i).toFixed(3)));\nmsg.topic = 'inspection_02';\nmsg.payload = out;\nreturn msg;\n",
+    "outputs": 1,
+    "x": 510,
+    "y": 870,
+    "wires": [
+      [
+        "col_d833f96dde624bcd94e6"
+      ]
+    ]
+  },
+  {
+    "id": "opc_ep_c23e710c236f4c66a",
+    "type": "OpcUa-Endpoint",
+    "endpoint": "opc.tcp://127.0.0.1:4841/machining_01/",
+    "secpol": "None",
+    "secmode": "None",
+    "none": true,
+    "login": false,
+    "usercert": false,
+    "name": "machining_01"
+  },
+  {
+    "id": "opc_inj_80025a3088f34aef",
+    "type": "inject",
+    "z": "tab_verify_v2",
+    "name": "machining_01 tick",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "2",
+    "once": true,
+    "onceDelay": "5",
+    "payloadType": "date",
+    "x": 130,
+    "y": 100,
+    "wires": [
+      [
+        "opc_it_08e78470b5444a5da",
+        "opc_it_0955de3df4a94f069",
+        "opc_it_7d336d0d02df4f998",
+        "opc_it_2480207023e44cbb8",
+        "opc_it_03397c73519145d99",
+        "opc_it_e80dd44e569047db9",
+        "opc_it_f0ba803542534eb29",
+        "opc_it_28172d80583e4860b",
+        "opc_it_61ee2cfd5b8d42318",
+        "opc_it_58f5b0f149b54abe9",
+        "opc_it_0f40ad867ea1497cb"
+      ]
+    ]
+  },
+  {
+    "id": "opc_it_08e78470b5444a5da",
+    "type": "OpcUa-Item",
+    "z": "tab_verify_v2",
+    "item": "ns=2;s=power",
+    "datatype": "Boolean",
+    "value": "",
+    "name": "machining_01.power",
+    "x": 330,
+    "y": 100,
+    "wires": [
+      [
+        "opc_cli_13d8d4c40ec44fa3"
+      ]
+    ]
+  },
+  {
+    "id": "opc_it_0955de3df4a94f069",
+    "type": "OpcUa-Item",
+    "z": "tab_verify_v2",
+    "item": "ns=2;s=spindle_temp_sp",
+    "datatype": "Double",
+    "value": "",
+    "name": "machining_01.spindle_temp_sp",
+    "x": 330,
+    "y": 122,
+    "wires": [
+      [
+        "opc_cli_13d8d4c40ec44fa3"
+      ]
+    ]
+  },
+  {
+    "id": "opc_it_7d336d0d02df4f998",
+    "type": "OpcUa-Item",
+    "z": "tab_verify_v2",
+    "item": "ns=2;s=vibration_sp",
+    "datatype": "Double",
+    "value": "",
+    "name": "machining_01.vibration_sp",
+    "x": 330,
+    "y": 144,
+    "wires": [
+      [
+        "opc_cli_13d8d4c40ec44fa3"
+      ]
+    ]
+  },
+  {
+    "id": "opc_it_2480207023e44cbb8",
+    "type": "OpcUa-Item",
+    "z": "tab_verify_v2",
+    "item": "ns=2;s=feed_rate_sp",
+    "datatype": "Double",
+    "value": "",
+    "name": "machining_01.feed_rate_sp",
+    "x": 330,
+    "y": 166,
+    "wires": [
+      [
+        "opc_cli_13d8d4c40ec44fa3"
+      ]
+    ]
+  },
+  {
+    "id": "opc_it_03397c73519145d99",
+    "type": "OpcUa-Item",
+    "z": "tab_verify_v2",
+    "item": "ns=2;s=rpm_sp",
+    "datatype": "Int64",
+    "value": "",
+    "name": "machining_01.rpm_sp",
+    "x": 330,
+    "y": 188,
+    "wires": [
+      [
+        "opc_cli_13d8d4c40ec44fa3"
+      ]
+    ]
+  },
+  {
+    "id": "opc_it_e80dd44e569047db9",
+    "type": "OpcUa-Item",
+    "z": "tab_verify_v2",
+    "item": "ns=2;s=spindle_temp",
+    "datatype": "Double",
+    "value": "",
+    "name": "machining_01.spindle_temp",
+    "x": 330,
+    "y": 210,
+    "wires": [
+      [
+        "opc_cli_13d8d4c40ec44fa3"
+      ]
+    ]
+  },
+  {
+    "id": "opc_it_f0ba803542534eb29",
+    "type": "OpcUa-Item",
+    "z": "tab_verify_v2",
+    "item": "ns=2;s=vibration",
+    "datatype": "Double",
+    "value": "",
+    "name": "machining_01.vibration",
+    "x": 330,
+    "y": 232,
+    "wires": [
+      [
+        "opc_cli_13d8d4c40ec44fa3"
+      ]
+    ]
+  },
+  {
+    "id": "opc_it_28172d80583e4860b",
+    "type": "OpcUa-Item",
+    "z": "tab_verify_v2",
+    "item": "ns=2;s=feed_rate",
+    "datatype": "Double",
+    "value": "",
+    "name": "machining_01.feed_rate",
+    "x": 330,
+    "y": 254,
+    "wires": [
+      [
+        "opc_cli_13d8d4c40ec44fa3"
+      ]
+    ]
+  },
+  {
+    "id": "opc_it_61ee2cfd5b8d42318",
+    "type": "OpcUa-Item",
+    "z": "tab_verify_v2",
+    "item": "ns=2;s=rpm",
+    "datatype": "Int64",
+    "value": "",
+    "name": "machining_01.rpm",
+    "x": 330,
+    "y": 276,
+    "wires": [
+      [
+        "opc_cli_13d8d4c40ec44fa3"
+      ]
+    ]
+  },
+  {
+    "id": "opc_it_58f5b0f149b54abe9",
+    "type": "OpcUa-Item",
+    "z": "tab_verify_v2",
+    "item": "ns=2;s=part_count",
+    "datatype": "Int64",
+    "value": "",
+    "name": "machining_01.part_count",
+    "x": 330,
+    "y": 298,
+    "wires": [
+      [
+        "opc_cli_13d8d4c40ec44fa3"
+      ]
+    ]
+  },
+  {
+    "id": "opc_it_0f40ad867ea1497cb",
+    "type": "OpcUa-Item",
+    "z": "tab_verify_v2",
+    "item": "ns=2;s=alarm",
+    "datatype": "Boolean",
+    "value": "",
+    "name": "machining_01.alarm",
+    "x": 330,
+    "y": 320,
+    "wires": [
+      [
+        "opc_cli_13d8d4c40ec44fa3"
+      ]
+    ]
+  },
+  {
+    "id": "opc_cli_13d8d4c40ec44fa3",
+    "type": "OpcUa-Client",
+    "z": "tab_verify_v2",
+    "endpoint": "opc_ep_c23e710c236f4c66a",
+    "action": "read",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 1,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "name": "machining_01 read",
+    "x": 600,
+    "y": 160,
+    "wires": [
+      [
+        "opc_mg_39ba0617e0e64a029"
+      ]
+    ]
+  },
+  {
+    "id": "opc_mg_39ba0617e0e64a029",
+    "type": "function",
+    "z": "tab_verify_v2",
+    "name": "machining_01 merge",
+    "func": "const names = [\"power\", \"spindle_temp_sp\", \"vibration_sp\", \"feed_rate_sp\", \"rpm_sp\", \"spindle_temp\", \"vibration\", \"feed_rate\", \"rpm\", \"part_count\", \"alarm\"];\nconst k = (msg.browseName || msg.topic || '').replace(/^.*[:.]/, '');\nconst key = 'opc_machining_01';\nconst ctx = flow.get(key) || {};\nif (k && names.includes(k)) ctx[k] = msg.payload;\nflow.set(key, ctx);\nif (Object.keys(ctx).length >= names.length) {\n  msg.topic = 'machining_01';\n  msg.payload = ctx;\n  flow.set(key, {});\n  return msg;\n}\nreturn null;\n",
+    "outputs": 1,
+    "x": 830,
+    "y": 160,
+    "wires": [
+      [
+        "col_d833f96dde624bcd94e6"
+      ]
+    ]
+  },
+  {
+    "id": "opc_ep_99e391a959054599b",
+    "type": "OpcUa-Endpoint",
+    "endpoint": "opc.tcp://127.0.0.1:4842/machining_02/",
+    "secpol": "None",
+    "secmode": "None",
+    "none": true,
+    "login": false,
+    "usercert": false,
+    "name": "machining_02"
+  },
+  {
+    "id": "opc_inj_935291f50ded40d3",
+    "type": "inject",
+    "z": "tab_verify_v2",
+    "name": "machining_02 tick",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "2",
+    "once": true,
+    "onceDelay": "5",
+    "payloadType": "date",
+    "x": 130,
+    "y": 402,
+    "wires": [
+      [
+        "opc_it_4ab73897f6d64d69a",
+        "opc_it_34c6db8e85d047999",
+        "opc_it_6be125a0c48f4718b",
+        "opc_it_4d73a6b94b334f629",
+        "opc_it_1d1ade84fafe4ef98",
+        "opc_it_12aa7fd35eed40428",
+        "opc_it_f9a1e89cb6d34851b",
+        "opc_it_d3bfd84ce098462d9",
+        "opc_it_bce84588dc7449869",
+        "opc_it_9d8e597368dc45638",
+        "opc_it_f38616f44ee340628"
+      ]
+    ]
+  },
+  {
+    "id": "opc_it_4ab73897f6d64d69a",
+    "type": "OpcUa-Item",
+    "z": "tab_verify_v2",
+    "item": "ns=2;s=power",
+    "datatype": "Boolean",
+    "value": "",
+    "name": "machining_02.power",
+    "x": 330,
+    "y": 402,
+    "wires": [
+      [
+        "opc_cli_79cced12a44a4373"
+      ]
+    ]
+  },
+  {
+    "id": "opc_it_34c6db8e85d047999",
+    "type": "OpcUa-Item",
+    "z": "tab_verify_v2",
+    "item": "ns=2;s=spindle_temp_sp",
+    "datatype": "Double",
+    "value": "",
+    "name": "machining_02.spindle_temp_sp",
+    "x": 330,
+    "y": 424,
+    "wires": [
+      [
+        "opc_cli_79cced12a44a4373"
+      ]
+    ]
+  },
+  {
+    "id": "opc_it_6be125a0c48f4718b",
+    "type": "OpcUa-Item",
+    "z": "tab_verify_v2",
+    "item": "ns=2;s=vibration_sp",
+    "datatype": "Double",
+    "value": "",
+    "name": "machining_02.vibration_sp",
+    "x": 330,
+    "y": 446,
+    "wires": [
+      [
+        "opc_cli_79cced12a44a4373"
+      ]
+    ]
+  },
+  {
+    "id": "opc_it_4d73a6b94b334f629",
+    "type": "OpcUa-Item",
+    "z": "tab_verify_v2",
+    "item": "ns=2;s=feed_rate_sp",
+    "datatype": "Double",
+    "value": "",
+    "name": "machining_02.feed_rate_sp",
+    "x": 330,
+    "y": 468,
+    "wires": [
+      [
+        "opc_cli_79cced12a44a4373"
+      ]
+    ]
+  },
+  {
+    "id": "opc_it_1d1ade84fafe4ef98",
+    "type": "OpcUa-Item",
+    "z": "tab_verify_v2",
+    "item": "ns=2;s=rpm_sp",
+    "datatype": "Int64",
+    "value": "",
+    "name": "machining_02.rpm_sp",
+    "x": 330,
+    "y": 490,
+    "wires": [
+      [
+        "opc_cli_79cced12a44a4373"
+      ]
+    ]
+  },
+  {
+    "id": "opc_it_12aa7fd35eed40428",
+    "type": "OpcUa-Item",
+    "z": "tab_verify_v2",
+    "item": "ns=2;s=spindle_temp",
+    "datatype": "Double",
+    "value": "",
+    "name": "machining_02.spindle_temp",
+    "x": 330,
+    "y": 512,
+    "wires": [
+      [
+        "opc_cli_79cced12a44a4373"
+      ]
+    ]
+  },
+  {
+    "id": "opc_it_f9a1e89cb6d34851b",
+    "type": "OpcUa-Item",
+    "z": "tab_verify_v2",
+    "item": "ns=2;s=vibration",
+    "datatype": "Double",
+    "value": "",
+    "name": "machining_02.vibration",
+    "x": 330,
+    "y": 534,
+    "wires": [
+      [
+        "opc_cli_79cced12a44a4373"
+      ]
+    ]
+  },
+  {
+    "id": "opc_it_d3bfd84ce098462d9",
+    "type": "OpcUa-Item",
+    "z": "tab_verify_v2",
+    "item": "ns=2;s=feed_rate",
+    "datatype": "Double",
+    "value": "",
+    "name": "machining_02.feed_rate",
+    "x": 330,
+    "y": 556,
+    "wires": [
+      [
+        "opc_cli_79cced12a44a4373"
+      ]
+    ]
+  },
+  {
+    "id": "opc_it_bce84588dc7449869",
+    "type": "OpcUa-Item",
+    "z": "tab_verify_v2",
+    "item": "ns=2;s=rpm",
+    "datatype": "Int64",
+    "value": "",
+    "name": "machining_02.rpm",
+    "x": 330,
+    "y": 578,
+    "wires": [
+      [
+        "opc_cli_79cced12a44a4373"
+      ]
+    ]
+  },
+  {
+    "id": "opc_it_9d8e597368dc45638",
+    "type": "OpcUa-Item",
+    "z": "tab_verify_v2",
+    "item": "ns=2;s=part_count",
+    "datatype": "Int64",
+    "value": "",
+    "name": "machining_02.part_count",
+    "x": 330,
+    "y": 600,
+    "wires": [
+      [
+        "opc_cli_79cced12a44a4373"
+      ]
+    ]
+  },
+  {
+    "id": "opc_it_f38616f44ee340628",
+    "type": "OpcUa-Item",
+    "z": "tab_verify_v2",
+    "item": "ns=2;s=alarm",
+    "datatype": "Boolean",
+    "value": "",
+    "name": "machining_02.alarm",
+    "x": 330,
+    "y": 622,
+    "wires": [
+      [
+        "opc_cli_79cced12a44a4373"
+      ]
+    ]
+  },
+  {
+    "id": "opc_cli_79cced12a44a4373",
+    "type": "OpcUa-Client",
+    "z": "tab_verify_v2",
+    "endpoint": "opc_ep_99e391a959054599b",
+    "action": "read",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 1,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "name": "machining_02 read",
+    "x": 600,
+    "y": 462,
+    "wires": [
+      [
+        "opc_mg_7005a32400674cafa"
+      ]
+    ]
+  },
+  {
+    "id": "opc_mg_7005a32400674cafa",
+    "type": "function",
+    "z": "tab_verify_v2",
+    "name": "machining_02 merge",
+    "func": "const names = [\"power\", \"spindle_temp_sp\", \"vibration_sp\", \"feed_rate_sp\", \"rpm_sp\", \"spindle_temp\", \"vibration\", \"feed_rate\", \"rpm\", \"part_count\", \"alarm\"];\nconst k = (msg.browseName || msg.topic || '').replace(/^.*[:.]/, '');\nconst key = 'opc_machining_02';\nconst ctx = flow.get(key) || {};\nif (k && names.includes(k)) ctx[k] = msg.payload;\nflow.set(key, ctx);\nif (Object.keys(ctx).length >= names.length) {\n  msg.topic = 'machining_02';\n  msg.payload = ctx;\n  flow.set(key, {});\n  return msg;\n}\nreturn null;\n",
+    "outputs": 1,
+    "x": 830,
+    "y": 462,
+    "wires": [
+      [
+        "col_d833f96dde624bcd94e6"
+      ]
+    ]
+  },
+  {
+    "id": "opc_ep_3c929d76f0ad40408",
+    "type": "OpcUa-Endpoint",
+    "endpoint": "opc.tcp://127.0.0.1:4843/machining_03/",
+    "secpol": "None",
+    "secmode": "None",
+    "none": true,
+    "login": false,
+    "usercert": false,
+    "name": "machining_03"
+  },
+  {
+    "id": "opc_inj_644409e2b5004749",
+    "type": "inject",
+    "z": "tab_verify_v2",
+    "name": "machining_03 tick",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "2",
+    "once": true,
+    "onceDelay": "5",
+    "payloadType": "date",
+    "x": 130,
+    "y": 704,
+    "wires": [
+      [
+        "opc_it_6719f6a6e6fb4af4a",
+        "opc_it_80fd28ccb5464666a",
+        "opc_it_14d93e3c259a4d439",
+        "opc_it_bf4ba3d2e047448da",
+        "opc_it_ab3f6533faa043efa",
+        "opc_it_695d0f049d9043c79",
+        "opc_it_2dc6bd01b7d24088a",
+        "opc_it_e0ac7a24b8a34bc99",
+        "opc_it_0b4c1cfde2b54e668",
+        "opc_it_f9b04172be7649fcb",
+        "opc_it_b5bc3459976b4173b"
+      ]
+    ]
+  },
+  {
+    "id": "opc_it_6719f6a6e6fb4af4a",
+    "type": "OpcUa-Item",
+    "z": "tab_verify_v2",
+    "item": "ns=2;s=power",
+    "datatype": "Boolean",
+    "value": "",
+    "name": "machining_03.power",
+    "x": 330,
+    "y": 704,
+    "wires": [
+      [
+        "opc_cli_b9b4a399c5ed43e8"
+      ]
+    ]
+  },
+  {
+    "id": "opc_it_80fd28ccb5464666a",
+    "type": "OpcUa-Item",
+    "z": "tab_verify_v2",
+    "item": "ns=2;s=spindle_temp_sp",
+    "datatype": "Double",
+    "value": "",
+    "name": "machining_03.spindle_temp_sp",
+    "x": 330,
+    "y": 726,
+    "wires": [
+      [
+        "opc_cli_b9b4a399c5ed43e8"
+      ]
+    ]
+  },
+  {
+    "id": "opc_it_14d93e3c259a4d439",
+    "type": "OpcUa-Item",
+    "z": "tab_verify_v2",
+    "item": "ns=2;s=vibration_sp",
+    "datatype": "Double",
+    "value": "",
+    "name": "machining_03.vibration_sp",
+    "x": 330,
+    "y": 748,
+    "wires": [
+      [
+        "opc_cli_b9b4a399c5ed43e8"
+      ]
+    ]
+  },
+  {
+    "id": "opc_it_bf4ba3d2e047448da",
+    "type": "OpcUa-Item",
+    "z": "tab_verify_v2",
+    "item": "ns=2;s=feed_rate_sp",
+    "datatype": "Double",
+    "value": "",
+    "name": "machining_03.feed_rate_sp",
+    "x": 330,
+    "y": 770,
+    "wires": [
+      [
+        "opc_cli_b9b4a399c5ed43e8"
+      ]
+    ]
+  },
+  {
+    "id": "opc_it_ab3f6533faa043efa",
+    "type": "OpcUa-Item",
+    "z": "tab_verify_v2",
+    "item": "ns=2;s=rpm_sp",
+    "datatype": "Int64",
+    "value": "",
+    "name": "machining_03.rpm_sp",
+    "x": 330,
+    "y": 792,
+    "wires": [
+      [
+        "opc_cli_b9b4a399c5ed43e8"
+      ]
+    ]
+  },
+  {
+    "id": "opc_it_695d0f049d9043c79",
+    "type": "OpcUa-Item",
+    "z": "tab_verify_v2",
+    "item": "ns=2;s=spindle_temp",
+    "datatype": "Double",
+    "value": "",
+    "name": "machining_03.spindle_temp",
+    "x": 330,
+    "y": 814,
+    "wires": [
+      [
+        "opc_cli_b9b4a399c5ed43e8"
+      ]
+    ]
+  },
+  {
+    "id": "opc_it_2dc6bd01b7d24088a",
+    "type": "OpcUa-Item",
+    "z": "tab_verify_v2",
+    "item": "ns=2;s=vibration",
+    "datatype": "Double",
+    "value": "",
+    "name": "machining_03.vibration",
+    "x": 330,
+    "y": 836,
+    "wires": [
+      [
+        "opc_cli_b9b4a399c5ed43e8"
+      ]
+    ]
+  },
+  {
+    "id": "opc_it_e0ac7a24b8a34bc99",
+    "type": "OpcUa-Item",
+    "z": "tab_verify_v2",
+    "item": "ns=2;s=feed_rate",
+    "datatype": "Double",
+    "value": "",
+    "name": "machining_03.feed_rate",
+    "x": 330,
+    "y": 858,
+    "wires": [
+      [
+        "opc_cli_b9b4a399c5ed43e8"
+      ]
+    ]
+  },
+  {
+    "id": "opc_it_0b4c1cfde2b54e668",
+    "type": "OpcUa-Item",
+    "z": "tab_verify_v2",
+    "item": "ns=2;s=rpm",
+    "datatype": "Int64",
+    "value": "",
+    "name": "machining_03.rpm",
+    "x": 330,
+    "y": 880,
+    "wires": [
+      [
+        "opc_cli_b9b4a399c5ed43e8"
+      ]
+    ]
+  },
+  {
+    "id": "opc_it_f9b04172be7649fcb",
+    "type": "OpcUa-Item",
+    "z": "tab_verify_v2",
+    "item": "ns=2;s=part_count",
+    "datatype": "Int64",
+    "value": "",
+    "name": "machining_03.part_count",
+    "x": 330,
+    "y": 902,
+    "wires": [
+      [
+        "opc_cli_b9b4a399c5ed43e8"
+      ]
+    ]
+  },
+  {
+    "id": "opc_it_b5bc3459976b4173b",
+    "type": "OpcUa-Item",
+    "z": "tab_verify_v2",
+    "item": "ns=2;s=alarm",
+    "datatype": "Boolean",
+    "value": "",
+    "name": "machining_03.alarm",
+    "x": 330,
+    "y": 924,
+    "wires": [
+      [
+        "opc_cli_b9b4a399c5ed43e8"
+      ]
+    ]
+  },
+  {
+    "id": "opc_cli_b9b4a399c5ed43e8",
+    "type": "OpcUa-Client",
+    "z": "tab_verify_v2",
+    "endpoint": "opc_ep_3c929d76f0ad40408",
+    "action": "read",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 1,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "name": "machining_03 read",
+    "x": 600,
+    "y": 764,
+    "wires": [
+      [
+        "opc_mg_3805c982d5114cc5a"
+      ]
+    ]
+  },
+  {
+    "id": "opc_mg_3805c982d5114cc5a",
+    "type": "function",
+    "z": "tab_verify_v2",
+    "name": "machining_03 merge",
+    "func": "const names = [\"power\", \"spindle_temp_sp\", \"vibration_sp\", \"feed_rate_sp\", \"rpm_sp\", \"spindle_temp\", \"vibration\", \"feed_rate\", \"rpm\", \"part_count\", \"alarm\"];\nconst k = (msg.browseName || msg.topic || '').replace(/^.*[:.]/, '');\nconst key = 'opc_machining_03';\nconst ctx = flow.get(key) || {};\nif (k && names.includes(k)) ctx[k] = msg.payload;\nflow.set(key, ctx);\nif (Object.keys(ctx).length >= names.length) {\n  msg.topic = 'machining_03';\n  msg.payload = ctx;\n  flow.set(key, {});\n  return msg;\n}\nreturn null;\n",
+    "outputs": 1,
+    "x": 830,
+    "y": 764,
+    "wires": [
+      [
+        "col_d833f96dde624bcd94e6"
+      ]
+    ]
+  },
+  {
+    "id": "inj_sp_d1f43f2e569d4c9fb",
+    "type": "inject",
+    "z": "tab_verify_v2",
+    "name": "\u25b6 casting_01.melt_temp_sp = 900",
+    "props": [
+      {
+        "p": "payload"
+      },
+      {
+        "p": "topic",
+        "vt": "str"
+      }
+    ],
+    "repeat": "",
+    "once": false,
+    "topic": "",
+    "payload": "900",
+    "payloadType": "num",
+    "x": 200,
+    "y": 1100,
+    "wires": [
+      [
+        "fn_sp_968996a055a5459e83"
+      ]
+    ]
+  },
+  {
+    "id": "fn_sp_968996a055a5459e83",
+    "type": "function",
+    "z": "tab_verify_v2",
+    "name": "build float write",
+    "func": "// float 32 -> 2 words big-endian\nconst f = Number(msg.payload);\nconst buf = Buffer.alloc(4);\nbuf.writeFloatBE(f, 0);\nconst hi = buf.readUInt16BE(0);\nconst lo = buf.readUInt16BE(2);\nmsg.payload = {\n  value: [hi, lo],\n  fc: 16, unitid: 1, address: 1000, quantity: 2\n};\nreturn msg;\n",
+    "outputs": 1,
+    "x": 470,
+    "y": 1100,
+    "wires": [
+      [
+        "wr_sp_728498c24944498d8b"
+      ]
+    ]
+  },
+  {
+    "id": "wr_sp_728498c24944498d8b",
+    "type": "modbus-flex-write",
+    "z": "tab_verify_v2",
+    "name": "write casting_01 (melt_temp_sp)",
+    "showStatusActivities": false,
+    "showErrors": true,
+    "server": "mb_d9f1cdf8576647d48c34e",
+    "emptyMsgOnFail": false,
+    "keepMsgProperties": false,
+    "x": 800,
+    "y": 1100,
+    "wires": [
+      [],
+      []
+    ]
+  },
+  {
+    "id": "inj_off_2bd4f6e6a9fd4368",
+    "type": "inject",
+    "z": "tab_verify_v2",
+    "name": "\u25b6 casting_01.power = OFF",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "once": false,
+    "payload": "false",
+    "payloadType": "bool",
+    "x": 200,
+    "y": 1160,
+    "wires": [
+      [
+        "fn_pw_d6c1c9237ea1429dab"
+      ]
+    ]
+  },
+  {
+    "id": "inj_on_f4bc253d86144056b",
+    "type": "inject",
+    "z": "tab_verify_v2",
+    "name": "\u25b6 casting_01.power = ON",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "once": false,
+    "payload": "true",
+    "payloadType": "bool",
+    "x": 200,
+    "y": 1200,
+    "wires": [
+      [
+        "fn_pw_d6c1c9237ea1429dab"
+      ]
+    ]
+  },
+  {
+    "id": "fn_pw_d6c1c9237ea1429dab",
+    "type": "function",
+    "z": "tab_verify_v2",
+    "name": "build coil write",
+    "func": "msg.payload = {\n  value: !!msg.payload,\n  fc: 5, unitid: 1, address: 0, quantity: 1\n};\nreturn msg;\n",
+    "outputs": 1,
+    "x": 470,
+    "y": 1180,
+    "wires": [
+      [
+        "wr_pw_6aa41eb91a2647518f"
+      ]
+    ]
+  },
+  {
+    "id": "wr_pw_6aa41eb91a2647518f",
+    "type": "modbus-flex-write",
+    "z": "tab_verify_v2",
+    "name": "write casting_01 (power)",
+    "showStatusActivities": false,
+    "showErrors": true,
+    "server": "mb_d9f1cdf8576647d48c34e",
+    "emptyMsgOnFail": false,
+    "keepMsgProperties": false,
+    "x": 800,
+    "y": 1180,
+    "wires": [
+      [],
+      []
+    ]
+  },
+  {
+    "id": "inj_opc_fc4fff4eb52b43f8",
+    "type": "inject",
+    "z": "tab_verify_v2",
+    "name": "\u25b6 machining_01.spindle_temp_sp = 80",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "once": false,
+    "payload": "80",
+    "payloadType": "num",
+    "x": 200,
+    "y": 1260,
+    "wires": [
+      [
+        "opc_iw_3605712bbfa74c7aa"
+      ]
+    ]
+  },
+  {
+    "id": "opc_iw_3605712bbfa74c7aa",
+    "type": "OpcUa-Item",
+    "z": "tab_verify_v2",
+    "item": "ns=2;s=spindle_temp_sp",
+    "datatype": "Double",
+    "value": "",
+    "name": "spindle_temp_sp",
+    "x": 470,
+    "y": 1260,
+    "wires": [
+      [
+        "opc_clw_6c98cdf601604b7b"
+      ]
+    ]
+  },
+  {
+    "id": "opc_clw_6c98cdf601604b7b",
+    "type": "OpcUa-Client",
+    "z": "tab_verify_v2",
+    "endpoint": "opc_ep_c23e710c236f4c66a",
+    "action": "write",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 1,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "name": "write machining_01",
+    "x": 800,
+    "y": 1260,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "inj_mpwo_d8fa3d4fe55f4c6",
+    "type": "inject",
+    "z": "tab_verify_v2",
+    "name": "\u25b6 machining_01.power = OFF",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "once": false,
+    "payload": "false",
+    "payloadType": "bool",
+    "x": 200,
+    "y": 1320,
+    "wires": [
+      [
+        "opc_imp_d21efd6b4f384dbd"
+      ]
+    ]
+  },
+  {
+    "id": "inj_mpwn_68431d06dc57469",
+    "type": "inject",
+    "z": "tab_verify_v2",
+    "name": "\u25b6 machining_01.power = ON",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "once": false,
+    "payload": "true",
+    "payloadType": "bool",
+    "x": 200,
+    "y": 1360,
+    "wires": [
+      [
+        "opc_imp_d21efd6b4f384dbd"
+      ]
+    ]
+  },
+  {
+    "id": "opc_imp_d21efd6b4f384dbd",
+    "type": "OpcUa-Item",
+    "z": "tab_verify_v2",
+    "item": "ns=2;s=power",
+    "datatype": "Boolean",
+    "value": "",
+    "name": "machining_01.power",
+    "x": 470,
+    "y": 1340,
+    "wires": [
+      [
+        "opc_clmp_4f942ed2a4e54d8"
+      ]
+    ]
+  },
+  {
+    "id": "opc_clmp_4f942ed2a4e54d8",
+    "type": "OpcUa-Client",
+    "z": "tab_verify_v2",
+    "endpoint": "opc_ep_c23e710c236f4c66a",
+    "action": "write",
+    "deadbandtype": "a",
+    "deadbandvalue": 1,
+    "time": 1,
+    "timeUnit": "s",
+    "certificate": "n",
+    "localfile": "",
+    "localkeyfile": "",
+    "securitymode": "None",
+    "securitypolicy": "None",
+    "name": "write machining_01 power",
+    "x": 800,
+    "y": 1340,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "c1_ac1278dc8ad742dab89b1",
+    "type": "comment",
+    "z": "tab_verify_v2",
+    "name": "==== \uc77d\uae30 (Modbus 6\ub300 + OPC UA 3\ub300) ====",
+    "info": "2\ucd08\ub9c8\ub2e4 9\ub300 \uc124\ube44 \uc804\uccb4 \uac12\uc744 \ud55c \uac1d\uccb4\ub85c \ubaa8\uc544 debug",
+    "x": 230,
+    "y": 30
+  },
+  {
+    "id": "c2_c36e86793c5c41058424f",
+    "type": "comment",
+    "z": "tab_verify_v2",
+    "name": "==== \uc4f0\uae30 \uc2dc\ub098\ub9ac\uc624 (\ubc84\ud2bc \ub20c\ub7ec\uc11c \uc2e4\ud589) ====",
+    "info": "\uac01 inject \uc88c\uce21 \ubc84\ud2bc\uc744 \ub204\ub974\uba74 \ud574\ub2f9 \uba85\ub839\uc774 \uc124\ube44\ub85c \uc804\uc1a1\ub41c\ub2e4.\nALL EQUIPMENT debug \uc5d0\uc11c \ubcc0\ud654\ub97c \ud655\uc778.",
+    "x": 250,
+    "y": 1050
+  }
+]

@@ -4,32 +4,15 @@ import { fetchLines } from '@/api/lineApi'
 import { fetchEquipments, fetchEquipmentStatuses } from '@/api/equipmentApi'
 import { fetchSensorLatestValues, type SensorBufferLatest, type SensorFrame } from '@/api/sensorApi'
 import { POLL_INTERVAL_MS, STALE_TIME_MS } from '@/constants/polling'
+import {
+  realtimeBufferKey,
+  realtimeKeysForEquipments,
+  type RealtimeMetric,
+} from '@/utils/realtimeBuffers'
 
 const FACTORY_ID = 'FACTORY-01'
-export type FactoryRealtimeMetric = 'cycle_time' | 'sensor_current' | 'sensor_voltage' | 'sensor_temperature' | 'sensor_vibration'
-
-const REALTIME_METRICS: readonly FactoryRealtimeMetric[] = [
-  'cycle_time',
-  'sensor_current',
-  'sensor_voltage',
-  'sensor_temperature',
-  'sensor_vibration',
-] as const
-
-export function realtimeBufferKey(equipmentCode: string, metric: FactoryRealtimeMetric): string | null {
-  const match = equipmentCode.match(/^(LINE-\d{2})_(.+)$/)
-  if (!match) return null
-  const line = match[1].replace('-', '')
-  const equipment = match[2].replace(/-/g, '')
-  return `${line}.${equipment}:${metric}`
-}
-
-function realtimeKeys(equipments: readonly { equipmentCode: string }[]): string[] {
-  const keys = equipments.flatMap((equipment) =>
-    REALTIME_METRICS.map((metric) => realtimeBufferKey(equipment.equipmentCode, metric)).filter((key): key is string => !!key),
-  )
-  return [...new Set(keys)]
-}
+export { realtimeBufferKey }
+export type FactoryRealtimeMetric = RealtimeMetric
 
 function latestFrameMap(items: readonly SensorBufferLatest[]): Map<string, SensorFrame> {
   const map = new Map<string, SensorFrame>()
@@ -54,10 +37,10 @@ export function useFactoryLayout() {
   })
 
   const equipIds = computed(() => (equipmentsQuery.data.value ?? []).map((e) => e.equipmentCode))
-  const sensorKeys = computed(() => realtimeKeys(equipmentsQuery.data.value ?? []))
+  const sensorKeys = computed(() => realtimeKeysForEquipments(equipmentsQuery.data.value ?? []))
 
   const statusesQuery = useQuery({
-    queryKey: ['layout', 'equipment-statuses', equipIds],
+    queryKey: computed(() => ['layout', 'equipment-statuses', equipIds.value]),
     queryFn: () => fetchEquipmentStatuses(equipIds.value),
     enabled: computed(() => equipIds.value.length > 0),
     refetchInterval: POLL_INTERVAL_MS.factoryLayout,
@@ -65,7 +48,7 @@ export function useFactoryLayout() {
   })
 
   const realtimeQuery = useQuery({
-    queryKey: ['layout', 'equipment-realtime-latest', sensorKeys],
+    queryKey: computed(() => ['layout', 'equipment-realtime-latest', sensorKeys.value]),
     queryFn: () => fetchSensorLatestValues(sensorKeys.value),
     enabled: computed(() => sensorKeys.value.length > 0),
     refetchInterval: POLL_INTERVAL_MS.equipmentRealtime,

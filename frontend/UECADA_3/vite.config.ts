@@ -7,6 +7,18 @@ import { fileURLToPath, URL } from 'node:url'
 // 캐시 히트하도록 만드는 효과도 있다.
 export default defineConfig({
   plugins: [vue()],
+  server: {
+    proxy: {
+      '/api': {
+        target: process.env.VITE_DEV_API_PROXY ?? 'http://localhost:8080',
+        changeOrigin: true,
+      },
+      '/health': {
+        target: process.env.VITE_DEV_API_PROXY ?? 'http://localhost:8080',
+        changeOrigin: true,
+      },
+    },
+  },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

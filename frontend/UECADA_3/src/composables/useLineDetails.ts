@@ -3,10 +3,10 @@ import { useQuery } from '@tanstack/vue-query'
 import { fetchEquipments } from '@/api/equipmentApi'
 import { fetchLines } from '@/api/lineApi'
 import { fetchSensorLatestValues, type SensorBufferLatest } from '@/api/sensorApi'
-import { realtimeBufferKey } from '@/composables/useFactoryLayout'
 import { POLL_INTERVAL_MS } from '@/constants/polling'
 import type { Equipment } from '@/types/equipment'
 import type { LineSummary } from '@/types/line'
+import { realtimeBufferKey } from '@/utils/realtimeBuffers'
 
 export interface LineDetailRow {
   name: string
@@ -30,6 +30,18 @@ export interface LineDetailRow {
 function pctRound(value: number, total: number): number {
   if (!total) return 0
   return Math.round((value / total) * 100)
+}
+
+function derivedLineOee(line: LineSummary): number {
+  if (line.latestOee != null) return Math.round(Number(line.latestOee))
+  const total = line.equipmentTotal || 0
+  if (!total) return 0
+  const score = (
+    (line.equipmentRunning * 1.0)
+    + (line.equipmentStandby * 0.35)
+    + (line.equipmentMaintenance * 0.15)
+  ) / total * 100
+  return Math.round(score)
 }
 
 function latestCycleMap(items: readonly SensorBufferLatest[]): Map<string, number> {
@@ -56,12 +68,13 @@ function lineCycleStats(line: LineSummary, equipments: readonly Equipment[], cyc
     .filter((value): value is number => value != null)
 
   if (!values.length) {
+    const productivity = derivedLineOee(line)
     return {
       balance: 0,
       stations: [0, 0, 0, 0, 0, 0],
       upmh: 0,
       uph: 0,
-      productivity: line.latestOee == null ? 0 : Math.round(Number(line.latestOee)),
+      productivity,
       upmhPercent: 0,
       uphPercent: 0,
     }
@@ -74,7 +87,7 @@ function lineCycleStats(line: LineSummary, equipments: readonly Equipment[], cyc
   const bottleneckCycle = max || avg
   const uph = bottleneckCycle > 0 ? Math.round(3600 / bottleneckCycle) : 0
   const upmh = uph * values.length
-  const productivity = line.latestOee == null ? balance : Math.round(Number(line.latestOee))
+  const productivity = derivedLineOee(line)
   const stationPercents = values.slice(0, 6).map((value) => Math.max(8, Math.round((min / value) * 100)))
 
   return {
@@ -96,7 +109,7 @@ function toLineDetail(line: LineSummary, equipments: readonly Equipment[], cycle
   const cycleStats = lineCycleStats(line, equipments, cycles)
   return {
     name: line.lineName ?? line.lineId,
-    oee: line.latestOee == null ? 0 : Math.round(Number(line.latestOee)),
+    oee: derivedLineOee(line),
     equipment: total,
     status: { run, stop, wait, stopEnd: run + stop },
     ...cycleStats,

@@ -1,0 +1,7 @@
+# Use with profile group "local-docker" (see application.yml).
+# Points the host JVM at MySQL published by docker-compose.local-infra.yml (host port 8600).
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:8600/uecada?serverTimezone=Asia/Seoul&characterEncoding=UTF-8&useUnicode=true
+    username: uecada_user
+    password: uecada1234

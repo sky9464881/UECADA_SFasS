@@ -4465,6 +4465,22 @@ select {
   text-align: right;
 }
 
+.factory-detail-metrics--popup {
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 10px;
+  margin-top: 6px;
+}
+
+.factory-detail-metrics--popup dt,
+.factory-detail-metrics--popup dd {
+  min-width: 0;
+}
+
+.factory-detail-metrics--popup dd {
+  text-align: left;
+}
+
 .factory-detail-primary-summary {
   margin: 0;
   font-size: 13px;
@@ -4523,6 +4539,7 @@ select {
 }
 
 .factory-line-summary-card {
+  appearance: none;
   flex: 0 0 auto;
   width: min(132px, 22vw);
   min-width: 112px;
@@ -4535,6 +4552,24 @@ select {
   border-radius: 8px;
   border: 1px solid #dce5ef;
   background: #f8fafc;
+  cursor: pointer;
+  font: inherit;
+  text-align: inherit;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+
+.factory-line-summary-card:hover {
+  border-color: rgba(0, 87, 164, 0.42);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+  transform: translateY(-1px);
+}
+
+.factory-line-summary-card:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.42);
+  outline-offset: 2px;
 }
 
 .factory-line-summary-code {
@@ -4834,7 +4869,7 @@ select {
 }
 
 .factory-stage-dialog {
-  width: min(560px, 100%);
+  width: min(760px, 100%);
   max-height: min(82vh, 640px);
   display: flex;
   flex-direction: column;
@@ -8233,21 +8268,27 @@ select {
 
 .equipment-popup-graph-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1.65fr) minmax(300px, 0.85fr);
   gap: 12px;
   margin-top: 14px;
 }
 
 .equipment-popup-chart-card {
-  min-height: 244px;
-  padding: 14px;
+  min-width: 0;
+  min-height: 252px;
+  padding: 12px;
   border: 1px solid #e4ebf4;
   border-radius: 8px;
   background: #f8fafc;
 }
 
+.equipment-popup-chart-card:first-child {
+  min-height: 318px;
+}
+
 .equipment-chart-head {
   display: flex;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
   color: #0f1f38;
