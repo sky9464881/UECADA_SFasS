@@ -95,8 +95,8 @@ The flow also forwards the aggregated line payload variable from each PLC line a
 Backend-facing node mapping is documented in
 [`docs/backend_opcua_mapping.md`](docs/backend_opcua_mapping.md). X_DAS now
 publishes both raw `X_DAS.LINE_*` nodes and backend schema nodes such as
-`ns=2;s=LINE01.CAST01.Temperature`, plus the LINE-01 compatibility alias
-`ns=2;s=CAST01.Temperature`.
+`ns=2;s=LINE01.CAST01.InjectionPressure`, plus the LINE-01 compatibility alias
+`ns=2;s=CAST01.InjectionPressure`.
 
 ## 보안/인증
 
