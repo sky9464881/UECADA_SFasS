@@ -6,7 +6,7 @@
 const realtimeDemo = import.meta.env.VITE_REALTIME_DEMO === 'true'
 
 export const POLL_INTERVAL_MS = {
-  alarm: 1_000,
+  alarm: realtimeDemo ? 2_000 : 5_000,
   dashboard: realtimeDemo ? 1_000 : 10_000,
   equipmentCategory: realtimeDemo ? 1_000 : 15_000,
   equipmentAnalysis: realtimeDemo ? 5_000 : 30_000,

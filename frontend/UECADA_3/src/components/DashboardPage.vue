@@ -281,11 +281,12 @@ const statusPieChartOption = computed(() => {
           {
             type: 'text',
             left: 'center',
-            top: '47%',
+            top: '56%',
             z: 10,
             style: {
               text: `${equipmentTotalCount.value}대`,
               textAlign: 'center',
+              textVerticalAlign: 'middle',
               fill: '#0f172a',
               fontSize: 25,
               fontWeight: 950,
