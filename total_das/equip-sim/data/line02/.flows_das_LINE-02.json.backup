@@ -7,17 +7,17 @@
         "info": ""
     },
     {
-        "id": "049d71002be34b83",
-        "type": "tab",
-        "label": "LINE-02 Self-Check",
-        "disabled": true,
-        "info": ""
-    },
-    {
         "id": "996c5c00719d412f",
         "type": "tab",
         "label": "LINE-02 SP Control",
         "disabled": false,
+        "info": ""
+    },
+    {
+        "id": "049d71002be34b83",
+        "type": "tab",
+        "label": "LINE-02 Self-Check",
+        "disabled": true,
         "info": ""
     },
     {
@@ -73,11 +73,13 @@
             "c3d965a6713e44b7",
             "aef5916e58c249f3",
             "3e72a0dee81c4825",
-            "00e8697721f74685"
+            "00e8697721f74685",
+            "e886310355f8e064",
+            "699f478a7bc5d848"
         ],
         "x": 84,
         "y": 2159,
-        "w": 1042,
+        "w": 1202,
         "h": 577.5
     },
     {
@@ -3328,12 +3330,11 @@
         "initialize": "",
         "finalize": "",
         "libs": [],
-        "x": 1020,
-        "y": 2240,
+        "x": 1040,
+        "y": 2280,
         "wires": [
             [
-                "e2f57683a4f6435c",
-                "cfc7a1bf73534d49"
+                "699f478a7bc5d848"
             ]
         ]
     },
@@ -3355,8 +3356,8 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 840,
-        "y": 2270,
+        "x": 870,
+        "y": 2280,
         "wires": [
             [
                 "18122050694d4546"
@@ -3369,7 +3370,7 @@
         "z": "482b7463ca024817",
         "g": "ed0ce0f94151439a",
         "name": "TEST-02 debug",
-        "active": false,
+        "active": true,
         "tosidebar": true,
         "console": false,
         "tostatus": false,
@@ -3830,12 +3831,11 @@
         "initialize": "",
         "finalize": "",
         "libs": [],
-        "x": 1020,
-        "y": 2520,
+        "x": 1040,
+        "y": 2560,
         "wires": [
             [
-                "e2f57683a4f6435c",
-                "0a11db019109424c"
+                "e886310355f8e064"
             ]
         ]
     },
@@ -3857,8 +3857,8 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 840,
-        "y": 2550,
+        "x": 870,
+        "y": 2560,
         "wires": [
             [
                 "3e72a0dee81c4825"
@@ -4202,572 +4202,46 @@
         ]
     },
     {
-        "id": "b1d381a204d94112",
-        "type": "comment",
-        "z": "049d71002be34b83",
-        "name": "LINE-02 self-check",
-        "info": "  같은 Node-RED 프로세스 안의 OpcUa-Server (127.0.0.1:4960) 에\nclient 로 접속해서 publish 된 변수를 읽어보는 검증 탭.\n\n• 여기서 값이 읽히면 → 서버 측 OK\n• 여기서도 안 읽히면 → publish/addVariable 문제\n• 여기는 OK 인데 통합 DAS 가 안 읽히면 → docker/network 문제\n",
-        "x": 180,
-        "y": 30,
-        "wires": []
-    },
-    {
-        "id": "c4b7c849215947c0",
-        "type": "debug",
-        "z": "049d71002be34b83",
-        "name": "SELF-CHECK LINE-02.payload",
-        "active": true,
-        "tosidebar": true,
-        "console": true,
-        "tostatus": false,
-        "complete": "payload",
-        "targetType": "msg",
-        "statusVal": "",
-        "statusType": "auto",
-        "x": 900,
-        "y": 100,
-        "wires": []
-    },
-    {
-        "id": "be19738057564816",
-        "type": "OpcUa-Client",
-        "z": "049d71002be34b83",
-        "endpoint": "914c91a0c05d4757",
-        "action": "read",
-        "deadbandtype": "a",
-        "deadbandvalue": 1,
-        "time": 10,
-        "timeUnit": "s",
-        "certificate": "n",
-        "localfile": "",
-        "localkeyfile": "",
-        "securitymode": "None",
-        "securitypolicy": "None",
-        "useTransport": false,
-        "maxChunkCount": "1",
-        "maxMessageSize": "8192",
-        "receiveBufferSize": "8192",
-        "sendBufferSize": "8192",
-        "setstatusandtime": false,
-        "keepsessionalive": false,
-        "name": "read",
-        "x": 700,
-        "y": 100,
+        "id": "e886310355f8e064",
+        "type": "function",
+        "z": "482b7463ca024817",
+        "g": "ed0ce0f94151439a",
+        "name": "Testing node",
+        "func": "// TEST-02 validate result_ok (overwrite)\n\n// msg.payload 구조 가정:\n// { equipment_id: \"TEST-02\", tags: { power, bore_dimension_sp, ... } }\n\nconst p = msg.payload || {};\nconst tags = p.tags || {};\n\n// 허용 오차\nconst tol = 0.035;\n\n// 각 값 숫자 변환\nconst boreSp  = Number(tags.bore_dimension_sp);\nconst bore    = Number(tags.bore_dimension);\nconst holeSp  = Number(tags.hole_dimension_sp);\nconst hole    = Number(tags.hole_dimension);\n\n// 값 존재/유효성 체크\nconst hasAllValues =\n    Number.isFinite(boreSp) &&\n    Number.isFinite(bore) &&\n    Number.isFinite(holeSp) &&\n    Number.isFinite(hole);\n\n// 기본값: false로 overwrite\nlet resultOk = false;\nlet boreDiff = null;\nlet holeDiff = null;\nlet reason   = \"\";\n\n// 값이 다 있으면 오차 계산\nif (hasAllValues) {\n    boreDiff = Math.abs(bore - boreSp);\n    holeDiff = Math.abs(hole - holeSp);\n\n    const boreOk = boreDiff <= tol;\n    const holeOk = holeDiff <= tol;\n\n    resultOk = boreOk && holeOk;\n    reason   = resultOk ? \"within_tolerance\" : \"out_of_tolerance\";\n} else {\n    reason = \"missing_value\";\n}\n\n// 여기서 \"바로 덮어쓰기\"\ntags.result_ok = resultOk;\n\n// // 디버깅/추적용 메타 데이터도 같이 기록해두면 좋음\n// tags.result_ok_calc   = resultOk;   // 계산 결과\n// tags.bore_diff        = boreDiff;\n// tags.hole_diff        = holeDiff;\n// tags.tolerance        = tol;\n// tags.result_ok_reason = reason;\n\nmsg.payload.tags = tags;\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1190,
+        "y": 2560,
         "wires": [
             [
-                "c4b7c849215947c0"
-            ],
-            [],
-            []
-        ]
-    },
-    {
-        "id": "5bad81f391f249b4",
-        "type": "OpcUa-Item",
-        "z": "049d71002be34b83",
-        "item": "ns=2;s=LINE-02.payload",
-        "datatype": "String",
-        "value": "",
-        "name": "LINE-02.payload",
-        "x": 480,
-        "y": 100,
-        "wires": [
-            [
-                "be19738057564816"
+                "0a11db019109424c",
+                "e2f57683a4f6435c"
             ]
         ]
     },
     {
-        "id": "d5d4df45b5a84199",
-        "type": "debug",
-        "z": "049d71002be34b83",
-        "name": "SELF-CHECK LINE-02.line_ts",
-        "active": true,
-        "tosidebar": true,
-        "console": true,
-        "tostatus": false,
-        "complete": "payload",
-        "targetType": "msg",
-        "statusVal": "",
-        "statusType": "auto",
-        "x": 900,
-        "y": 160,
-        "wires": []
-    },
-    {
-        "id": "42f51c2472ca4abe",
-        "type": "OpcUa-Client",
-        "z": "049d71002be34b83",
-        "endpoint": "914c91a0c05d4757",
-        "action": "read",
-        "deadbandtype": "a",
-        "deadbandvalue": 1,
-        "time": 10,
-        "timeUnit": "s",
-        "certificate": "n",
-        "localfile": "",
-        "localkeyfile": "",
-        "securitymode": "None",
-        "securitypolicy": "None",
-        "useTransport": false,
-        "maxChunkCount": "1",
-        "maxMessageSize": "8192",
-        "receiveBufferSize": "8192",
-        "sendBufferSize": "8192",
-        "setstatusandtime": false,
-        "keepsessionalive": false,
-        "name": "read",
-        "x": 700,
-        "y": 160,
+        "id": "699f478a7bc5d848",
+        "type": "function",
+        "z": "482b7463ca024817",
+        "g": "ed0ce0f94151439a",
+        "name": "Testing node",
+        "func": "// TEST-02 validate result_ok (overwrite)\n\n// msg.payload 구조 가정:\n// { equipment_id: \"TEST-02\", tags: { power, bore_dimension_sp, ... } }\n\nconst p = msg.payload || {};\nconst tags = p.tags || {};\n\n// 허용 오차\nconst tol = 0.035;\n\n// 각 값 숫자 변환\nconst boreSp  = Number(tags.bore_dimension_sp);\nconst bore    = Number(tags.bore_dimension);\nconst holeSp  = Number(tags.hole_dimension_sp);\nconst hole    = Number(tags.hole_dimension);\n\n// 값 존재/유효성 체크\nconst hasAllValues =\n    Number.isFinite(boreSp) &&\n    Number.isFinite(bore) &&\n    Number.isFinite(holeSp) &&\n    Number.isFinite(hole);\n\n// 기본값: false로 overwrite\nlet resultOk = false;\nlet boreDiff = null;\nlet holeDiff = null;\nlet reason   = \"\";\n\n// 값이 다 있으면 오차 계산\nif (hasAllValues) {\n    boreDiff = Math.abs(bore - boreSp);\n    holeDiff = Math.abs(hole - holeSp);\n\n    const boreOk = boreDiff <= tol;\n    const holeOk = holeDiff <= tol;\n\n    resultOk = boreOk && holeOk;\n    reason   = resultOk ? \"within_tolerance\" : \"out_of_tolerance\";\n} else {\n    reason = \"missing_value\";\n}\n\n// 여기서 \"바로 덮어쓰기\"\ntags.result_ok = resultOk;\n\n// // 디버깅/추적용 메타 데이터도 같이 기록해두면 좋음\n// tags.result_ok_calc   = resultOk;   // 계산 결과\n// tags.bore_diff        = boreDiff;\n// tags.hole_diff        = holeDiff;\n// tags.tolerance        = tol;\n// tags.result_ok_reason = reason;\n\nmsg.payload.tags = tags;\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1190,
+        "y": 2280,
         "wires": [
             [
-                "d5d4df45b5a84199"
-            ],
-            [],
-            []
-        ]
-    },
-    {
-        "id": "a97cb16d54a84215",
-        "type": "OpcUa-Item",
-        "z": "049d71002be34b83",
-        "item": "ns=2;s=LINE-02.line_ts",
-        "datatype": "String",
-        "value": "",
-        "name": "LINE-02.line_ts",
-        "x": 480,
-        "y": 160,
-        "wires": [
-            [
-                "42f51c2472ca4abe"
-            ]
-        ]
-    },
-    {
-        "id": "530909f6f6ce4160",
-        "type": "debug",
-        "z": "049d71002be34b83",
-        "name": "SELF-CHECK LINE-02.CAST-01.status",
-        "active": true,
-        "tosidebar": true,
-        "console": true,
-        "tostatus": false,
-        "complete": "payload",
-        "targetType": "msg",
-        "statusVal": "",
-        "statusType": "auto",
-        "x": 900,
-        "y": 220,
-        "wires": []
-    },
-    {
-        "id": "db1914f8b3d243a6",
-        "type": "OpcUa-Client",
-        "z": "049d71002be34b83",
-        "endpoint": "914c91a0c05d4757",
-        "action": "read",
-        "deadbandtype": "a",
-        "deadbandvalue": 1,
-        "time": 10,
-        "timeUnit": "s",
-        "certificate": "n",
-        "localfile": "",
-        "localkeyfile": "",
-        "securitymode": "None",
-        "securitypolicy": "None",
-        "useTransport": false,
-        "maxChunkCount": "1",
-        "maxMessageSize": "8192",
-        "receiveBufferSize": "8192",
-        "sendBufferSize": "8192",
-        "setstatusandtime": false,
-        "keepsessionalive": false,
-        "name": "read",
-        "x": 700,
-        "y": 220,
-        "wires": [
-            [
-                "530909f6f6ce4160"
-            ],
-            [],
-            []
-        ]
-    },
-    {
-        "id": "d958e564c8574401",
-        "type": "OpcUa-Item",
-        "z": "049d71002be34b83",
-        "item": "ns=2;s=LINE-02.CAST-01.status",
-        "datatype": "String",
-        "value": "",
-        "name": "LINE-02.CAST-01.status",
-        "x": 480,
-        "y": 220,
-        "wires": [
-            [
-                "db1914f8b3d243a6"
-            ]
-        ]
-    },
-    {
-        "id": "6dd3beb1762b4c5c",
-        "type": "debug",
-        "z": "049d71002be34b83",
-        "name": "SELF-CHECK LINE-02.CAST-01.data.power",
-        "active": true,
-        "tosidebar": true,
-        "console": true,
-        "tostatus": false,
-        "complete": "payload",
-        "targetType": "msg",
-        "statusVal": "",
-        "statusType": "auto",
-        "x": 900,
-        "y": 280,
-        "wires": []
-    },
-    {
-        "id": "67fcf991bb944760",
-        "type": "OpcUa-Client",
-        "z": "049d71002be34b83",
-        "endpoint": "914c91a0c05d4757",
-        "action": "read",
-        "deadbandtype": "a",
-        "deadbandvalue": 1,
-        "time": 10,
-        "timeUnit": "s",
-        "certificate": "n",
-        "localfile": "",
-        "localkeyfile": "",
-        "securitymode": "None",
-        "securitypolicy": "None",
-        "useTransport": false,
-        "maxChunkCount": "1",
-        "maxMessageSize": "8192",
-        "receiveBufferSize": "8192",
-        "sendBufferSize": "8192",
-        "setstatusandtime": false,
-        "keepsessionalive": false,
-        "name": "read",
-        "x": 700,
-        "y": 280,
-        "wires": [
-            [
-                "6dd3beb1762b4c5c"
-            ],
-            [],
-            []
-        ]
-    },
-    {
-        "id": "75990c87ce084011",
-        "type": "OpcUa-Item",
-        "z": "049d71002be34b83",
-        "item": "ns=2;s=LINE-02.CAST-01.data.power",
-        "datatype": "Float",
-        "value": "",
-        "name": "LINE-02.CAST-01.data.power",
-        "x": 480,
-        "y": 280,
-        "wires": [
-            [
-                "67fcf991bb944760"
-            ]
-        ]
-    },
-    {
-        "id": "e868e64f8b7441d5",
-        "type": "debug",
-        "z": "049d71002be34b83",
-        "name": "SELF-CHECK LINE-02.CNC-01.status",
-        "active": true,
-        "tosidebar": true,
-        "console": true,
-        "tostatus": false,
-        "complete": "payload",
-        "targetType": "msg",
-        "statusVal": "",
-        "statusType": "auto",
-        "x": 900,
-        "y": 340,
-        "wires": []
-    },
-    {
-        "id": "e10c113b3ecc47f9",
-        "type": "OpcUa-Client",
-        "z": "049d71002be34b83",
-        "endpoint": "914c91a0c05d4757",
-        "action": "read",
-        "deadbandtype": "a",
-        "deadbandvalue": 1,
-        "time": 10,
-        "timeUnit": "s",
-        "certificate": "n",
-        "localfile": "",
-        "localkeyfile": "",
-        "securitymode": "None",
-        "securitypolicy": "None",
-        "useTransport": false,
-        "maxChunkCount": "1",
-        "maxMessageSize": "8192",
-        "receiveBufferSize": "8192",
-        "sendBufferSize": "8192",
-        "setstatusandtime": false,
-        "keepsessionalive": false,
-        "name": "read",
-        "x": 700,
-        "y": 340,
-        "wires": [
-            [
-                "e868e64f8b7441d5"
-            ],
-            [],
-            []
-        ]
-    },
-    {
-        "id": "de9df88ab321495c",
-        "type": "OpcUa-Item",
-        "z": "049d71002be34b83",
-        "item": "ns=2;s=LINE-02.CNC-01.status",
-        "datatype": "String",
-        "value": "",
-        "name": "LINE-02.CNC-01.status",
-        "x": 480,
-        "y": 340,
-        "wires": [
-            [
-                "e10c113b3ecc47f9"
-            ]
-        ]
-    },
-    {
-        "id": "50a0de133ca940c0",
-        "type": "debug",
-        "z": "049d71002be34b83",
-        "name": "SELF-CHECK LINE-02.CNC-01.data.power",
-        "active": true,
-        "tosidebar": true,
-        "console": true,
-        "tostatus": false,
-        "complete": "payload",
-        "targetType": "msg",
-        "statusVal": "",
-        "statusType": "auto",
-        "x": 900,
-        "y": 400,
-        "wires": []
-    },
-    {
-        "id": "ac1b8ca6647e402f",
-        "type": "OpcUa-Client",
-        "z": "049d71002be34b83",
-        "endpoint": "914c91a0c05d4757",
-        "action": "read",
-        "deadbandtype": "a",
-        "deadbandvalue": 1,
-        "time": 10,
-        "timeUnit": "s",
-        "certificate": "n",
-        "localfile": "",
-        "localkeyfile": "",
-        "securitymode": "None",
-        "securitypolicy": "None",
-        "useTransport": false,
-        "maxChunkCount": "1",
-        "maxMessageSize": "8192",
-        "receiveBufferSize": "8192",
-        "sendBufferSize": "8192",
-        "setstatusandtime": false,
-        "keepsessionalive": false,
-        "name": "read",
-        "x": 700,
-        "y": 400,
-        "wires": [
-            [
-                "50a0de133ca940c0"
-            ],
-            [],
-            []
-        ]
-    },
-    {
-        "id": "0431dd3798814c04",
-        "type": "OpcUa-Item",
-        "z": "049d71002be34b83",
-        "item": "ns=2;s=LINE-02.CNC-01.data.power",
-        "datatype": "Float",
-        "value": "",
-        "name": "LINE-02.CNC-01.data.power",
-        "x": 480,
-        "y": 400,
-        "wires": [
-            [
-                "ac1b8ca6647e402f"
-            ]
-        ]
-    },
-    {
-        "id": "270bcbebf0e94fbb",
-        "type": "debug",
-        "z": "049d71002be34b83",
-        "name": "SELF-CHECK LINE-02.TEST-01.status",
-        "active": true,
-        "tosidebar": true,
-        "console": true,
-        "tostatus": false,
-        "complete": "payload",
-        "targetType": "msg",
-        "statusVal": "",
-        "statusType": "auto",
-        "x": 900,
-        "y": 460,
-        "wires": []
-    },
-    {
-        "id": "106d9d7c355f42fc",
-        "type": "OpcUa-Client",
-        "z": "049d71002be34b83",
-        "endpoint": "914c91a0c05d4757",
-        "action": "read",
-        "deadbandtype": "a",
-        "deadbandvalue": 1,
-        "time": 10,
-        "timeUnit": "s",
-        "certificate": "n",
-        "localfile": "",
-        "localkeyfile": "",
-        "securitymode": "None",
-        "securitypolicy": "None",
-        "useTransport": false,
-        "maxChunkCount": "1",
-        "maxMessageSize": "8192",
-        "receiveBufferSize": "8192",
-        "sendBufferSize": "8192",
-        "setstatusandtime": false,
-        "keepsessionalive": false,
-        "name": "read",
-        "x": 700,
-        "y": 460,
-        "wires": [
-            [
-                "270bcbebf0e94fbb"
-            ],
-            [],
-            []
-        ]
-    },
-    {
-        "id": "b47408276f2a4a38",
-        "type": "OpcUa-Item",
-        "z": "049d71002be34b83",
-        "item": "ns=2;s=LINE-02.TEST-01.status",
-        "datatype": "String",
-        "value": "",
-        "name": "LINE-02.TEST-01.status",
-        "x": 480,
-        "y": 460,
-        "wires": [
-            [
-                "106d9d7c355f42fc"
-            ]
-        ]
-    },
-    {
-        "id": "c5eb50da72764467",
-        "type": "debug",
-        "z": "049d71002be34b83",
-        "name": "SELF-CHECK LINE-02.TEST-01.data.hole_dimension",
-        "active": true,
-        "tosidebar": true,
-        "console": true,
-        "tostatus": false,
-        "complete": "payload",
-        "targetType": "msg",
-        "statusVal": "",
-        "statusType": "auto",
-        "x": 900,
-        "y": 520,
-        "wires": []
-    },
-    {
-        "id": "ab1c6ceef1244a79",
-        "type": "OpcUa-Client",
-        "z": "049d71002be34b83",
-        "endpoint": "914c91a0c05d4757",
-        "action": "read",
-        "deadbandtype": "a",
-        "deadbandvalue": 1,
-        "time": 10,
-        "timeUnit": "s",
-        "certificate": "n",
-        "localfile": "",
-        "localkeyfile": "",
-        "securitymode": "None",
-        "securitypolicy": "None",
-        "useTransport": false,
-        "maxChunkCount": "1",
-        "maxMessageSize": "8192",
-        "receiveBufferSize": "8192",
-        "sendBufferSize": "8192",
-        "setstatusandtime": false,
-        "keepsessionalive": false,
-        "name": "read",
-        "x": 700,
-        "y": 520,
-        "wires": [
-            [
-                "c5eb50da72764467"
-            ],
-            [],
-            []
-        ]
-    },
-    {
-        "id": "70f6875ac1624485",
-        "type": "OpcUa-Item",
-        "z": "049d71002be34b83",
-        "item": "ns=2;s=LINE-02.TEST-01.data.hole_dimension",
-        "datatype": "Float",
-        "value": "",
-        "name": "LINE-02.TEST-01.data.hole_dimension",
-        "x": 480,
-        "y": 520,
-        "wires": [
-            [
-                "ab1c6ceef1244a79"
-            ]
-        ]
-    },
-    {
-        "id": "4d26b0bb1a7c49da",
-        "type": "inject",
-        "z": "049d71002be34b83",
-        "name": "self-check tick 1s",
-        "props": [
-            {
-                "p": "payload"
-            }
-        ],
-        "repeat": "1",
-        "crontab": "",
-        "once": true,
-        "onceDelay": "15",
-        "topic": "",
-        "payload": "",
-        "payloadType": "date",
-        "x": 250,
-        "y": 100,
-        "wires": [
-            [
-                "5bad81f391f249b4",
-                "a97cb16d54a84215",
-                "d958e564c8574401",
-                "75990c87ce084011",
-                "de9df88ab321495c",
-                "0431dd3798814c04",
-                "b47408276f2a4a38",
-                "70f6875ac1624485"
+                "cfc7a1bf73534d49",
+                "e2f57683a4f6435c"
             ]
         ]
     },
@@ -7759,6 +7233,576 @@
         "wires": [
             [
                 "19322e6d12ce4e21"
+            ]
+        ]
+    },
+    {
+        "id": "b1d381a204d94112",
+        "type": "comment",
+        "z": "049d71002be34b83",
+        "name": "LINE-02 self-check",
+        "info": "  같은 Node-RED 프로세스 안의 OpcUa-Server (127.0.0.1:4960) 에\nclient 로 접속해서 publish 된 변수를 읽어보는 검증 탭.\n\n• 여기서 값이 읽히면 → 서버 측 OK\n• 여기서도 안 읽히면 → publish/addVariable 문제\n• 여기는 OK 인데 통합 DAS 가 안 읽히면 → docker/network 문제\n",
+        "x": 180,
+        "y": 30,
+        "wires": []
+    },
+    {
+        "id": "c4b7c849215947c0",
+        "type": "debug",
+        "z": "049d71002be34b83",
+        "name": "SELF-CHECK LINE-02.payload",
+        "active": true,
+        "tosidebar": true,
+        "console": true,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 900,
+        "y": 100,
+        "wires": []
+    },
+    {
+        "id": "be19738057564816",
+        "type": "OpcUa-Client",
+        "z": "049d71002be34b83",
+        "endpoint": "914c91a0c05d4757",
+        "action": "read",
+        "deadbandtype": "a",
+        "deadbandvalue": 1,
+        "time": 10,
+        "timeUnit": "s",
+        "certificate": "n",
+        "localfile": "",
+        "localkeyfile": "",
+        "securitymode": "None",
+        "securitypolicy": "None",
+        "useTransport": false,
+        "maxChunkCount": "1",
+        "maxMessageSize": "8192",
+        "receiveBufferSize": "8192",
+        "sendBufferSize": "8192",
+        "setstatusandtime": false,
+        "keepsessionalive": false,
+        "name": "read",
+        "x": 700,
+        "y": 100,
+        "wires": [
+            [
+                "c4b7c849215947c0"
+            ],
+            [],
+            []
+        ]
+    },
+    {
+        "id": "5bad81f391f249b4",
+        "type": "OpcUa-Item",
+        "z": "049d71002be34b83",
+        "item": "ns=2;s=LINE-02.payload",
+        "datatype": "String",
+        "value": "",
+        "name": "LINE-02.payload",
+        "x": 480,
+        "y": 100,
+        "wires": [
+            [
+                "be19738057564816"
+            ]
+        ]
+    },
+    {
+        "id": "d5d4df45b5a84199",
+        "type": "debug",
+        "z": "049d71002be34b83",
+        "name": "SELF-CHECK LINE-02.line_ts",
+        "active": true,
+        "tosidebar": true,
+        "console": true,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 900,
+        "y": 160,
+        "wires": []
+    },
+    {
+        "id": "42f51c2472ca4abe",
+        "type": "OpcUa-Client",
+        "z": "049d71002be34b83",
+        "endpoint": "914c91a0c05d4757",
+        "action": "read",
+        "deadbandtype": "a",
+        "deadbandvalue": 1,
+        "time": 10,
+        "timeUnit": "s",
+        "certificate": "n",
+        "localfile": "",
+        "localkeyfile": "",
+        "securitymode": "None",
+        "securitypolicy": "None",
+        "useTransport": false,
+        "maxChunkCount": "1",
+        "maxMessageSize": "8192",
+        "receiveBufferSize": "8192",
+        "sendBufferSize": "8192",
+        "setstatusandtime": false,
+        "keepsessionalive": false,
+        "name": "read",
+        "x": 700,
+        "y": 160,
+        "wires": [
+            [
+                "d5d4df45b5a84199"
+            ],
+            [],
+            []
+        ]
+    },
+    {
+        "id": "a97cb16d54a84215",
+        "type": "OpcUa-Item",
+        "z": "049d71002be34b83",
+        "item": "ns=2;s=LINE-02.line_ts",
+        "datatype": "String",
+        "value": "",
+        "name": "LINE-02.line_ts",
+        "x": 480,
+        "y": 160,
+        "wires": [
+            [
+                "42f51c2472ca4abe"
+            ]
+        ]
+    },
+    {
+        "id": "530909f6f6ce4160",
+        "type": "debug",
+        "z": "049d71002be34b83",
+        "name": "SELF-CHECK LINE-02.CAST-01.status",
+        "active": true,
+        "tosidebar": true,
+        "console": true,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 900,
+        "y": 220,
+        "wires": []
+    },
+    {
+        "id": "db1914f8b3d243a6",
+        "type": "OpcUa-Client",
+        "z": "049d71002be34b83",
+        "endpoint": "914c91a0c05d4757",
+        "action": "read",
+        "deadbandtype": "a",
+        "deadbandvalue": 1,
+        "time": 10,
+        "timeUnit": "s",
+        "certificate": "n",
+        "localfile": "",
+        "localkeyfile": "",
+        "securitymode": "None",
+        "securitypolicy": "None",
+        "useTransport": false,
+        "maxChunkCount": "1",
+        "maxMessageSize": "8192",
+        "receiveBufferSize": "8192",
+        "sendBufferSize": "8192",
+        "setstatusandtime": false,
+        "keepsessionalive": false,
+        "name": "read",
+        "x": 700,
+        "y": 220,
+        "wires": [
+            [
+                "530909f6f6ce4160"
+            ],
+            [],
+            []
+        ]
+    },
+    {
+        "id": "d958e564c8574401",
+        "type": "OpcUa-Item",
+        "z": "049d71002be34b83",
+        "item": "ns=2;s=LINE-02.CAST-01.status",
+        "datatype": "String",
+        "value": "",
+        "name": "LINE-02.CAST-01.status",
+        "x": 480,
+        "y": 220,
+        "wires": [
+            [
+                "db1914f8b3d243a6"
+            ]
+        ]
+    },
+    {
+        "id": "6dd3beb1762b4c5c",
+        "type": "debug",
+        "z": "049d71002be34b83",
+        "name": "SELF-CHECK LINE-02.CAST-01.data.power",
+        "active": true,
+        "tosidebar": true,
+        "console": true,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 900,
+        "y": 280,
+        "wires": []
+    },
+    {
+        "id": "67fcf991bb944760",
+        "type": "OpcUa-Client",
+        "z": "049d71002be34b83",
+        "endpoint": "914c91a0c05d4757",
+        "action": "read",
+        "deadbandtype": "a",
+        "deadbandvalue": 1,
+        "time": 10,
+        "timeUnit": "s",
+        "certificate": "n",
+        "localfile": "",
+        "localkeyfile": "",
+        "securitymode": "None",
+        "securitypolicy": "None",
+        "useTransport": false,
+        "maxChunkCount": "1",
+        "maxMessageSize": "8192",
+        "receiveBufferSize": "8192",
+        "sendBufferSize": "8192",
+        "setstatusandtime": false,
+        "keepsessionalive": false,
+        "name": "read",
+        "x": 700,
+        "y": 280,
+        "wires": [
+            [
+                "6dd3beb1762b4c5c"
+            ],
+            [],
+            []
+        ]
+    },
+    {
+        "id": "75990c87ce084011",
+        "type": "OpcUa-Item",
+        "z": "049d71002be34b83",
+        "item": "ns=2;s=LINE-02.CAST-01.data.power",
+        "datatype": "Float",
+        "value": "",
+        "name": "LINE-02.CAST-01.data.power",
+        "x": 480,
+        "y": 280,
+        "wires": [
+            [
+                "67fcf991bb944760"
+            ]
+        ]
+    },
+    {
+        "id": "e868e64f8b7441d5",
+        "type": "debug",
+        "z": "049d71002be34b83",
+        "name": "SELF-CHECK LINE-02.CNC-01.status",
+        "active": true,
+        "tosidebar": true,
+        "console": true,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 900,
+        "y": 340,
+        "wires": []
+    },
+    {
+        "id": "e10c113b3ecc47f9",
+        "type": "OpcUa-Client",
+        "z": "049d71002be34b83",
+        "endpoint": "914c91a0c05d4757",
+        "action": "read",
+        "deadbandtype": "a",
+        "deadbandvalue": 1,
+        "time": 10,
+        "timeUnit": "s",
+        "certificate": "n",
+        "localfile": "",
+        "localkeyfile": "",
+        "securitymode": "None",
+        "securitypolicy": "None",
+        "useTransport": false,
+        "maxChunkCount": "1",
+        "maxMessageSize": "8192",
+        "receiveBufferSize": "8192",
+        "sendBufferSize": "8192",
+        "setstatusandtime": false,
+        "keepsessionalive": false,
+        "name": "read",
+        "x": 700,
+        "y": 340,
+        "wires": [
+            [
+                "e868e64f8b7441d5"
+            ],
+            [],
+            []
+        ]
+    },
+    {
+        "id": "de9df88ab321495c",
+        "type": "OpcUa-Item",
+        "z": "049d71002be34b83",
+        "item": "ns=2;s=LINE-02.CNC-01.status",
+        "datatype": "String",
+        "value": "",
+        "name": "LINE-02.CNC-01.status",
+        "x": 480,
+        "y": 340,
+        "wires": [
+            [
+                "e10c113b3ecc47f9"
+            ]
+        ]
+    },
+    {
+        "id": "50a0de133ca940c0",
+        "type": "debug",
+        "z": "049d71002be34b83",
+        "name": "SELF-CHECK LINE-02.CNC-01.data.power",
+        "active": true,
+        "tosidebar": true,
+        "console": true,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 900,
+        "y": 400,
+        "wires": []
+    },
+    {
+        "id": "ac1b8ca6647e402f",
+        "type": "OpcUa-Client",
+        "z": "049d71002be34b83",
+        "endpoint": "914c91a0c05d4757",
+        "action": "read",
+        "deadbandtype": "a",
+        "deadbandvalue": 1,
+        "time": 10,
+        "timeUnit": "s",
+        "certificate": "n",
+        "localfile": "",
+        "localkeyfile": "",
+        "securitymode": "None",
+        "securitypolicy": "None",
+        "useTransport": false,
+        "maxChunkCount": "1",
+        "maxMessageSize": "8192",
+        "receiveBufferSize": "8192",
+        "sendBufferSize": "8192",
+        "setstatusandtime": false,
+        "keepsessionalive": false,
+        "name": "read",
+        "x": 700,
+        "y": 400,
+        "wires": [
+            [
+                "50a0de133ca940c0"
+            ],
+            [],
+            []
+        ]
+    },
+    {
+        "id": "0431dd3798814c04",
+        "type": "OpcUa-Item",
+        "z": "049d71002be34b83",
+        "item": "ns=2;s=LINE-02.CNC-01.data.power",
+        "datatype": "Float",
+        "value": "",
+        "name": "LINE-02.CNC-01.data.power",
+        "x": 480,
+        "y": 400,
+        "wires": [
+            [
+                "ac1b8ca6647e402f"
+            ]
+        ]
+    },
+    {
+        "id": "270bcbebf0e94fbb",
+        "type": "debug",
+        "z": "049d71002be34b83",
+        "name": "SELF-CHECK LINE-02.TEST-01.status",
+        "active": true,
+        "tosidebar": true,
+        "console": true,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 900,
+        "y": 460,
+        "wires": []
+    },
+    {
+        "id": "106d9d7c355f42fc",
+        "type": "OpcUa-Client",
+        "z": "049d71002be34b83",
+        "endpoint": "914c91a0c05d4757",
+        "action": "read",
+        "deadbandtype": "a",
+        "deadbandvalue": 1,
+        "time": 10,
+        "timeUnit": "s",
+        "certificate": "n",
+        "localfile": "",
+        "localkeyfile": "",
+        "securitymode": "None",
+        "securitypolicy": "None",
+        "useTransport": false,
+        "maxChunkCount": "1",
+        "maxMessageSize": "8192",
+        "receiveBufferSize": "8192",
+        "sendBufferSize": "8192",
+        "setstatusandtime": false,
+        "keepsessionalive": false,
+        "name": "read",
+        "x": 700,
+        "y": 460,
+        "wires": [
+            [
+                "270bcbebf0e94fbb"
+            ],
+            [],
+            []
+        ]
+    },
+    {
+        "id": "b47408276f2a4a38",
+        "type": "OpcUa-Item",
+        "z": "049d71002be34b83",
+        "item": "ns=2;s=LINE-02.TEST-01.status",
+        "datatype": "String",
+        "value": "",
+        "name": "LINE-02.TEST-01.status",
+        "x": 480,
+        "y": 460,
+        "wires": [
+            [
+                "106d9d7c355f42fc"
+            ]
+        ]
+    },
+    {
+        "id": "c5eb50da72764467",
+        "type": "debug",
+        "z": "049d71002be34b83",
+        "name": "SELF-CHECK LINE-02.TEST-01.data.hole_dimension",
+        "active": true,
+        "tosidebar": true,
+        "console": true,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 900,
+        "y": 520,
+        "wires": []
+    },
+    {
+        "id": "ab1c6ceef1244a79",
+        "type": "OpcUa-Client",
+        "z": "049d71002be34b83",
+        "endpoint": "914c91a0c05d4757",
+        "action": "read",
+        "deadbandtype": "a",
+        "deadbandvalue": 1,
+        "time": 10,
+        "timeUnit": "s",
+        "certificate": "n",
+        "localfile": "",
+        "localkeyfile": "",
+        "securitymode": "None",
+        "securitypolicy": "None",
+        "useTransport": false,
+        "maxChunkCount": "1",
+        "maxMessageSize": "8192",
+        "receiveBufferSize": "8192",
+        "sendBufferSize": "8192",
+        "setstatusandtime": false,
+        "keepsessionalive": false,
+        "name": "read",
+        "x": 700,
+        "y": 520,
+        "wires": [
+            [
+                "c5eb50da72764467"
+            ],
+            [],
+            []
+        ]
+    },
+    {
+        "id": "70f6875ac1624485",
+        "type": "OpcUa-Item",
+        "z": "049d71002be34b83",
+        "item": "ns=2;s=LINE-02.TEST-01.data.hole_dimension",
+        "datatype": "Float",
+        "value": "",
+        "name": "LINE-02.TEST-01.data.hole_dimension",
+        "x": 480,
+        "y": 520,
+        "wires": [
+            [
+                "ab1c6ceef1244a79"
+            ]
+        ]
+    },
+    {
+        "id": "4d26b0bb1a7c49da",
+        "type": "inject",
+        "z": "049d71002be34b83",
+        "name": "self-check tick 1s",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "1",
+        "crontab": "",
+        "once": true,
+        "onceDelay": "15",
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 250,
+        "y": 100,
+        "wires": [
+            [
+                "5bad81f391f249b4",
+                "a97cb16d54a84215",
+                "d958e564c8574401",
+                "75990c87ce084011",
+                "de9df88ab321495c",
+                "0431dd3798814c04",
+                "b47408276f2a4a38",
+                "70f6875ac1624485"
             ]
         ]
     }
