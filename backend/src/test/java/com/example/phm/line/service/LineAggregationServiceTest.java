@@ -19,7 +19,7 @@ import com.example.phm.equipment.repository.EquipmentRepository;
 import com.example.phm.equipment.repository.EquipmentStatusRepository;
 import com.example.phm.line.entity.ProductionLine;
 import com.example.phm.line.repository.ProductionLineRepository;
-import com.example.phm.demo.service.DemoMetricsService;
+import com.example.phm.sensor.service.RealtimeEquipmentService;
 import com.example.phm.vibration.dto.VibrationRealtimeResponse;
 import com.example.phm.vibration.service.VibrationWindowMonitorService;
 import org.junit.jupiter.api.Test;
@@ -52,18 +52,17 @@ class LineAggregationServiceTest {
         EquipmentStatusRepository statusRepo = mock(EquipmentStatusRepository.class);
         AnalysisResultRepository analysisRepo = mock(AnalysisResultRepository.class);
         VibrationWindowMonitorService monitor = mock(VibrationWindowMonitorService.class);
-        DemoMetricsService demoMetrics = mock(DemoMetricsService.class);
+        RealtimeEquipmentService realtimeEquipmentService = mock(RealtimeEquipmentService.class);
 
         when(lineRepo.findByFactoryId("FACTORY-01")).thenReturn(List.of(line));
         when(equipmentRepo.findAll()).thenReturn(List.of(e1, e2));
         when(statusRepo.findAll()).thenReturn(List.of(s1));
         when(analysisRepo.findLatestForEquipmentCodes(any())).thenReturn(List.<AnalysisResult>of());
         when(monitor.latestRealtime(anyString())).thenReturn(VibrationRealtimeResponse.empty("any"));
-        when(demoMetrics.lineMetrics(anyString()))
-                .thenReturn(new DemoMetricsService.LineMetricsDto(0.0, 0.0, 0.0, 0.0, List.of()));
+        when(realtimeEquipmentService.statusOverride(anyString())).thenReturn(null);
 
         LineAggregationService service = new LineAggregationService(
-                lineRepo, equipmentRepo, statusRepo, analysisRepo, monitor, demoMetrics
+                lineRepo, equipmentRepo, statusRepo, analysisRepo, monitor, realtimeEquipmentService
         );
 
         var result = service.getLines("FACTORY-01");
@@ -73,6 +72,44 @@ class LineAggregationServiceTest {
 
         verify(analysisRepo, times(1)).findLatestForEquipmentCodes(any());
         verify(analysisRepo, never()).findTopByEquipmentCodeOrderByCreatedAtDesc(anyString());
+    }
+
+    @Test
+    void getLines_usesRealtimeSensorStatusBeforeSeededDatabaseStatus() throws Exception {
+        ProductionLine line = lineOf("LINE-01", "FACTORY-01", "1라인", "RUNNING");
+
+        Equipment equipment = new Equipment();
+        equipment.setEquipmentCode("LINE-01_CAST-01");
+        equipment.setLocation("LINE-01");
+
+        EquipmentStatus seededAlarm = new EquipmentStatus();
+        seededAlarm.setEquipId("LINE-01_CAST-01");
+        seededAlarm.setStatusCode("ALARM");
+
+        ProductionLineRepository lineRepo = mock(ProductionLineRepository.class);
+        EquipmentRepository equipmentRepo = mock(EquipmentRepository.class);
+        EquipmentStatusRepository statusRepo = mock(EquipmentStatusRepository.class);
+        AnalysisResultRepository analysisRepo = mock(AnalysisResultRepository.class);
+        VibrationWindowMonitorService monitor = mock(VibrationWindowMonitorService.class);
+        RealtimeEquipmentService realtimeEquipmentService = mock(RealtimeEquipmentService.class);
+
+        when(lineRepo.findByFactoryId("FACTORY-01")).thenReturn(List.of(line));
+        when(equipmentRepo.findAll()).thenReturn(List.of(equipment));
+        when(statusRepo.findAll()).thenReturn(List.of(seededAlarm));
+        when(analysisRepo.findLatestForEquipmentCodes(any())).thenReturn(List.<AnalysisResult>of());
+        when(monitor.latestRealtime(anyString())).thenReturn(VibrationRealtimeResponse.empty("any"));
+        when(realtimeEquipmentService.statusOverride("LINE-01_CAST-01")).thenReturn("RUNNING");
+
+        LineAggregationService service = new LineAggregationService(
+                lineRepo, equipmentRepo, statusRepo, analysisRepo, monitor, realtimeEquipmentService
+        );
+
+        var result = service.getLines("FACTORY-01");
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).equipmentRunning()).isEqualTo(1);
+        assertThat(result.get(0).equipmentAlarm()).isZero();
+        assertThat(result.get(0).lineStatus()).isEqualTo("RUNNING");
     }
 
     private ProductionLine lineOf(String id, String factory, String name, String status) throws Exception {
