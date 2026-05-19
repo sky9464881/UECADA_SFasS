@@ -66,6 +66,7 @@ def analyze(request: VibrationWindowRequest, db: Session = Depends(get_db)) -> A
         window_size=request.windowSize,
         window_index=request.windowIndex,
         values=request.values,
+        sensor_snapshot=request.sensorSnapshot,
         force=alarm_event,
     )
     should_save_analysis = raw_window_saved or alarm_event or close_event
