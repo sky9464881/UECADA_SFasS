@@ -23,6 +23,7 @@ export interface ChatRoom {
   userAId: string | null
   userBId: string | null
   createdAt: string
+  unreadCount: number
 }
 
 export interface ChatMessage {

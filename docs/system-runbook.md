@@ -2,6 +2,188 @@
 
 이 문서는 실제 수정 대상 프로젝트 기준이다. `UECADA-feat-FE_BE_fin_0518` 폴더는 참고용이며, 사용자가 별도로 요청할 때만 참고한다.
 
+## 0. 핵심 명령어 치트시트
+
+아래 명령어는 모두 프로젝트 루트에서 실행한다.
+
+```powershell
+cd C:\Users\hwapyeong\Desktop\github\UECADA
+```
+
+### 처음 켤 때
+
+1. DAS, equip-sim, X_DAS 실행
+
+```powershell
+.\total_das\start-all.cmd
+```
+
+`.ps1`을 직접 실행하고 싶으면 현재 PowerShell 창에서만 실행 정책을 우회한 뒤 실행한다.
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+.\total_das\start-all.ps1
+```
+
+2. DB, FastAPI, Spring Boot 실행
+
+```powershell
+docker compose up -d --build mysql ai-api backend
+```
+
+3. Frontend 실행
+
+```powershell
+cd .\frontend\UECADA_3
+npm install
+npm run dev
+```
+
+### 재시작할 때
+
+DAS, equip-sim, X_DAS만 다시 올릴 때:
+
+```powershell
+.\total_das\start-all.cmd
+```
+
+Backend/FastAPI/DB만 다시 빌드해서 올릴 때:
+
+```powershell
+docker compose up -d --build mysql ai-api backend
+```
+
+Frontend만 다시 켤 때:
+
+```powershell
+cd .\frontend\UECADA_3
+npm run dev
+```
+
+### 끌 때
+
+Frontend는 `npm run dev`를 실행한 터미널에서 `Ctrl + C`로 끈다.
+
+Backend/FastAPI/DB 끄기:
+
+```powershell
+docker compose down
+```
+
+DAS, equip-sim, X_DAS 끄기:
+
+```powershell
+.\total_das\stop-all.cmd
+```
+
+`.ps1`을 직접 실행하고 싶으면 현재 PowerShell 창에서만 실행 정책을 우회한 뒤 실행한다.
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+.\total_das\stop-all.ps1
+```
+
+전체를 한 번에 정리하고 싶으면 루트의 `docker compose down`과 `.\total_das\stop-all.cmd`를 모두 실행한다. MySQL 데이터까지 지우는 `docker compose down -v`는 DB 초기화가 필요할 때만 사용한다.
+
+### 상태 확인
+
+컨테이너 목록:
+
+```powershell
+docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+```
+
+주요 health check:
+
+```powershell
+Invoke-RestMethod http://localhost:8080/health
+Invoke-RestMethod http://localhost:8001/health
+Invoke-RestMethod http://localhost:8080/api/pipeline/status
+```
+
+로그 확인:
+
+```powershell
+docker logs -f smart-factory-backend
+docker logs -f smart-factory-ai-api
+docker logs -f uecada_mysql
+```
+
+DAS 쪽 로그:
+
+```powershell
+Push-Location .\total_das\DAS
+docker compose logs -f
+Pop-Location
+
+Push-Location .\total_das\X_DAS
+docker compose logs -f
+Pop-Location
+
+Push-Location .\total_das\equip-sim
+.\scripts\up-all.ps1 logs LINE-01
+Pop-Location
+```
+
+### 이런 상황이면 이 명령어
+
+PowerShell에서 `스크립트를 실행할 수 없습니다`, `PSSecurityException`, `UnauthorizedAccess`가 나오면:
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+.\total_das\start-all.ps1
+```
+
+또는 `.cmd` 래퍼를 사용한다.
+
+```powershell
+.\total_das\start-all.cmd
+.\total_das\stop-all.cmd
+```
+
+Docker 네트워크 라벨 오류가 나오면:
+
+```powershell
+docker ps -a --filter network=das_das-internal --format "table {{.Names}}\t{{.Status}}"
+docker rm -f das-mosquitto das-node-red das-simulator
+docker network rm das_das-internal
+.\total_das\start-all.cmd
+```
+
+`port is already allocated`가 나오면 어떤 프로세스가 포트를 쓰는지 확인한다.
+
+```powershell
+Get-NetTCPConnection -LocalPort 5173,8080,8001,1883,1888,1890 -ErrorAction SilentlyContinue |
+  Select-Object LocalPort, OwningProcess
+```
+
+프론트 개발 서버 5173 포트만 강제로 끄고 싶으면:
+
+```powershell
+$pid5173 = (Get-NetTCPConnection -LocalPort 5173 -State Listen -ErrorAction SilentlyContinue).OwningProcess
+if ($pid5173) { Stop-Process -Id $pid5173 -Force }
+```
+
+Docker Desktop이 이상하거나 네트워크가 꼬였는지 보고 싶으면:
+
+```powershell
+docker network ls
+docker compose ps
+```
+
+DB만 접속해서 확인하고 싶으면:
+
+```powershell
+docker exec -it uecada_mysql mysql -uuecada_user -puecada1234 uecada
+```
+
+주의: 아래 명령은 MySQL volume까지 삭제한다. DB를 완전히 초기화할 때만 사용한다.
+
+```powershell
+docker compose down -v
+docker compose up -d --build mysql ai-api backend
+```
+
 ## 1. 전체 구조
 
 데이터 흐름은 다음 순서로 동작한다.
@@ -51,16 +233,22 @@ cd C:\Users\hwapyeong\Desktop\github\UECADA
 스크립트 실행 정책 때문에 막히면 현재 PowerShell 세션에서만 우회한다.
 
 ```powershell
-Set-ExecutionPolicy -Scope Process Bypass
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
 ```
 
 DAS, equip-sim, X_DAS를 먼저 실행한다.
 
 ```powershell
+.\total_das\start-all.cmd
+```
+
+`.ps1`을 직접 실행하는 경우에는 실행 정책 우회 후 아래처럼 실행한다.
+
+```powershell
 .\total_das\start-all.ps1
 ```
 
-스크립트는 이제 어느 폴더에서 실행해도 자신의 위치를 기준으로 `DAS`, `equip-sim`, `X_DAS`를 찾는다.
+스크립트는 어느 폴더에서 실행해도 자신의 위치를 기준으로 `DAS`, `equip-sim`, `X_DAS`를 찾는다.
 
 ### DAS Compose 네트워크 라벨 오류 해결
 
@@ -344,16 +532,24 @@ GROUP BY status;
 
 ## 10. 문제 발생 시 빠른 확인
 
+자주 쓰는 실행/중지/재시작 명령은 문서 맨 위의 `0. 핵심 명령어 치트시트`를 먼저 본다. 아래는 작업 중 추가 확인이 필요할 때 쓰는 명령이다.
+
 컨테이너 상태:
 
 ```powershell
 docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 ```
 
+DAS/equip-sim/X_DAS 끄기:
+
+```powershell
+.\total_das\stop-all.cmd
+```
+
 DAS/X_DAS만 재시작:
 
 ```powershell
-Set-ExecutionPolicy -Scope Process Bypass
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
 .\total_das\start-all.ps1
 ```
 

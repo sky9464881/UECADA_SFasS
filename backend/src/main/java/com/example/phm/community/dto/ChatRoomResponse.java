@@ -11,9 +11,14 @@ public record ChatRoomResponse(
         String roomType,
         String userAId,
         String userBId,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        long unreadCount
 ) {
     public static ChatRoomResponse from(ChatRoom room) {
+        return from(room, 0L);
+    }
+
+    public static ChatRoomResponse from(ChatRoom room, long unreadCount) {
         return new ChatRoomResponse(
                 room.getChatRoomId(),
                 room.getLineId(),
@@ -21,7 +26,8 @@ public record ChatRoomResponse(
                 room.getRoomType(),
                 room.getUserAId(),
                 room.getUserBId(),
-                room.getCreatedAt()
+                room.getCreatedAt(),
+                unreadCount
         );
     }
 }
