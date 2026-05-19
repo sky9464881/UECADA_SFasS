@@ -66,17 +66,91 @@
 
 ---
 
+## 2026-05-19 SMWP 오버레이 정리 · 연결 최적화 (`feat/FE_BE_fin_0519`)
+
+자동 로그인 프록시·팝업·테스트 페이지를 걷어내고, **오버레이 iframe 한 경로**로 SMWP를 연결하도록 정리했습니다.
+
+### 배경
+
+| 증상 | 원인 |
+|------|------|
+| `/swmp-proxy/login` 호출 후 4~6초 지연 | 잘못된 SMWP 자격증명 + 계정 잠금 시 SMWP가 응답을 지연 |
+| `密码错误`, `HTTP 404`, `Read timed out` 노출 | 자동 로그인 실패 메시지가 UI/로그로 전달 |
+| 연결 경로가 여러 갈래 | 팝업(`/web-scada`), 테스트(`/swmp-test`), 오버레이, 백엔드 프록시가 공존 |
+
+**해결 방향:** UECADA는 SMWP URL만 조합해 iframe으로 띄우고, 로그인은 SMWP 화면에서 사용자가 직접 처리.
+
+### SMWP 화면 매핑
+
+| 진입점 | pageId | 예시 URL |
+|--------|--------|----------|
+| 공장 레이아웃 · `LINE-01` 카드 | `LDV_A` | `http://192.168.0.100:11005/?Pro=myseo_260430#LDV_A` |
+| 공장 레이아웃 · `LINE-02` 카드 | `LDV_B` | `#LDV_B` |
+| 공장 레이아웃 · `LINE-03` 카드 | `LDV_C` | `#LDV_C` |
+| 설비 상세 · 주조 | `ED_CAST` | `#ED_CAST` |
+| 설비 상세 · 가공 | `ED_CNC` | `#ED_CNC` |
+| 설비 상세 · 세척 | `ED_WASH` | `#ED_WASH` |
+| 설비 상세 · 조립 | `ED_ASSY` | `#ED_ASSY` |
+| 설비 상세 · 검사 | `ED_TEST` | `#ED_TEST` |
+
+- 상단 **웹스카다** 버튼(라인 미지정)은 기본 `#LDV` 로 연결.
+- `VITE_SWMP_DEFAULT_URL` 의 `?Pro=` 값은 모든 화면에 공통 적용.
+
+### 프론트엔드 변경
+
+| 파일 | 내용 |
+|------|------|
+| `useWebScadaLinks.ts` | URL 빌더 + `ldvPageIdForLine` / `edPageIdForCategory` 만 유지. 자동 로그인·팝업·open mode 분기 제거 |
+| `WebScadaOverlay.vue` | **신규** — `<dialog>` + iframe, 로딩 스피너, 8초 타임아웃 폴백, preconnect, 포커스 복원 |
+| `FactoryLayoutPage.vue` / `EquipmentDetailPage.vue` | 오버레이 lazy 로드, `isWebScadaConfigured()` 검사 |
+| `EquipmentDetailPage.vue` | 하단 카드 잘림 방지용 `padding-bottom` 보정 |
+| `router/index.ts` | `/swmp-test`, `/web-scada` 라우트 제거 |
+| `useAppNav.ts` | SWMP 테스트 메뉴 제거 |
+| `vite.config.ts` | `/swmp-proxy` dev 프록시·bootstrap 주입 제거 |
+| `.env.example` | `VITE_SWMP_OPEN_MODE`, `VITE_SWMP_USERNAME/PASSWORD` 제거 |
+
+**삭제:** `SwmpTestPage.vue`, `WebScadaLinePopupPage.vue`, `smwpProxyBootstrap.ts` 및 관련 CSS.
+
+### 백엔드 · 설정 변경
+
+| 항목 | 내용 |
+|------|------|
+| **삭제** | `SmwpLoginProxyController/Service`, DTO, `CrypticoEncryptor`, `SmwpProperties`, `SmwpConfig` — 미사용 자동 로그인 stub |
+| **유지** | `SmwpHeartbeatController` (`/api/smwp/heartbeat`) — SMWP 스크립트 연동용 |
+| `CorsConfig` | `/swmp-proxy/**` CORS 매핑 제거 |
+
+### 코드량·체감
+
+| 지표 | 변화 |
+|------|------|
+| SMWP 관련 프런트 | ~700줄 → ~400줄 수준으로 축소 |
+| 버튼 클릭 시 외부 SMWP 로그인 API 호출 | **0회** (즉시 iframe `src` 설정) |
+| 사용자에게 노출되는 SMWP 오류 문구 | **없음** (SMWP 자체 로그인 화면만 표시) |
+
+### 검증
+
+- `npm run typecheck` — OK
+- `npm run build` — OK
+- `./gradlew compileJava` — OK
+
+### 후속 후보
+
+- `ldvPageIdForLine` / `edPageIdForCategory` 단위 테스트
+- SMWP iframe 잘림 대응(전체화면 토글 등) — 필요 시 재도입
+- 자동 로그인 재활성화 시 컨트롤러/DTO 골격만 복구 가능
+
+---
+
 ## 2026-05-18 통합 작업 요약 (`feat/FE_BE_fin_0518`)
 
 ### SMWP(WebSCADA) 연동 — 최소 구성
 
 | 항목 | 설명 |
 |------|------|
-| **의도** | UECADA에서 **버튼/라인 카드**로 SMWP 화면을 **팝업 창**으로 연다. DB·OPC는 별도(SMWP가 처리). |
+| **의도** | UECADA에서 **공정 라인 카드/설비 상세보기 버튼**으로 SMWP 화면을 **오버레이 iframe**으로 연다. DB·OPC는 별도(SMWP가 처리). |
 | **URL** | `.env`(로컬 전용, git 제외) 또는 `.env.example` — `VITE_SWMP_DEFAULT_URL` 예: `http://222.108.180.36:11005/#LDV` 또는 `?Pro=프로젝트ID#LDV` |
-| **코드** | `frontend/UECADA_3/src/composables/useWebScadaLinks.ts` — 호스트 화이트리스트, `window.open(..., 'uecada-webscada')` |
-| **UI** | `FactoryLayoutPage.vue` — 상단 **웹스카다** 버튼, 라인 요약 카드 클릭 시 팝업 |
-| **테스트 화면** | `SwmpTestPage.vue` — 동일 팝업 (구 iframe 모달 제거) |
+| **코드** | `frontend/UECADA_3/src/composables/useWebScadaLinks.ts` — 호스트 화이트리스트, SMWP pageId(`LDV_A`, `ED_CAST` 등) URL 생성 |
+| **UI** | `FactoryLayoutPage.vue`, `EquipmentDetailPage.vue`, `WebScadaOverlay.vue` — 버튼 클릭 시 동일 오버레이 사용 |
 | **로그인 연동** | UECADA 로그인 직후 SMWP 자동 오픈·자동 SMWP 로그인 **사용 안 함** (`LoginPage`에서 호출 제거, `.env`에 계정 주입 패턴 제거) |
 
 ### 설비 상세 · 공장 레이아웃 UI

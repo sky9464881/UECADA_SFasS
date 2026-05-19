@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import {
   Activity,
@@ -27,11 +27,9 @@ import type { Component } from 'vue'
 import EquipmentCategoryGrid from '@/components/equipment/EquipmentCategoryGrid.vue'
 import CategorySummaryPanel from '@/components/equipment/CategorySummaryPanel.vue'
 import CategoryEquipmentList from '@/components/equipment/CategoryEquipmentList.vue'
-import {
-  canAutoLoginWebScada,
-  isWebScadaConfigured,
-  openEquipmentWebScada,
-} from '@/composables/useWebScadaLinks'
+import { edPageIdForCategory, isWebScadaConfigured } from '@/composables/useWebScadaLinks'
+
+const WebScadaOverlay = defineAsyncComponent(() => import('@/components/WebScadaOverlay.vue'))
 
 const { navItems } = useAppNav()
 const logout = useLogout()
@@ -127,16 +125,18 @@ const selectCategory = (category: CategoryWithIcon) => {
   isEquipmentPopupOpen.value = false
 }
 
-const webScadaReady = canAutoLoginWebScada() || isWebScadaConfigured()
+const webScadaReady = isWebScadaConfigured()
+const webScadaOverlayOpen = ref(false)
+const webScadaOverlayTitle = computed(() => {
+  const eq = selectedEquipment.value
+  if (!eq || eq.id === '-') return '설비 상세 웹스카다'
+  return `${eq.id} · ${eq.name}`
+})
+const webScadaOverlayPageId = computed(() => edPageIdForCategory(selectedCategoryId.value))
 
 const openEquipmentPopup = () => {
-  if (!openEquipmentWebScada()) {
-    window.alert(
-      webScadaReady
-        ? 'SMWP 팝업을 열 수 없습니다. 브라우저 팝업 차단을 해제해 주세요.'
-        : 'SMWP가 설정되지 않았습니다. .env 에 VITE_SWMP_DEFAULT_URL 과 계정을 설정하세요.',
-    )
-  }
+  if (!webScadaReady) return
+  webScadaOverlayOpen.value = true
 }
 
 const closeEquipmentPopup = () => {
@@ -282,8 +282,8 @@ const specificMetricPercent = (metric: EquipmentSpecificMetric) => {
       </div>
     </aside>
 
-    <section class="dashboard-main">
-      <div class="no-print">
+    <section class="dashboard-main equipment-detail-dashboard-main">
+      <div class="no-print equipment-detail-page-body">
         <header class="dashboard-header">
           <div class="dashboard-header-titles">
             <p class="dashboard-kicker">Equipment Monitoring</p>
@@ -800,6 +800,13 @@ const specificMetricPercent = (metric: EquipmentSpecificMetric) => {
         </div>
       </Teleport>
     </section>
+    <WebScadaOverlay
+      :open="webScadaOverlayOpen"
+      :page-id="webScadaOverlayPageId"
+      :title="webScadaOverlayTitle"
+      subtitle="Equipment Detail · SMWP"
+      @close="webScadaOverlayOpen = false"
+    />
   </main>
 </template>
 
@@ -810,6 +817,27 @@ const specificMetricPercent = (metric: EquipmentSpecificMetric) => {
 
 .equipment-print-trigger {
   white-space: nowrap;
+}
+
+.dashboard-main.equipment-detail-dashboard-main {
+  padding-bottom: 72px;
+}
+
+.equipment-detail-page-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding-bottom: 24px;
+}
+
+.equipment-detail-page-body > :last-child {
+  margin-bottom: 24px;
+}
+
+@media (max-width: 1280px) {
+  .dashboard-main.equipment-detail-dashboard-main {
+    padding-bottom: 96px;
+  }
 }
 
 @media print {

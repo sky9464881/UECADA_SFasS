@@ -70,8 +70,9 @@
 5. **대형 컴포넌트 분리**
    - `DashboardPage.vue` 등 초대형 SFC 분할은 **이번 범위에서 미완료**(후속 작업으로 README에만 명시). 대신 사이드바 네비 중복을 줄이기 위해 `useAppNav` 도입.
 
-6. **SWMP 하드코딩 제거**
-   - `SwmpTestPage.vue` 기본 URL을 `import.meta.env.VITE_SWMP_DEFAULT_URL`로 변경(미설정 시 빈 문자열)
+6. **SMWP 오버레이 연동**
+   - `VITE_SWMP_DEFAULT_URL` 기준으로 `WebScadaOverlay.vue` iframe URL을 생성한다.
+   - 공장 레이아웃 라인은 `LDV_A/B/C`, 설비 상세 카테고리는 `ED_CAST/CNC/WASH/ASSY/TEST` 로 연결한다.
 
 ### 공통 리팩터
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import {
   BarChart3,
@@ -18,12 +18,14 @@ import { useAppNav } from '@/composables/useAppNav'
 import { useLogout } from '@/composables/useLogout'
 import { useFactoryLayout } from '@/composables/useFactoryLayout'
 import {
-  canOpenWebScadaPopup,
-  openWebScadaPopup,
+  isWebScadaConfigured,
+  ldvPageIdForLine,
   type WebScadaStageKey,
 } from '@/composables/useWebScadaLinks'
 import type { LineSummary, LineStatusCode } from '@/types/line'
 import type { Equipment, EquipmentStatusItem, EquipmentStatusCode } from '@/types/equipment'
+
+const WebScadaOverlay = defineAsyncComponent(() => import('@/components/WebScadaOverlay.vue'))
 
 type StatusLabel = '정상' | '주의' | '경고'
 type StatusKind = 'ok' | 'warn' | 'alert'
@@ -244,20 +246,25 @@ function equipmentStatusClass(status: StatusLabel): string {
   return 'factory-stage-equip-row--alert'
 }
 
-const webScadaReady = canOpenWebScadaPopup()
+const webScadaReady = isWebScadaConfigured()
 const webScadaHint = webScadaReady
-  ? '웹스카다 → SMWP 자동로그인 (Pro=yhh0518 #LDV)'
+  ? '웹스카다 → SMWP 오버레이 (#LDV)'
   : '웹스카다: .env에 VITE_SWMP_DEFAULT_URL 설정'
+
+const webScadaOverlayOpen = ref(false)
+const webScadaOverlayPageId = ref('LDV')
+const webScadaOverlayTitle = ref('웹스카다')
 
 function selectStage(lineId: string, stageKey: StageKey): void {
   selectedStage.value = { lineId, stageKey }
 }
 
 function openWebScada(lineId?: string): void {
-  const id = lineId ?? factoryLines.value[0]?.id ?? 'LINE-A'
-  if (!openWebScadaPopup(id)) {
-    window.alert('웹스카다 팝업을 열 수 없습니다. 팝업 차단을 해제하거나 .env 설정을 확인하세요.')
-  }
+  if (!webScadaReady) return
+  const id = lineId ?? factoryLines.value[0]?.id ?? 'LINE-01'
+  webScadaOverlayPageId.value = ldvPageIdForLine(id)
+  webScadaOverlayTitle.value = lineId ? `${id} 웹스카다` : '웹스카다'
+  webScadaOverlayOpen.value = true
 }
 
 function isStageSelected(lineId: string, stageKey: StageKey): boolean {
@@ -349,7 +356,7 @@ function stageIconToneClass(kind: StatusKind): string {
             type="button"
             class="ghost-button factory-webscada-open-btn"
             :disabled="!webScadaReady"
-            title="웹스카다 SMWP #LDV (팝업)"
+            title="웹스카다 SMWP 오버레이"
             @click="openWebScada()"
           >
             <Factory :size="16" />
@@ -393,7 +400,7 @@ function stageIconToneClass(kind: StatusKind): string {
                 type="button"
                 class="factory-line-summary-card factory-line-summary-card--scada"
                 :aria-label="`${line.code} 요약 — 클릭 시 웹스카다`"
-                :title="webScadaReady ? '웹스카다 열기 (팝업)' : 'VITE_SWMP_DEFAULT_URL 미설정'"
+                :title="webScadaReady ? '웹스카다 열기' : 'VITE_SWMP_DEFAULT_URL 미설정'"
                 @click="openWebScada(line.id)"
               >
                 <strong class="factory-line-summary-code">{{ line.code }}</strong>
@@ -527,5 +534,12 @@ function stageIconToneClass(kind: StatusKind): string {
           </aside>
       </div>
     </section>
+    <WebScadaOverlay
+      :open="webScadaOverlayOpen"
+      :page-id="webScadaOverlayPageId"
+      :title="webScadaOverlayTitle"
+      subtitle="Factory Layout · SMWP"
+      @close="webScadaOverlayOpen = false"
+    />
   </main>
 </template>
