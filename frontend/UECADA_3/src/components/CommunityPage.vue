@@ -52,8 +52,7 @@ const currentUser = computed(() => auth.user ?? {
 
 const boardTabs = [
   { code: 'NOTICE', label: '공지사항' },
-  { code: 'GENERAL', label: '일반 게시판' },
-  { code: 'WORK_ORDER', label: '작업 지시' },
+  { code: 'QNA', label: 'Q&A' },
   { code: 'HANDOVER', label: '자료실' },
 ] as const
 
@@ -155,6 +154,14 @@ watch(
     }
   },
   { immediate: true },
+)
+
+watch(
+  () => messagesQuery.data.value,
+  (roomMessages) => {
+    if (!selectedRoomId.value || !roomMessages) return
+    queryClient.invalidateQueries({ queryKey: ['community', 'chat-rooms'] })
+  },
 )
 
 const filteredGroups = computed(() =>
@@ -316,6 +323,37 @@ function directChat(user: LineGroupUser) {
   directRoomMutation.mutate(user.userId)
 }
 
+function openDirectChat(user: LineGroupUser) {
+  if (!canDirectChat(user)) return
+  const room = directRoomForUser(user)
+  if (room) {
+    chatMode.value = 'DIRECT'
+    selectedRoomId.value = room.chatRoomId
+    return
+  }
+  directChat(user)
+}
+
+function directRoomForUser(user: LineGroupUser) {
+  return rooms.value.find((room) => {
+    if (String(room.roomType).toUpperCase() !== 'DIRECT') return false
+    return [room.userAId, room.userBId].includes(currentUser.value.userId)
+      && [room.userAId, room.userBId].includes(user.userId)
+  }) ?? null
+}
+
+function directUnreadCount(user: LineGroupUser): number {
+  return unreadCount(directRoomForUser(user))
+}
+
+function unreadCount(room: { unreadCount?: number } | null | undefined): number {
+  return Math.max(0, Number(room?.unreadCount ?? 0))
+}
+
+function formatUnread(count: number): string {
+  return count > 99 ? '99+' : String(count)
+}
+
 function canDirectChat(user: LineGroupUser): boolean {
   if (user.userId === currentUser.value.userId) return false
   if (currentUser.value.roleName?.toUpperCase() === 'ADMIN') return true
@@ -347,7 +385,10 @@ function formatTime(iso: string | null | undefined) {
 
 function initials(name: string): string {
   const cleaned = name.trim()
-  return cleaned.length <= 2 ? cleaned || '사용자' : cleaned.slice(-2)
+  if (!cleaned) return '사용자'
+  if (cleaned.includes('관리자')) return '관리자'
+  if (cleaned.includes('작업자')) return '작업자'
+  return cleaned.length <= 3 ? cleaned : cleaned.slice(-2)
 }
 
 function escapeHtml(value: string): string {
@@ -663,45 +704,48 @@ function markdownToHtml(markdown: string): string {
 
           <div class="community-chat-layout">
             <aside class="community-room-list">
-              <div class="community-room-scroll">
-                <!-- 통합된 스크롤 영역: 검색(1:1 모드) + 1:1 후보 목록(스크롤) + 채팅방 목록 -->
-                <template v-if="chatMode === 'DIRECT'">
-                  <div class="community-direct-start">
-                    <strong>1:1 대화 시작</strong>
-                    <input v-model="directSearch" type="search" placeholder="이름/라인 검색" />
-                  </div>
-
-                  <div class="community-direct-list">
-                    <button
-                      v-for="user in directCandidates"
-                      :key="user.userId"
-                      type="button"
-                      :disabled="isCreatingDirectRoom"
-                      @click="directChat(user)"
-                    >
-                      <span>{{ initials(user.userName) }}</span>
-                      <b>{{ user.userName }}</b>
-                      <small>{{ user.lineId || '전체' }}</small>
-                    </button>
-                    <p v-if="!directCandidates.length" class="community-room-empty">대화 가능한 사용자가 없습니다.</p>
-                  </div>
-                </template>
-
-                <div class="community-room-rooms">
-                  <button
-                    v-for="room in filteredRooms"
-                    :key="room.chatRoomId"
-                    type="button"
-                    :class="{ active: selectedRoomId === room.chatRoomId }"
-                    @click="selectedRoomId = room.chatRoomId"
-                  >
-                    <strong>{{ room.roomName }}</strong>
-                    <span>{{ roomSubtitle(room.roomType) }}</span>
-                  </button>
-                  <p v-if="!filteredRooms.length" class="community-room-empty">
-                    {{ chatMode === 'DIRECT' ? '1:1 채팅방이 없습니다.' : '라인 채팅방이 없습니다.' }}
-                  </p>
+              <template v-if="chatMode === 'DIRECT'">
+                <div class="community-direct-start">
+                  <strong>1:1 대화 시작</strong>
+                  <input v-model="directSearch" type="search" placeholder="이름/라인 검색" />
                 </div>
+
+                <div class="community-direct-list">
+                  <button
+                    v-for="user in directCandidates"
+                    :key="user.userId"
+                    type="button"
+                    :disabled="isCreatingDirectRoom"
+                    @click="openDirectChat(user)"
+                  >
+                    <span>{{ initials(user.userName) }}</span>
+                    <b>{{ user.userName }}</b>
+                    <small>{{ user.lineId || '전체' }}</small>
+                    <em v-if="directUnreadCount(user) > 0" class="community-unread-badge">
+                      {{ formatUnread(directUnreadCount(user)) }}
+                    </em>
+                  </button>
+                  <p v-if="!directCandidates.length" class="community-room-empty">대화 가능한 사용자가 없습니다.</p>
+                </div>
+              </template>
+
+              <div v-else class="community-room-scroll">
+                <button
+                  v-for="room in filteredRooms"
+                  :key="room.chatRoomId"
+                  type="button"
+                  :class="{ active: selectedRoomId === room.chatRoomId }"
+                  @click="selectedRoomId = room.chatRoomId"
+                >
+                  <div class="community-room-title-row">
+                    <strong>{{ room.roomName }}</strong>
+                    <em v-if="unreadCount(room) > 0" class="community-unread-badge">
+                      {{ formatUnread(unreadCount(room)) }}
+                    </em>
+                  </div>
+                  <span>{{ roomSubtitle(room.roomType) }}</span>
+                </button>
+                <p v-if="!filteredRooms.length" class="community-room-empty">라인 채팅방이 없습니다.</p>
               </div>
             </aside>
 
@@ -1173,16 +1217,19 @@ function markdownToHtml(markdown: string): string {
 
 .community-avatar-row button,
 .community-avatar-row span {
-  width: 30px;
+  width: auto;
+  min-width: 42px;
   height: 30px;
+  padding: 0 8px;
   border: 1px solid #d6e1ee;
-  border-radius: 50%;
+  border-radius: 999px;
   background: #f8fafc;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 900;
   color: #0f1f38;
   display: grid;
   place-items: center;
+  white-space: nowrap;
 }
 
 .community-avatar-row button:disabled {
@@ -1210,6 +1257,8 @@ function markdownToHtml(markdown: string): string {
   padding: 7px 10px;
   font-weight: 800;
   white-space: nowrap;
+  min-width: 104px;
+  justify-content: center;
   cursor: pointer;
 }
 
@@ -1247,6 +1296,7 @@ function markdownToHtml(markdown: string): string {
 .community-chat-layout {
   display: grid;
   grid-template-columns: 210px minmax(0, 1fr);
+  height: 386px;
   min-height: 340px;
   border: 1px solid #dbe5f0;
   border-radius: 8px;
@@ -1255,11 +1305,12 @@ function markdownToHtml(markdown: string): string {
 
 .community-room-list {
   display: grid;
-  grid-template-rows: 1fr;
+  grid-template-rows: auto minmax(0, 1fr);
   background: #f7faff;
   border-right: 1px solid #dbe5f0;
   min-width: 0;
   min-height: 0;
+  overflow: hidden;
 }
 
 .community-room-scroll {
@@ -1273,7 +1324,11 @@ function markdownToHtml(markdown: string): string {
 
 .community-direct-list {
   display: grid;
+  align-content: start;
   gap: 8px;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 10px 10px;
 }
 
 .community-room-list button {
@@ -1299,6 +1354,28 @@ function markdownToHtml(markdown: string): string {
   white-space: nowrap;
 }
 
+.community-room-title-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.community-unread-badge {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #2563eb;
+  color: #fff;
+  display: inline-grid;
+  place-items: center;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 900;
+  line-height: 18px;
+}
+
 .community-room-list span {
   margin-top: 4px;
   color: #64748b;
@@ -1317,7 +1394,7 @@ function markdownToHtml(markdown: string): string {
   display: grid;
   gap: 7px;
   padding: 10px;
-  border-top: 1px solid #dbe5f0;
+  border-bottom: 1px solid #dbe5f0;
   background: #fff;
 }
 
@@ -1326,10 +1403,9 @@ function markdownToHtml(markdown: string): string {
   color: #0f1f38;
 }
 
-.community-direct-start button,
+.community-direct-list button,
 .community-group-modal-grid button {
   display: grid;
-  grid-template-columns: 28px minmax(0, 1fr) auto;
   align-items: center;
   gap: 7px;
   border: 1px solid #dbe5f0;
@@ -1339,27 +1415,38 @@ function markdownToHtml(markdown: string): string {
   cursor: pointer;
 }
 
-.community-direct-start button span,
+.community-direct-list button {
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+}
+
+.community-group-modal-grid button {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.community-direct-list button span,
 .community-group-modal-grid button span {
-  width: 28px;
+  width: auto;
+  min-width: 34px;
   height: 28px;
-  border-radius: 50%;
+  padding: 0 6px;
+  border-radius: 999px;
   background: #eaf2ff;
   color: #1257c6;
   display: grid;
   place-items: center;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 900;
+  white-space: nowrap;
 }
 
-.community-direct-start button b,
+.community-direct-list button b,
 .community-group-modal-grid button b {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.community-direct-start button small,
+.community-direct-list button small,
 .community-group-modal-grid button small {
   color: #64748b;
   white-space: nowrap;

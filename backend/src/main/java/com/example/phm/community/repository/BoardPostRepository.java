@@ -12,4 +12,6 @@ public interface BoardPostRepository extends JpaRepository<BoardPost, Long> {
     List<BoardPost> findByTargetLineIdAndDeletedFalseOrderByCreatedAtDesc(String targetLineId);
 
     List<BoardPost> findByDeletedFalseOrderByCreatedAtDesc();
+
+    boolean existsByTitleAndDeletedFalse(String title);
 }

@@ -6,7 +6,9 @@ import java.time.ZoneId;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 import com.example.phm.alarm.entity.Alarm;
 import com.example.phm.alarm.repository.AlarmRepository;
@@ -20,7 +22,9 @@ import com.example.phm.community.dto.FactoryReportResponse;
 import com.example.phm.community.dto.LineGroupResponse;
 import com.example.phm.community.entity.ChatMessage;
 import com.example.phm.community.entity.ChatRoom;
+import com.example.phm.community.entity.ChatRoomReadState;
 import com.example.phm.community.repository.ChatMessageRepository;
+import com.example.phm.community.repository.ChatRoomReadStateRepository;
 import com.example.phm.community.repository.ChatRoomRepository;
 import com.example.phm.equipment.entity.Equipment;
 import com.example.phm.equipment.repository.EquipmentRepository;
@@ -46,6 +50,7 @@ public class CommunityService {
     private final ProductionLineRepository lineRepository;
     private final ChatRoomRepository chatRoomRepository;
     private final ChatMessageRepository chatMessageRepository;
+    private final ChatRoomReadStateRepository chatRoomReadStateRepository;
     private final LineAggregationService lineAggregationService;
     private final EquipmentRepository equipmentRepository;
     private final AlarmRepository alarmRepository;
@@ -56,6 +61,7 @@ public class CommunityService {
             ProductionLineRepository lineRepository,
             ChatRoomRepository chatRoomRepository,
             ChatMessageRepository chatMessageRepository,
+            ChatRoomReadStateRepository chatRoomReadStateRepository,
             LineAggregationService lineAggregationService,
             EquipmentRepository equipmentRepository,
             AlarmRepository alarmRepository,
@@ -65,6 +71,7 @@ public class CommunityService {
         this.lineRepository = lineRepository;
         this.chatRoomRepository = chatRoomRepository;
         this.chatMessageRepository = chatMessageRepository;
+        this.chatRoomReadStateRepository = chatRoomReadStateRepository;
         this.lineAggregationService = lineAggregationService;
         this.equipmentRepository = equipmentRepository;
         this.alarmRepository = alarmRepository;
@@ -98,10 +105,20 @@ public class CommunityService {
         User currentUser = user(currentUserId);
         ensureLineRooms();
         List<ChatRoom> all = chatRoomRepository.findAll();
+        Map<Long, Long> lastReadByRoom = chatRoomReadStateRepository.findByUserId(currentUserId)
+                .stream()
+                .collect(Collectors.toMap(ChatRoomReadState::getChatRoomId, ChatRoomReadState::getLastReadMessageId));
         return all.stream()
                 .filter(room -> canAccessRoom(currentUser, room))
                 .sorted(Comparator.comparing(ChatRoom::getLineId).thenComparing(ChatRoom::getChatRoomId))
-                .map(ChatRoomResponse::from)
+                .map(room -> ChatRoomResponse.from(
+                        room,
+                        chatMessageRepository.countUnread(
+                                room.getChatRoomId(),
+                                currentUserId,
+                                lastReadByRoom.get(room.getChatRoomId())
+                        )
+                ))
                 .toList();
     }
 
@@ -118,10 +135,10 @@ public class CommunityService {
         String userB = userA.equals(request.requesterUserId()) ? request.targetUserId() : request.requesterUserId();
         ChatRoom room = chatRoomRepository.findByRoomTypeAndUserAIdAndUserBId("DIRECT", userA, userB)
                 .orElseGet(() -> createDirectRoom(requester, target, userA, userB));
-        return ChatRoomResponse.from(room);
+        return ChatRoomResponse.from(room, unreadCount(room, request.requesterUserId()));
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<ChatMessageResponse> messages(Long roomId, String currentUserId) {
         User currentUser = user(currentUserId);
         ChatRoom room = chatRoomRepository.findById(roomId)
@@ -129,10 +146,12 @@ public class CommunityService {
         if (!canAccessRoom(currentUser, room)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Chat room is not allowed");
         }
-        return chatMessageRepository.findTop100ByChatRoomIdAndDeletedFalseOrderBySentAtAsc(roomId)
-                .stream()
-                .map(ChatMessageResponse::from)
-                .toList();
+        List<ChatMessage> messages = chatMessageRepository.findTop100ByChatRoomIdAndDeletedFalseOrderBySentAtAsc(roomId);
+        messages.stream()
+                .map(ChatMessage::getMessageId)
+                .max(Long::compareTo)
+                .ifPresent(messageId -> markRoomRead(roomId, currentUserId, messageId));
+        return messages.stream().map(ChatMessageResponse::from).toList();
     }
 
     @Transactional
@@ -147,7 +166,9 @@ public class CommunityService {
         message.setChatRoomId(roomId);
         message.setSenderUserId(request.senderUserId());
         message.setMessageContent(request.messageContent());
-        return ChatMessageResponse.from(chatMessageRepository.save(message));
+        ChatMessage saved = chatMessageRepository.save(message);
+        markRoomRead(roomId, request.senderUserId(), saved.getMessageId());
+        return ChatMessageResponse.from(saved);
     }
 
     @Transactional(readOnly = true)
@@ -328,6 +349,30 @@ public class CommunityService {
         room.setUserAId(userA);
         room.setUserBId(userB);
         return chatRoomRepository.save(room);
+    }
+
+    private long unreadCount(ChatRoom room, String userId) {
+        Long lastReadMessageId = chatRoomReadStateRepository
+                .findByChatRoomIdAndUserId(room.getChatRoomId(), userId)
+                .map(ChatRoomReadState::getLastReadMessageId)
+                .orElse(null);
+        return chatMessageRepository.countUnread(room.getChatRoomId(), userId, lastReadMessageId);
+    }
+
+    private void markRoomRead(Long roomId, String userId, Long messageId) {
+        ChatRoomReadState state = chatRoomReadStateRepository
+                .findByChatRoomIdAndUserId(roomId, userId)
+                .orElseGet(() -> {
+                    ChatRoomReadState created = new ChatRoomReadState();
+                    created.setChatRoomId(roomId);
+                    created.setUserId(userId);
+                    return created;
+                });
+        Long previous = state.getLastReadMessageId();
+        if (previous == null || previous < messageId) {
+            state.setLastReadMessageId(messageId);
+            chatRoomReadStateRepository.save(state);
+        }
     }
 
     private boolean canAccessRoom(User user, ChatRoom room) {
