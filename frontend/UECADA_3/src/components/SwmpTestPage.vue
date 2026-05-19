@@ -17,38 +17,57 @@ import { useLogout } from '@/composables/useLogout'
 const { navItems } = useAppNav()
 const logout = useLogout()
 
-const defaultSwmp = import.meta.env.VITE_SWMP_DEFAULT_URL ?? ''
-// SWMP 주소를 받으면 여기에 넣어 웹스카다 팝업으로 표시할 수 있습니다.
-const swmpUrl = ref(defaultSwmp)
-const connectionMessage = ref('SWMP URL 등록 완료')
-const isSwmpPopupOpen = ref(false)
+type WebScadaLink = {
+  id: 'layout' | 'equipment'
+  label: string
+  detail: string
+  url: string
+}
 
-const openWebScada = () => {
-  if (!swmpUrl.value) {
+const webScadaLinks: readonly WebScadaLink[] = [
+  {
+    id: 'layout',
+    label: '레이아웃',
+    detail: 'Layout View',
+    url: 'http://222.108.180.36:11005/?Pro=myseo_260430#LDV',
+  },
+  {
+    id: 'equipment',
+    label: '상세설비',
+    detail: 'Equipment Detail',
+    url: 'http://222.108.180.36:11005/?Pro=myseo_260430#ED',
+  },
+]
+
+const connectionMessage = ref('웹스카다 연결 준비 완료')
+const activePopup = ref<WebScadaLink | null>(null)
+
+const openSwmpPopup = (item: WebScadaLink) => {
+  if (!item.url) {
     connectionMessage.value = '나중에 전달받은 SWMP URL을 등록하면 웹스카다 버튼으로 화면을 띄웁니다.'
     return
   }
 
-  connectionMessage.value = '웹스카다 팝업 실행 중'
-  isSwmpPopupOpen.value = true
+  connectionMessage.value = `${item.label} 팝업 실행 중`
+  activePopup.value = item
 }
 
-const closeWebScada = () => {
-  isSwmpPopupOpen.value = false
-  connectionMessage.value = 'SWMP URL 등록 완료'
+const closeSwmpPopup = () => {
+  activePopup.value = null
+  connectionMessage.value = '웹스카다 연결 준비 완료'
 }
 
 const testItems = [
-  { label: '접속 방식', value: '팝업 표시', detail: '등록된 URL을 팝업 iframe으로 표시' },
-  { label: '연동 대상', value: 'SWMP', detail: '웹스카다 화면 호출 예정' },
-  { label: '현재 상태', value: '등록 완료', detail: '웹스카다 버튼으로 SWMP 팝업 호출 가능' },
+  { label: '접속 방식', value: '팝업 표시', detail: '웹스카다 URL을 iframe 팝업으로 표시' },
+  { label: '레이아웃', value: '#LDV', detail: '공장 레이아웃 화면 연결 완료' },
+  { label: '상세설비', value: '#ED', detail: '상세 설비 화면 연결 완료' },
 ]
 
 const checklist = [
-  'SWMP URL 수신 완료',
-  '웹스카다 버튼 연결 완료',
+  '레이아웃 URL 연결 완료',
+  '상세설비 URL 연결 완료',
+  '웹스카다 팝업 버튼 구성',
   '팝업 화면 표시 확인',
-  '로그인/세션 전달 방식 확인',
 ]
 </script>
 
@@ -100,13 +119,29 @@ const checklist = [
           <div class="swmp-launch-copy">
             <p class="panel-kicker">Web SCADA</p>
             <h2>웹스카다 실행 테스트</h2>
-            <p>전달받을 SWMP URL을 연결해서 웹스카다 화면을 띄우기 위한 테스트 페이지입니다.</p>
+            <p>웹스카다 레이아웃과 상세설비 화면을 팝업으로 실행합니다.</p>
           </div>
 
-          <button class="web-scada-button" type="button" @click="openWebScada">
-            <Factory :size="24" />
-            <span>웹스카다</span>
-          </button>
+          <div class="swmp-action-stack">
+            <div class="swmp-action-group">
+              <span class="swmp-action-label">웹스카다</span>
+              <div class="swmp-launch-actions">
+                <button
+                  v-for="item in webScadaLinks"
+                  :key="item.label"
+                  class="web-scada-button"
+                  :class="{ 'equipment-detail-button': item.id === 'equipment' }"
+                  type="button"
+                  @click="openSwmpPopup(item)"
+                >
+                  <Factory v-if="item.id === 'layout'" :size="24" />
+                  <Wrench v-else :size="22" />
+                  <span>{{ item.label }}</span>
+                  <small>{{ item.detail }}</small>
+                </button>
+              </div>
+            </div>
+          </div>
 
           <div class="swmp-status-banner">
             <Activity :size="18" />
@@ -126,8 +161,8 @@ const checklist = [
           <div class="swmp-preview-box">
             <div>
               <Factory :size="38" />
-              <strong>SWMP URL 등록 완료</strong>
-              <p>웹스카다 버튼 클릭 시 등록된 SWMP 로그인 화면을 팝업으로 엽니다.</p>
+              <strong>웹스카다 연결 완료</strong>
+              <p>레이아웃은 LDV, 상세설비는 ED 화면으로 팝업을 엽니다.</p>
             </div>
           </div>
         </article>
@@ -169,21 +204,25 @@ const checklist = [
       </section>
 
       <div
-        v-if="isSwmpPopupOpen"
+        v-if="activePopup"
         class="swmp-modal-backdrop"
-        @click.self="closeWebScada"
+        @click.self="closeSwmpPopup"
       >
-        <article class="swmp-modal" role="dialog" aria-modal="true" aria-label="웹스카다 팝업">
+        <article class="swmp-modal" role="dialog" aria-modal="true" :aria-label="`${activePopup.label} 팝업`">
           <div class="swmp-modal-head">
-            <button class="swmp-modal-close" type="button" aria-label="팝업 닫기" @click="closeWebScada">
+            <div>
+              <strong>{{ activePopup.label }}</strong>
+              <span>{{ activePopup.detail }}</span>
+            </div>
+            <button class="swmp-modal-close" type="button" aria-label="팝업 닫기" @click="closeSwmpPopup">
               <X :size="18" />
             </button>
           </div>
 
           <iframe
             class="swmp-frame"
-            :src="swmpUrl"
-            title="SWMP 웹스카다"
+            :src="activePopup.url"
+            :title="`SWMP ${activePopup.label}`"
           ></iframe>
         </article>
       </div>
