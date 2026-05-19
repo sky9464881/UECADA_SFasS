@@ -17,7 +17,7 @@
       "name": "spindle_speed_sp",
       "role": "setpoint",
       "data_type": "int",
-      "base_value": 5500,
+      "base_value": 600,
       "mb": {
         "kind": "hr_int",
         "address": 0
