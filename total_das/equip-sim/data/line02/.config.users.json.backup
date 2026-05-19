@@ -18,20 +18,10 @@
             },
             "dialog": {
                 "export": {
-                    "pretty": false,
+                    "pretty": true,
                     "json-view": true
                 }
             }
-        },
-        "debug": {
-            "filter": "filterAll",
-            "filteredNodes": [
-                "debug_backend_write",
-                "debug_flow_errors",
-                "debug_opcua_status",
-                "debug_xdas_live_sample"
-            ]
-        },
-        "menu-menu-item-sidebar": true
+        }
     }
 }

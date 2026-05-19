@@ -140,8 +140,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.nodered
-      args:
-        FLOW_FILE: nodered/flows_das_${LINE_ID}.json
     image: equip-sim-nodered-${LINE_NUM_SUFFIX}:4.1.10-22
     container_name: nodered-${LINE_NUM_SUFFIX}
     hostname: nodered-${LINE_NUM_SUFFIX}
@@ -149,11 +147,12 @@ services:
     environment:
       LINE_ID: ${LINE_ID}
       TZ: Asia/Seoul
+      FLOWS: flows_das_${LINE_ID}.json
     ports:
-      - "${PORT_NODERED_UI}:1880"           # admin UI
-      - "${PORT_DAS_OPCUA}:${PORT_DAS_OPCUA}"  # line DAS OPC UA Server
-    # NOTE: flow JSON 은 이미지에 COPY 되어 /data/flows.json 이 됨.
-    # bind-mount 로 엎어쓰면 Node-RED 가 저장할 때 rename(EBUSY) 가 떠서 안 함.
+      - "${PORT_NODERED_UI}:1880"
+      - "${PORT_DAS_OPCUA}:${PORT_DAS_OPCUA}"
+    volumes:
+      - ./data/${LINE_NUM_SUFFIX}:/data
     networks:
       default:
         aliases:

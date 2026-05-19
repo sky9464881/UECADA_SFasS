@@ -1,7 +1,0 @@
-__pycache__
-*.pyc
-.venv
-.git
-# Per-Dockerfile ignore for integration Node-RED build.
-# Build context is repo root; we need integration/flows_integration.json to be
-# COPYable, so we don't exclude the integration/ folder here.

@@ -17,19 +17,10 @@ RUN cd /usr/src/node-red \
  && find node_modules/node-red-contrib-mcprotocol -name "*.js" \
       -exec sed -i 's/util\.log(/console.log(/g' {} +
 
-# node-red-contrib-opcua keeps addVariable reads pinned to the initial value
-# unless its getter reads the mutable variable store. Patch it in the image so
-# line DAS OPC UA values exposed to X_DAS are live.
 COPY patch-opcua-server.js /tmp/patch-opcua-server.js
 RUN node /tmp/patch-opcua-server.js && rm /tmp/patch-opcua-server.js
 
-# Bake the flow into the image so /data/flows.json is owned by Node-RED
-# (avoids EBUSY on flow-save when bind-mounted read-only).
-#
-# Build arg picks the line-specific flow file from the build context, e.g.
-#   docker compose build --build-arg FLOW_FILE=nodered/flows_das_LINE-01.json
-ARG FLOW_FILE=nodered/flows_das_LINE-01.json
-COPY ${FLOW_FILE} /data/flows.json
-RUN chown -R node-red:node-red /data && chmod 0644 /data/flows.json
+COPY nodered/settings.js /data/settings.js
+RUN chown -R node-red:node-red /data
 
 USER node-red
