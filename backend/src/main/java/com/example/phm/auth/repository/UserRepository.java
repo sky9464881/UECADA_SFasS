@@ -14,6 +14,10 @@ public interface UserRepository extends JpaRepository<User, String> {
 
     Optional<User> findByLoginId(String loginId);
 
+    Optional<User> findByUserNameAndEmail(String userName, String email);
+
+    boolean existsByLoginId(String loginId);
+
     List<User> findByRoleName(String roleName);
 
     @Transactional
@@ -25,4 +29,9 @@ public interface UserRepository extends JpaRepository<User, String> {
     @Modifying
     @Query("UPDATE User u SET u.roleName = :roleName WHERE u.userId = :userId")
     void updateRole(@Param("userId") String userId, @Param("roleName") String roleName);
+
+    @Transactional
+    @Modifying
+    @Query("UPDATE User u SET u.passwordHash = :passwordHash WHERE u.loginId = :loginId")
+    void updatePassword(@Param("loginId") String loginId, @Param("passwordHash") String passwordHash);
 }
