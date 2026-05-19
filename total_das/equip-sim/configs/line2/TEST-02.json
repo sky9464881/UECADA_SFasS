@@ -1,8 +1,6 @@
 {
   "equipment_name": "${LINE_ID:-LINE-00}_TEST-02",
   "protocol": "opcua",
-  "host": "0.0.0.0",
-  "port": 4962,
   "sampling_ms": 1000,
   "tags": [
     {
@@ -12,32 +10,30 @@
       "base_value": true
     },
     {
+      "name": "bore_dimension_sp",
+      "role": "setpoint",
+      "data_type": "float",
+      "base_value": 40.0
+    },
+    {
+      "name": "hole_dimension_sp",
+      "role": "setpoint",
+      "data_type": "float",
+      "base_value": 10.2
+    },
+    {
       "name": "bore_dimension",
       "role": "sensor",
       "data_type": "float",
-      "base_value": 40.0,
+      "source_sp": "bore_dimension_sp",
       "stddev": 0.01
     },
     {
       "name": "hole_dimension",
       "role": "sensor",
       "data_type": "float",
-      "base_value": 10.2,
+      "source_sp": "hole_dimension_sp",
       "stddev": 0.025
-    },
-    {
-      "name": "leak_rate",
-      "role": "sensor",
-      "data_type": "float",
-      "base_value": 0.5,
-      "stddev": 0.08
-    },
-    {
-      "name": "flow_value",
-      "role": "sensor",
-      "data_type": "float",
-      "base_value": 15.0,
-      "stddev": 0.5
     },
     {
       "name": "result_ok",
@@ -54,5 +50,7 @@
       "stddev": 0.0008333333333333334
     }
   ],
+  "host": "0.0.0.0",
+  "port": 4952,
   "namespace": "${LINE_ID:-LINE-00}_TEST-02"
 }
