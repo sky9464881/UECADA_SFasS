@@ -20,6 +20,4 @@ export interface AlarmHistoryRow {
 export interface AlarmListResponse {
   summary: AlarmSummaryItem[]
   rows: AlarmHistoryRow[]
-  /** 화면 행 컷 적용 전 전체 알람 수 (안내 배지에 사용) */
-  totalCount: number
 }
