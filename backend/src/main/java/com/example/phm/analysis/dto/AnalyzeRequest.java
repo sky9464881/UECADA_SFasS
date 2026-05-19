@@ -1,6 +1,7 @@
 package com.example.phm.analysis.dto;
 
 import java.util.List;
+import java.util.Map;
 
 import com.example.phm.vibration.dto.VibrationWindowMessage;
 
@@ -13,6 +14,7 @@ public class AnalyzeRequest {
     private Integer windowSize;
     private Integer windowIndex;
     private List<Double> values;
+    private Map<String, Object> sensorSnapshot;
     private Boolean persist;
 
     public static AnalyzeRequest from(VibrationWindowMessage message) {
@@ -82,6 +84,14 @@ public class AnalyzeRequest {
 
     public void setValues(List<Double> values) {
         this.values = values;
+    }
+
+    public Map<String, Object> getSensorSnapshot() {
+        return sensorSnapshot;
+    }
+
+    public void setSensorSnapshot(Map<String, Object> sensorSnapshot) {
+        this.sensorSnapshot = sensorSnapshot;
     }
 
     public Boolean getPersist() {
