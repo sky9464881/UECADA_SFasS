@@ -62,6 +62,14 @@ DAS, equip-sim, X_DAS를 먼저 실행한다.
 
 스크립트는 이제 어느 폴더에서 실행해도 자신의 위치를 기준으로 `DAS`, `equip-sim`, `X_DAS`를 찾는다.
 
+### 로컬 설비 관제 시스템(TUI)
+
+```powershell
+ .\total_das\equip-sim\scripts\watch-sim.ps1
+```
+컨테이너 내부 UDS 통신으로 로컬 설비 관제가 가능하며,
+TUI 시스템으로 키보드 입력(방향키, 엔터, 숫자키, Q)으로써 제어 가능하다.
+
 ### DAS Compose 네트워크 라벨 오류 해결
 
 다른 PC에서 처음 실행하거나 예전 Docker Compose 실행 흔적이 남아 있으면 아래 오류가 날 수 있다.
