@@ -1,11 +1,4 @@
 <script setup lang="ts">
-import { use } from 'echarts/core'
-import { BarChart } from 'echarts/charts'
-import { CanvasRenderer } from 'echarts/renderers'
-import { GridComponent, TooltipComponent } from 'echarts/components'
-import VChart from 'vue-echarts'
-import 'vue-echarts/style.css'
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import {
   AlertTriangle,
   BarChart3,
@@ -21,160 +14,27 @@ import { useLogout } from '@/composables/useLogout'
 import { useAlarms } from '@/composables/useAlarms'
 import { useAlarmInsights } from '@/composables/useAlarmInsights'
 import { useResolveAlarm } from '@/composables/useResolveAlarm'
-import { useAuthStore } from '@/stores/auth'
-
-use([CanvasRenderer, BarChart, GridComponent, TooltipComponent])
 
 const { navItems } = useAppNav()
 const logout = useLogout()
-const auth = useAuthStore()
 const { data, isPending, isError, error, refetch, isFetching } = useAlarms()
-const { trendDays, trendHasData, equipmentFrequency, typeFrequency, isTrendPending } = useAlarmInsights()
+const { trendDays, equipmentFrequency, typeFrequency } = useAlarmInsights()
 const resolveMutation = useResolveAlarm()
 
-/** ECharts 알람 추이 — CSS % 막대 대신 축·툴팁·반응형을 안정적으로 처리 */
-const trendChartOption = computed(() => {
-  const days = trendDays.value
-  const n = days.length
-  const labelStep = n > 14 ? Math.ceil(n / 7) : 1
-
-  return {
-    grid: { left: 4, right: 8, top: 12, bottom: 4, containLabel: true },
-    tooltip: {
-      trigger: 'axis',
-      axisPointer: { type: 'shadow' },
-      backgroundColor: 'rgba(15, 31, 56, 0.92)',
-      borderColor: 'transparent',
-      textStyle: { color: '#f8fafc', fontSize: 12 },
-      formatter: (params: { axisValue?: string; dataIndex?: number; value?: number }[]) => {
-        const p = params[0]
-        if (!p || p.dataIndex == null) return ''
-        const day = days[p.dataIndex]
-        return `${day.date}<br/><strong>${Number(p.value ?? 0).toLocaleString()}건</strong>`
-      },
-    },
-    xAxis: {
-      type: 'category',
-      data: days.map((d) => d.date.slice(5)),
-      axisLine: { lineStyle: { color: '#dce5ef' } },
-      axisTick: { show: false },
-      axisLabel: {
-        color: '#64748b',
-        fontSize: 10,
-        interval: 0,
-        formatter: (_value: string, index: number) => {
-          if (index === 0 || index === n - 1 || index % labelStep === 0) {
-            return days[index]?.date.slice(5) ?? ''
-          }
-          return ''
-        },
-      },
-    },
-    yAxis: {
-      type: 'value',
-      minInterval: 1,
-      splitLine: { lineStyle: { color: 'rgba(0, 44, 95, 0.06)' } },
-      axisLabel: {
-        color: '#94a3b8',
-        fontSize: 10,
-        formatter: (v: number) => (v >= 1000 ? `${Math.round(v / 1000)}k` : String(v)),
-      },
-    },
-    series: [
-      {
-        type: 'bar',
-        data: days.map((d) => d.count),
-        barMaxWidth: 16,
-        itemStyle: {
-          borderRadius: [4, 4, 2, 2],
-          color: {
-            type: 'linear',
-            x: 0,
-            y: 0,
-            x2: 0,
-            y2: 1,
-            colorStops: [
-              { offset: 0, color: '#3ec9e8' },
-              { offset: 1, color: '#0057a4' },
-            ],
-          },
-        },
-        emphasis: {
-          itemStyle: {
-            color: {
-              type: 'linear',
-              x: 0,
-              y: 0,
-              x2: 0,
-              y2: 1,
-              colorStops: [
-                { offset: 0, color: '#62d9ff' },
-                { offset: 1, color: '#0070cc' },
-              ],
-            },
-          },
-        },
-      },
-    ],
-  }
-})
-
-const pad2 = (n: number) => String(n).padStart(2, '0')
-
-function formatNow(d: Date): string {
-  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`
-}
-
-const now = ref(new Date())
-const currentTimeText = computed(() => formatNow(now.value))
-let timerId: ReturnType<typeof setInterval> | null = null
-onMounted(() => {
-  // 다음 분 시작 직후로 정렬한 뒤 1분 간격으로 갱신
-  const ms = (60 - now.value.getSeconds()) * 1000 - now.value.getMilliseconds()
-  timerId = setTimeout(() => {
-    now.value = new Date()
-    timerId = setInterval(() => {
-      now.value = new Date()
-    }, 60_000)
-  }, Math.max(ms, 0))
-})
-onBeforeUnmount(() => {
-  if (timerId) {
-    clearTimeout(timerId)
-    clearInterval(timerId)
-  }
-})
-
-// 처리 중인 알람 ID 집합 — 동일 버튼만 비활성화/스피너 표시
-const pendingIds = ref<Set<number>>(new Set())
-const isResolving = (id: number) => pendingIds.value.has(id)
-const resolverLabel = computed(() => (auth.role === 'admin' ? '관리자' : '작업자'))
-
 function handleResolve(alarmId: number) {
-  if (!alarmId || isResolving(alarmId)) return
-  const next = new Set(pendingIds.value)
-  next.add(alarmId)
-  pendingIds.value = next
-
-  const d = new Date()
-  const resolvedAt = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`
-  resolveMutation.mutate(
-    {
-      alarmId,
-      payload: {
-        resolvedBy: resolverLabel.value,
-        resolvedAt,
-        comment: 'UI에서 처리 완료',
-      },
+  if (!alarmId) return
+  if (resolveMutation.isPending.value) return
+  const now = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const resolvedAt = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
+  resolveMutation.mutate({
+    alarmId,
+    payload: {
+      resolvedBy: '관리자',
+      resolvedAt,
+      comment: 'UI에서 처리 완료',
     },
-    {
-      onSettled: () => {
-        const after = new Set(pendingIds.value)
-        after.delete(alarmId)
-        pendingIds.value = after
-      },
-    },
-  )
+  })
 }
 </script>
 
@@ -212,7 +72,7 @@ function handleResolve(alarmId: number) {
         <div class="header-actions">
           <span class="current-time">
             <CalendarDays :size="16" />
-            {{ currentTimeText }}
+            2026-05-11 12:40
           </span>
           <RouterLink class="ghost-button" :to="{ name: 'equipment' }">
             <Wrench :size="16" />
@@ -263,14 +123,15 @@ function handleResolve(alarmId: number) {
               <BarChart3 :size="22" />
             </div>
 
-            <div v-if="isTrendPending && !trendHasData" class="alarm-trend-chart alarm-trend-chart--empty">
-              <span class="alarm-trend-empty">추이 데이터를 불러오는 중…</span>
+            <div v-if="trendDays.length === 0" class="alarm-trend-chart" style="align-items: center; justify-content: center; min-height: 180px">
+              <span style="color: #64748b">표시할 추이 데이터가 없습니다.</span>
             </div>
-            <div v-else-if="!trendHasData" class="alarm-trend-chart alarm-trend-chart--empty">
-              <span class="alarm-trend-empty">표시할 추이 데이터가 없습니다.</span>
-            </div>
-            <div v-else class="alarm-trend-chart alarm-trend-chart--echarts">
-              <v-chart class="alarm-trend-echart" :option="trendChartOption" autoresize />
+            <div v-else class="alarm-trend-chart">
+              <div v-for="item in trendDays" :key="item.label" class="alarm-trend-column">
+                <i :style="{ height: `${item.percent}%` }"></i>
+                <b>{{ item.count }}건</b>
+                <span>{{ item.label }}</span>
+              </div>
             </div>
           </article>
 
@@ -278,15 +139,7 @@ function handleResolve(alarmId: number) {
             <div class="section-title-row">
               <div>
                 <p class="panel-kicker">Alarm History</p>
-                <h2>
-                  알람 발생 이력
-                  <small
-                    v-if="data.totalCount > data.rows.length"
-                    class="alarm-history-count-note"
-                  >
-                    최신 {{ data.rows.length }}건 / 전체 {{ data.totalCount.toLocaleString() }}건
-                  </small>
-                </h2>
+                <h2>알람 발생 이력</h2>
               </div>
               <AlertTriangle :size="22" />
             </div>
@@ -311,11 +164,7 @@ function handleResolve(alarmId: number) {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr
-                    v-for="(row, idx) in data.rows"
-                    :key="`${row.alarmId || 'na'}-${row.time}-${idx}`"
-                    :class="{ 'alarm-history-row--critical': row.type === '긴급' }"
-                  >
+                  <tr v-for="row in data.rows" :key="`${row.alarmId}-${row.time}`">
                     <td>{{ row.time }}</td>
                     <td><strong>{{ row.equipment }}</strong></td>
                     <td><span :class="['alarm-level', row.type]">{{ row.type }}</span></td>
@@ -328,11 +177,10 @@ function handleResolve(alarmId: number) {
                         type="button"
                         class="ghost-button"
                         style="padding: 4px 10px; font-size: 12px"
-                        :disabled="isResolving(row.alarmId)"
-                        :aria-busy="isResolving(row.alarmId)"
+                        :disabled="resolveMutation.isPending.value"
                         @click="handleResolve(row.alarmId)"
                       >
-                        {{ isResolving(row.alarmId) ? '처리중…' : '처리' }}
+                        {{ resolveMutation.isPending.value ? '처리중…' : '처리' }}
                       </button>
                       <span v-else style="color: #94a3b8">—</span>
                     </td>
@@ -353,10 +201,7 @@ function handleResolve(alarmId: number) {
               <Factory :size="22" />
             </div>
 
-            <div v-if="equipmentFrequency.length === 0" class="frequency-empty">
-              <span>표시할 설비별 빈도 데이터가 없습니다.</span>
-            </div>
-            <div v-else class="frequency-bar-list">
+            <div class="frequency-bar-list">
               <article v-for="item in equipmentFrequency" :key="item.label">
                 <div>
                   <strong>{{ item.label }}</strong>
@@ -379,10 +224,7 @@ function handleResolve(alarmId: number) {
               <Bell :size="22" />
             </div>
 
-            <div v-if="typeFrequency.length === 0" class="frequency-empty">
-              <span>표시할 유형별 빈도 데이터가 없습니다.</span>
-            </div>
-            <div v-else class="frequency-bar-list type-frequency">
+            <div class="frequency-bar-list type-frequency">
               <article v-for="item in typeFrequency" :key="item.label">
                 <div>
                   <strong>{{ item.label }}</strong>
