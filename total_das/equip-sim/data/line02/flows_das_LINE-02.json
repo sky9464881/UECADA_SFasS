@@ -73,11 +73,13 @@
             "c3d965a6713e44b7",
             "aef5916e58c249f3",
             "3e72a0dee81c4825",
-            "00e8697721f74685"
+            "00e8697721f74685",
+            "e886310355f8e064",
+            "699f478a7bc5d848"
         ],
         "x": 84,
         "y": 2159,
-        "w": 1042,
+        "w": 1202,
         "h": 577.5
     },
     {
@@ -3328,12 +3330,11 @@
         "initialize": "",
         "finalize": "",
         "libs": [],
-        "x": 1020,
-        "y": 2240,
+        "x": 1040,
+        "y": 2280,
         "wires": [
             [
-                "e2f57683a4f6435c",
-                "cfc7a1bf73534d49"
+                "699f478a7bc5d848"
             ]
         ]
     },
@@ -3355,8 +3356,8 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 840,
-        "y": 2270,
+        "x": 870,
+        "y": 2280,
         "wires": [
             [
                 "18122050694d4546"
@@ -3369,7 +3370,7 @@
         "z": "482b7463ca024817",
         "g": "ed0ce0f94151439a",
         "name": "TEST-02 debug",
-        "active": false,
+        "active": true,
         "tosidebar": true,
         "console": false,
         "tostatus": false,
@@ -3830,12 +3831,11 @@
         "initialize": "",
         "finalize": "",
         "libs": [],
-        "x": 1020,
-        "y": 2520,
+        "x": 1040,
+        "y": 2560,
         "wires": [
             [
-                "e2f57683a4f6435c",
-                "0a11db019109424c"
+                "e886310355f8e064"
             ]
         ]
     },
@@ -3857,8 +3857,8 @@
         "topic": "",
         "payload": "",
         "payloadType": "date",
-        "x": 840,
-        "y": 2550,
+        "x": 870,
+        "y": 2560,
         "wires": [
             [
                 "3e72a0dee81c4825"
@@ -4197,6 +4197,50 @@
         "wires": [
             [
                 "39bf432fe4b048d8",
+                "e2f57683a4f6435c"
+            ]
+        ]
+    },
+    {
+        "id": "e886310355f8e064",
+        "type": "function",
+        "z": "482b7463ca024817",
+        "g": "ed0ce0f94151439a",
+        "name": "Testing node",
+        "func": "// TEST-02 validate result_ok (overwrite)\n\n// msg.payload 구조 가정:\n// { equipment_id: \"TEST-02\", tags: { power, bore_dimension_sp, ... } }\n\nconst p = msg.payload || {};\nconst tags = p.tags || {};\n\n// 허용 오차\nconst tol = 0.05;\n\n// 각 값 숫자 변환\nconst boreSp  = Number(tags.bore_dimension_sp);\nconst bore    = Number(tags.bore_dimension);\nconst holeSp  = Number(tags.hole_dimension_sp);\nconst hole    = Number(tags.hole_dimension);\n\n// 값 존재/유효성 체크\nconst hasAllValues =\n    Number.isFinite(boreSp) &&\n    Number.isFinite(bore) &&\n    Number.isFinite(holeSp) &&\n    Number.isFinite(hole);\n\n// 기본값: false로 overwrite\nlet resultOk = false;\nlet boreDiff = null;\nlet holeDiff = null;\nlet reason   = \"\";\n\n// 값이 다 있으면 오차 계산\nif (hasAllValues) {\n    boreDiff = Math.abs(bore - boreSp);\n    holeDiff = Math.abs(hole - holeSp);\n\n    const boreOk = boreDiff <= tol;\n    const holeOk = holeDiff <= tol;\n\n    resultOk = boreOk && holeOk;\n    reason   = resultOk ? \"within_tolerance\" : \"out_of_tolerance\";\n} else {\n    reason = \"missing_value\";\n}\n\n// 여기서 \"바로 덮어쓰기\"\ntags.result_ok = resultOk;\n\n// // 디버깅/추적용 메타 데이터도 같이 기록해두면 좋음\n// tags.result_ok_calc   = resultOk;   // 계산 결과\n// tags.bore_diff        = boreDiff;\n// tags.hole_diff        = holeDiff;\n// tags.tolerance        = tol;\n// tags.result_ok_reason = reason;\n\nmsg.payload.tags = tags;\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1190,
+        "y": 2560,
+        "wires": [
+            [
+                "0a11db019109424c",
+                "e2f57683a4f6435c"
+            ]
+        ]
+    },
+    {
+        "id": "699f478a7bc5d848",
+        "type": "function",
+        "z": "482b7463ca024817",
+        "g": "ed0ce0f94151439a",
+        "name": "Testing node",
+        "func": "// TEST-02 validate result_ok (overwrite)\n\n// msg.payload 구조 가정:\n// { equipment_id: \"TEST-02\", tags: { power, bore_dimension_sp, ... } }\n\nconst p = msg.payload || {};\nconst tags = p.tags || {};\n\n// 허용 오차\nconst tol = 0.05;\n\n// 각 값 숫자 변환\nconst boreSp  = Number(tags.bore_dimension_sp);\nconst bore    = Number(tags.bore_dimension);\nconst holeSp  = Number(tags.hole_dimension_sp);\nconst hole    = Number(tags.hole_dimension);\n\n// 값 존재/유효성 체크\nconst hasAllValues =\n    Number.isFinite(boreSp) &&\n    Number.isFinite(bore) &&\n    Number.isFinite(holeSp) &&\n    Number.isFinite(hole);\n\n// 기본값: false로 overwrite\nlet resultOk = false;\nlet boreDiff = null;\nlet holeDiff = null;\nlet reason   = \"\";\n\n// 값이 다 있으면 오차 계산\nif (hasAllValues) {\n    boreDiff = Math.abs(bore - boreSp);\n    holeDiff = Math.abs(hole - holeSp);\n\n    const boreOk = boreDiff <= tol;\n    const holeOk = holeDiff <= tol;\n\n    resultOk = boreOk && holeOk;\n    reason   = resultOk ? \"within_tolerance\" : \"out_of_tolerance\";\n} else {\n    reason = \"missing_value\";\n}\n\n// 여기서 \"바로 덮어쓰기\"\ntags.result_ok = resultOk;\n\n// // 디버깅/추적용 메타 데이터도 같이 기록해두면 좋음\n// tags.result_ok_calc   = resultOk;   // 계산 결과\n// tags.bore_diff        = boreDiff;\n// tags.hole_diff        = holeDiff;\n// tags.tolerance        = tol;\n// tags.result_ok_reason = reason;\n\nmsg.payload.tags = tags;\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1190,
+        "y": 2280,
+        "wires": [
+            [
+                "cfc7a1bf73534d49",
                 "e2f57683a4f6435c"
             ]
         ]
