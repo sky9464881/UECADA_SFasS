@@ -232,7 +232,7 @@ export function useLineDetails() {
   const equipmentCodes = computed(() => (equipmentsQuery.data.value ?? []).map((equipment) => equipment.equipmentCode))
 
   const statusQuery = useQuery({
-    queryKey: ['line-details', 'equipment-statuses', equipmentCodes],
+    queryKey: computed(() => ['line-details', 'equipment-statuses', equipmentCodes.value]),
     queryFn: () => fetchEquipmentStatuses(equipmentCodes.value),
     enabled: computed(() => equipmentCodes.value.length > 0),
     refetchInterval: POLL_INTERVAL_MS.equipmentCategory,
@@ -249,11 +249,12 @@ export function useLineDetails() {
   )
 
   const realtimeQuery = useQuery({
-    queryKey: ['line-details', 'realtime-latest', realtimeKeys],
+    queryKey: computed(() => ['line-details', 'realtime-latest', realtimeKeys.value]),
     queryFn: () => fetchSensorLatestValues(realtimeKeys.value),
     enabled: computed(() => realtimeKeys.value.length > 0),
     refetchInterval: POLL_INTERVAL_MS.equipmentRealtime,
-    staleTime: 1_000,
+    staleTime: 0,
+    refetchIntervalInBackground: true,
   })
 
   const realtimeValues = computed(() => latestValueMap(realtimeQuery.data.value ?? []))

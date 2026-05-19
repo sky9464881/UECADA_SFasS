@@ -55,7 +55,7 @@ public class SwmpIntegrationController {
                 .filter(item -> lineId.equals(item.lineId()))
                 .findFirst()
                 .orElse(null));
-        response.put("popupUrl", "/#/lines?lineId=" + lineId);
+        response.put("popupUrl", "/#/layout?lineId=" + lineId + "&popup=1");
         return response;
     }
 

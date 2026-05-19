@@ -728,7 +728,7 @@ onUnmounted(disposeEquipmentCharts)
             </button>
             <RouterLink class="ghost-button" :to="{ name: 'layout' }">
               <MapPinned :size="16" />
-              <span>위치 보기</span>
+              <span>라인별 현황</span>
             </RouterLink>
             <button type="button" class="icon-link" @click="logout">
               <LogOut :size="16" />

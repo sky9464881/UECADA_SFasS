@@ -17,12 +17,12 @@ class XDasOpcUaNodeMappingsTest {
                 .stream()
                 .collect(Collectors.toMap(XDasOpcUaNodeMapping::nodeId, Function.identity()));
 
-        assertThat(mappings.get("ns=2;s=LINE01.CAST01.Temperature").bufferKeys())
-                .containsExactly("LINE01.CAST01:temperature", "CAST01:temperature");
-        assertThat(mappings.get("ns=2;s=LINE02.CAST01.Temperature").bufferKeys())
-                .containsExactly("LINE02.CAST01:temperature");
-        assertThat(mappings.get("ns=2;s=LINE03.CNC01.SpindleLoad").bufferKeys())
-                .containsExactly("LINE03.CNC01:spindle_load");
+        assertThat(mappings.get("ns=2;s=LINE01.CAST01.InjectionPressure").bufferKeys())
+                .containsExactly("LINE01.CAST01:injection_pressure", "CAST01:injection_pressure");
+        assertThat(mappings.get("ns=2;s=LINE02.CAST01.MoldTemperature").bufferKeys())
+                .containsExactly("LINE02.CAST01:mold_temperature");
+        assertThat(mappings.get("ns=2;s=LINE03.CNC01.SpindleSpeed").bufferKeys())
+                .containsExactly("LINE03.CNC01:spindle_speed");
     }
 
     @Test

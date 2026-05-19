@@ -9,47 +9,57 @@ public final class XDasOpcUaNodeMappings {
 
     private static final List<EquipmentMapping> EQUIPMENT_MAPPINGS = List.of(
             new EquipmentMapping("CAST01", List.of(
-                    new MetricMapping("Temperature", "temperature"),
-                    new MetricMapping("Pressure", "pressure"),
+                    new MetricMapping("InjectionPressure", "injection_pressure"),
+                    new MetricMapping("MoldTemperature", "mold_temperature"),
+                    new MetricMapping("CoolingFlow", "cooling_flow"),
                     new MetricMapping("CycleTime", "cycle_time")
             )),
             new EquipmentMapping("CNC01", List.of(
-                    new MetricMapping("SpindleLoad", "spindle_load"),
-                    new MetricMapping("SpindleRPM", "spindle_rpm"),
-                    new MetricMapping("FeedRate", "feed_rate"),
+                    new MetricMapping("SpindleSpeed", "spindle_speed"),
+                    new MetricMapping("ToolUsage", "tool_usage"),
+                    new MetricMapping("CoolantFlow", "coolant_flow"),
                     new MetricMapping("CycleTime", "cycle_time")
             )),
             new EquipmentMapping("CNC02", List.of(
-                    new MetricMapping("SpindleLoad", "spindle_load"),
-                    new MetricMapping("SpindleRPM", "spindle_rpm"),
-                    new MetricMapping("FeedRate", "feed_rate"),
+                    new MetricMapping("SpindleSpeed", "spindle_speed"),
+                    new MetricMapping("ToolUsage", "tool_usage"),
+                    new MetricMapping("CoolantFlow", "coolant_flow"),
                     new MetricMapping("CycleTime", "cycle_time")
             )),
             new EquipmentMapping("CNC03", List.of(
-                    new MetricMapping("SpindleLoad", "spindle_load"),
-                    new MetricMapping("SpindleRPM", "spindle_rpm"),
-                    new MetricMapping("FeedRate", "feed_rate"),
+                    new MetricMapping("SpindleSpeed", "spindle_speed"),
+                    new MetricMapping("ToolUsage", "tool_usage"),
+                    new MetricMapping("CoolantFlow", "coolant_flow"),
                     new MetricMapping("CycleTime", "cycle_time")
             )),
             new EquipmentMapping("WASH01", List.of(
-                    new MetricMapping("WaterTemp", "water_temp"),
-                    new MetricMapping("FlowRate", "flow_rate"),
+                    new MetricMapping("CleaningConcentration", "cleaning_concentration"),
+                    new MetricMapping("CleaningTemperature", "cleaning_temperature"),
+                    new MetricMapping("CleaningPressure", "cleaning_pressure"),
                     new MetricMapping("CycleTime", "cycle_time")
             )),
             new EquipmentMapping("ASSY01", List.of(
-                    new MetricMapping("TorqueValue", "torque"),
+                    new MetricMapping("TighteningTorque", "tightening_torque"),
+                    new MetricMapping("TighteningAngle", "tightening_angle"),
+                    new MetricMapping("PressForce", "press_force"),
                     new MetricMapping("CycleTime", "cycle_time")
             )),
             new EquipmentMapping("ASSY02", List.of(
-                    new MetricMapping("TorqueValue", "torque"),
+                    new MetricMapping("TighteningTorque", "tightening_torque"),
+                    new MetricMapping("TighteningAngle", "tightening_angle"),
+                    new MetricMapping("PressForce", "press_force"),
                     new MetricMapping("CycleTime", "cycle_time")
             )),
             new EquipmentMapping("TEST01", List.of(
-                    new MetricMapping("LeakPressure", "leak_pressure"),
+                    new MetricMapping("BoreDimension", "bore_dimension"),
+                    new MetricMapping("HoleDimension", "hole_dimension"),
+                    new MetricMapping("ResultOk", "result_ok"),
                     new MetricMapping("CycleTime", "cycle_time")
             )),
             new EquipmentMapping("TEST02", List.of(
-                    new MetricMapping("LeakPressure", "leak_pressure"),
+                    new MetricMapping("BoreDimension", "bore_dimension"),
+                    new MetricMapping("HoleDimension", "hole_dimension"),
+                    new MetricMapping("ResultOk", "result_ok"),
                     new MetricMapping("CycleTime", "cycle_time")
             ))
     );

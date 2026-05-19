@@ -175,59 +175,65 @@ const EQUIPMENT_CODE = {
 
 const PLC_MAP = {
   'CAST-01': {
-    'data.mold_temperature': ['Temperature', 'Double'],
-    'data.injection_pressure': ['Pressure', 'Double'],
+    'data.injection_pressure': ['InjectionPressure', 'Double'],
+    'data.mold_temperature': ['MoldTemperature', 'Double'],
+    'data.cooling_flow': ['CoolingFlow', 'Double'],
     'data.cycle_time': ['CycleTime', 'Double'],
     'status': ['Status', 'Int32', 'statusCode']
   },
   'CNC-01': {
-    'data.tool_usage': ['SpindleLoad', 'Double'],
-    'data.spindle_speed': ['SpindleRPM', 'Double'],
-    'data.coolant_flow': ['FeedRate', 'Double'],
+    'data.spindle_speed': ['SpindleSpeed', 'Int32'],
+    'data.tool_usage': ['ToolUsage', 'Double'],
+    'data.coolant_flow': ['CoolantFlow', 'Double'],
     'data.cycle_time': ['CycleTime', 'Double'],
     'status': ['Status', 'Int32', 'statusCode']
   },
   'CNC-02': {
-    'data.tool_usage': ['SpindleLoad', 'Double'],
-    'data.spindle_speed': ['SpindleRPM', 'Double'],
-    'data.coolant_flow': ['FeedRate', 'Double'],
+    'data.spindle_speed': ['SpindleSpeed', 'Int32'],
+    'data.tool_usage': ['ToolUsage', 'Double'],
+    'data.coolant_flow': ['CoolantFlow', 'Double'],
     'data.cycle_time': ['CycleTime', 'Double'],
     'status': ['Status', 'Int32', 'statusCode']
   },
   'CNC-03': {
-    'data.tool_usage': ['SpindleLoad', 'Double'],
-    'data.spindle_speed': ['SpindleRPM', 'Double'],
-    'data.coolant_flow': ['FeedRate', 'Double'],
+    'data.spindle_speed': ['SpindleSpeed', 'Int32'],
+    'data.tool_usage': ['ToolUsage', 'Double'],
+    'data.coolant_flow': ['CoolantFlow', 'Double'],
     'data.cycle_time': ['CycleTime', 'Double'],
     'status': ['Status', 'Int32', 'statusCode']
   },
   'WASH-01': {
-    'data.cleaning_temperature': ['WaterTemp', 'Double'],
-    'data.cleaning_flow': ['FlowRate', 'Double'],
+    'data.cleaning_concentration': ['CleaningConcentration', 'Double'],
+    'data.cleaning_temperature': ['CleaningTemperature', 'Double'],
+    'data.cleaning_pressure': ['CleaningPressure', 'Double'],
     'data.cycle_time': ['CycleTime', 'Double'],
     'status': ['Status', 'Int32', 'statusCode']
   },
   'ASSY-01': {
-    'data.tightening_torque': ['TorqueValue', 'Double'],
-    'data.progress': ['CycleCount', 'Int32', 'cycleCount'],
+    'data.tightening_torque': ['TighteningTorque', 'Double'],
+    'data.tightening_angle': ['TighteningAngle', 'Double'],
+    'data.press_force': ['PressForce', 'Double'],
     'data.cycle_time': ['CycleTime', 'Double'],
     'status': ['Status', 'Int32', 'statusCode']
   },
   'ASSY-02': {
-    'data.tightening_torque': ['TorqueValue', 'Double'],
-    'data.progress': ['CycleCount', 'Int32', 'cycleCount'],
+    'data.tightening_torque': ['TighteningTorque', 'Double'],
+    'data.tightening_angle': ['TighteningAngle', 'Double'],
+    'data.press_force': ['PressForce', 'Double'],
     'data.cycle_time': ['CycleTime', 'Double'],
     'status': ['Status', 'Int32', 'statusCode']
   },
   'TEST-01': {
-    'data.hole_dimension': ['LeakPressure', 'Double'],
-    'data.result_ok': ['LeakResult', 'Boolean'],
+    'data.bore_dimension': ['BoreDimension', 'Double'],
+    'data.hole_dimension': ['HoleDimension', 'Double'],
+    'data.result_ok': ['ResultOk', 'Boolean'],
     'data.cycle_time': ['CycleTime', 'Double'],
     'status': ['Status', 'Int32', 'statusCode']
   },
   'TEST-02': {
-    'data.hole_dimension': ['LeakPressure', 'Double'],
-    'data.result_ok': ['LeakResult', 'Boolean'],
+    'data.bore_dimension': ['BoreDimension', 'Double'],
+    'data.hole_dimension': ['HoleDimension', 'Double'],
+    'data.result_ok': ['ResultOk', 'Boolean'],
     'data.cycle_time': ['CycleTime', 'Double'],
     'status': ['Status', 'Int32', 'statusCode']
   }
@@ -524,7 +530,7 @@ return [serverMessages, shouldWriteBackend ? msg : null];`;
 const comment = findNode("comment_architecture");
 if (comment) {
   comment.name = "Inputs -> X_DAS raw nodes + BE schema nodes";
-  comment.info = "X_DAS keeps raw X_DAS.LINE_* nodes and also publishes BE schema nodes such as LINE01.CAST01.Temperature and CAST01.Temperature (LINE-01 alias).";
+  comment.info = "X_DAS keeps raw X_DAS.LINE_* nodes and also publishes BE schema nodes such as LINE01.CAST01.InjectionPressure and CAST01.InjectionPressure (LINE-01 alias).";
 }
 
 fs.writeFileSync(flowPath, JSON.stringify(flow, null, 2), "utf8");

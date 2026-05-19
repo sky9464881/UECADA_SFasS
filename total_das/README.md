@@ -14,6 +14,23 @@ docker network create total-das-net
 
 It is OK if Docker says the network already exists.
 
+## PowerShell execution policy
+
+If Windows blocks `.\start-all.ps1` with `PSSecurityException` or
+`UnauthorizedAccess`, run the `.cmd` wrapper instead. It applies
+`ExecutionPolicy Bypass` only to that one PowerShell process:
+
+```powershell
+.\start-all.cmd
+```
+
+You can also do the same thing manually for the current PowerShell session:
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+.\start-all.ps1
+```
+
 ## Network label conflict
 
 If `.\start-all.ps1` or `docker compose up` fails with this message:

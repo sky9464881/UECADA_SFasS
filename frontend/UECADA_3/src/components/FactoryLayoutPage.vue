@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
 import {
-  BarChart3,
   CalendarDays,
   Cog,
   Droplets,
@@ -18,6 +17,7 @@ import type { Component } from 'vue'
 import { useAppNav } from '@/composables/useAppNav'
 import { useLogout } from '@/composables/useLogout'
 import { realtimeBufferKey, useFactoryLayout, type FactoryRealtimeMetric } from '@/composables/useFactoryLayout'
+import { useLineDetails, type LineProcessStage } from '@/composables/useLineDetails'
 import { processRealtimeMetricConfigs } from '@/utils/realtimeBuffers'
 import type { LineSummary, LineStatusCode } from '@/types/line'
 import type { Equipment, EquipmentStatusItem, EquipmentStatusCode } from '@/types/equipment'
@@ -62,6 +62,8 @@ interface FactoryLine {
 
 const { navItems } = useAppNav()
 const logout = useLogout()
+const route = useRoute()
+const { lines: lineDetails } = useLineDetails()
 
 const STAGE_ORDER: readonly StageDef[] = [
   { key: 'cast', label: '주조', badge: 'CAST', icon: Flame },
@@ -262,6 +264,8 @@ const selectedStage = ref<{ lineId: string; stageKey: StageKey }>({
   stageKey: 'cast',
 })
 const isStagePopupOpen = ref(false)
+const selectedLinePopupId = ref('')
+const isLineDetailPopupOpen = ref(false)
 
 watch(
   factoryLines,
@@ -388,6 +392,64 @@ function stageIconToneClass(kind: StatusKind): string {
   if (kind === 'warn') return 'factory-stage-box-icon-wrap--warn'
   return 'factory-stage-box-icon-wrap--alert'
 }
+
+const selectedLineDetail = computed(() =>
+  lineDetails.value.find((line) => line.id === selectedLinePopupId.value)
+    ?? lineDetails.value.find((line) => line.id === selectedStage.value.lineId)
+    ?? lineDetails.value[0]
+    ?? null,
+)
+
+watch(
+  lineDetails,
+  (list) => {
+    if (!list.length) return
+    const queryLineId = typeof route.query.lineId === 'string' ? route.query.lineId : ''
+    if (queryLineId && list.some((line) => line.id === queryLineId)) {
+      selectedLinePopupId.value = queryLineId
+      if (route.query.popup === '1' || route.query.popup === 'true') {
+        isLineDetailPopupOpen.value = true
+      }
+      return
+    }
+    if (!list.some((line) => line.id === selectedLinePopupId.value)) {
+      selectedLinePopupId.value = list[0].id
+    }
+  },
+  { immediate: true },
+)
+
+watch(
+  () => route.query.lineId,
+  () => {
+    const queryLineId = typeof route.query.lineId === 'string' ? route.query.lineId : ''
+    if (!queryLineId || !lineDetails.value.some((line) => line.id === queryLineId)) return
+    selectedLinePopupId.value = queryLineId
+    if (route.query.popup === '1' || route.query.popup === 'true') {
+      isLineDetailPopupOpen.value = true
+    }
+  },
+)
+
+function openLineDetailPopup(lineId: string): void {
+  selectedLinePopupId.value = lineId
+  isLineDetailPopupOpen.value = true
+}
+
+function closeLineDetailPopup(): void {
+  isLineDetailPopupOpen.value = false
+}
+
+function processIcon(key: LineProcessStage['key']) {
+  const map = {
+    casting: Flame,
+    machining: Cog,
+    washing: Droplets,
+    assembly: Wrench,
+    inspection: Search,
+  }
+  return map[key] ?? Factory
+}
 </script>
 
 <template>
@@ -419,7 +481,7 @@ function stageIconToneClass(kind: StatusKind): string {
       <header class="dashboard-header">
         <div class="dashboard-header-titles">
           <p class="dashboard-kicker">Factory Layout</p>
-          <h1>공장 레이아웃</h1>
+          <h1>라인별 현황</h1>
         </div>
         <div class="header-actions">
           <span class="current-time">
@@ -429,10 +491,6 @@ function stageIconToneClass(kind: StatusKind): string {
           <RouterLink class="ghost-button" :to="{ name: 'dashboard' }">
             <LayoutDashboard :size="16" />
             <span>대시보드</span>
-          </RouterLink>
-          <RouterLink class="ghost-button" :to="{ name: 'lines' }">
-            <BarChart3 :size="16" />
-            <span>라인 상세</span>
           </RouterLink>
           <button type="button" class="icon-link" @click="logout">
             <LogOut :size="16" />
@@ -468,8 +526,8 @@ function stageIconToneClass(kind: StatusKind): string {
               <button
                 type="button"
                 class="factory-line-summary-card"
-                :aria-label="`${line.code} 상세 팝업 열기`"
-                @click="openStagePopup(line.id)"
+                :aria-label="`${line.code} 라인 상세보기 팝업 열기`"
+                @click="openLineDetailPopup(line.id)"
               >
                 <strong class="factory-line-summary-code">{{ line.code }}</strong>
                 <div class="factory-line-summary-spark" aria-hidden="true">
@@ -508,7 +566,7 @@ function stageIconToneClass(kind: StatusKind): string {
                       { 'factory-stage-box--selected': isStageSelected(line.id, stage.key) },
                     ]"
                     :aria-pressed="isStageSelected(line.id, stage.key)"
-                    @click="openStagePopup(line.id, stage.key)"
+                    @click="openLineDetailPopup(line.id)"
                   >
                     <span
                       class="factory-stage-box-icon-wrap"
@@ -601,6 +659,173 @@ function stageIconToneClass(kind: StatusKind): string {
             </div>
           </aside>
       </div>
+
+      <Teleport to="body">
+        <div
+          v-if="isLineDetailPopupOpen && selectedLineDetail"
+          class="line-modal-backdrop"
+          @click.self="closeLineDetailPopup"
+        >
+          <article
+            class="line-detail-modal"
+            role="dialog"
+            aria-modal="true"
+            :aria-label="`${selectedLineDetail.name} 라인 상세보기`"
+          >
+            <header class="line-detail-popup-head">
+              <div>
+                <p class="panel-kicker">Line Detail</p>
+                <h2>{{ selectedLineDetail.name }}</h2>
+                <p>
+                  전체 알람 현황 · 전체 {{ selectedLineDetail.equipment }}대 /
+                  처리완료 00 · 미처리 {{ selectedLineDetail.alarm }}
+                </p>
+              </div>
+              <div class="line-modal-actions">
+                <span class="pill run">OEE {{ selectedLineDetail.oee }}%</span>
+                <button class="line-modal-close" type="button" aria-label="라인 상세 팝업 닫기" @click="closeLineDetailPopup">
+                  <X :size="18" />
+                </button>
+              </div>
+            </header>
+
+            <section class="line-popup-layout-panel">
+              <div class="section-title-row">
+                <div>
+                  <p class="panel-kicker">Line Flow</p>
+                  <h3>라인별 현황</h3>
+                </div>
+                <Factory :size="22" />
+              </div>
+              <div class="line-flow-stage-row line-popup-mini-layout">
+                <template v-for="(stage, index) in selectedLineDetail.stages" :key="stage.key">
+                  <div v-if="index > 0" class="line-flow-arrow" aria-hidden="true">→</div>
+                  <section class="line-flow-stage">
+                    <h3>
+                      <component :is="processIcon(stage.key)" :size="18" />
+                      <span>{{ stage.label }}</span>
+                    </h3>
+                    <div class="line-flow-equipment-list">
+                      <article
+                        v-for="node in stage.nodes"
+                        :key="node.id"
+                        :class="['line-flow-equipment', `line-flow-equipment--${node.state}`]"
+                      >
+                        <component :is="processIcon(stage.key)" :size="24" />
+                        <strong>{{ node.name }}</strong>
+                        <small>{{ node.code }}</small>
+                        <span>{{ node.cycleLabel }} · {{ node.tempLabel }}</span>
+                      </article>
+                    </div>
+                  </section>
+                </template>
+              </div>
+            </section>
+
+            <section class="line-popup-quadrant-grid">
+              <article class="line-popup-chart-panel">
+                <div class="section-title-row">
+                  <div>
+                    <p class="panel-kicker">Line OEE</p>
+                    <h3>종합 설비 효율 라인</h3>
+                  </div>
+                  <LayoutDashboard :size="22" />
+                </div>
+                <div class="line-popup-single-metric">
+                  <article class="line-oee-donut-card">
+                    <div class="line-analysis-donut" :style="{ '--value': `${selectedLineDetail.oee}%` }">
+                      <strong>{{ selectedLineDetail.oee }}%</strong>
+                    </div>
+                    <div>
+                      <h3>{{ selectedLineDetail.name }}</h3>
+                      <p>{{ selectedLineDetail.equipment }}대 설비 기준 종합 설비 효율</p>
+                    </div>
+                  </article>
+                </div>
+              </article>
+
+              <article class="line-popup-chart-panel">
+                <div class="section-title-row">
+                  <div>
+                    <p class="panel-kicker">Line Equipment Status</p>
+                    <h3>라인에 해당하는 설비 상태 분포도</h3>
+                  </div>
+                  <Factory :size="22" />
+                </div>
+                <article class="line-status-card">
+                  <div
+                    class="line-status-donut"
+                    :style="{
+                      '--run-end': `${selectedLineDetail.status.run}%`,
+                      '--stop-end': `${selectedLineDetail.status.stopEnd}%`,
+                    }"
+                  >
+                    <strong>{{ selectedLineDetail.equipment }}대</strong>
+                  </div>
+                  <div class="line-status-info">
+                    <h3>{{ selectedLineDetail.name }}</h3>
+                    <div class="line-status-legend">
+                      <span class="run">가동 {{ selectedLineDetail.status.run }}%</span>
+                      <span class="stop">정지 {{ selectedLineDetail.status.stop }}%</span>
+                      <span class="wait">대기 {{ selectedLineDetail.status.wait }}%</span>
+                    </div>
+                  </div>
+                </article>
+              </article>
+
+              <article class="line-popup-chart-panel line-popup-balance-single">
+                <div class="section-title-row">
+                  <div>
+                    <p class="panel-kicker">Line Balancing</p>
+                    <h3>라인밸런싱</h3>
+                  </div>
+                  <strong>{{ selectedLineDetail.balance }}%</strong>
+                </div>
+                <div class="line-balance-chart">
+                  <div class="line-station-bars">
+                    <i
+                      v-for="station in selectedLineDetail.stations"
+                      :key="`${selectedLineDetail.id}-${station.label}`"
+                      :title="station.cycle ? `${station.label} ${station.cycle.toFixed(1)}s` : station.label"
+                      :style="{ height: `${station.value}%` }"
+                    >
+                      <b>{{ station.label }}</b>
+                    </i>
+                  </div>
+                </div>
+              </article>
+
+              <article class="line-popup-chart-panel line-popup-productivity-single">
+                <div class="section-title-row">
+                  <div>
+                    <p class="panel-kicker">UPMH / UPH</p>
+                    <h3>라인 생산성 분석</h3>
+                  </div>
+                  <strong>{{ selectedLineDetail.productivity }}%</strong>
+                </div>
+                <div class="productivity-chart">
+                  <article>
+                    <div class="productivity-label">
+                      <strong>{{ selectedLineDetail.name }}</strong>
+                      <span>{{ selectedLineDetail.productivity }}%</span>
+                    </div>
+                    <div class="productivity-bars">
+                      <div>
+                        <i :style="{ width: `${selectedLineDetail.upmhPercent}%` }"></i>
+                        <span>UPMH {{ selectedLineDetail.upmh.toLocaleString() }}</span>
+                      </div>
+                      <div>
+                        <i :style="{ width: `${selectedLineDetail.uphPercent}%` }"></i>
+                        <span>UPH {{ selectedLineDetail.uph.toLocaleString() }}</span>
+                      </div>
+                    </div>
+                  </article>
+                </div>
+              </article>
+            </section>
+          </article>
+        </div>
+      </Teleport>
 
       <Teleport to="body">
         <div

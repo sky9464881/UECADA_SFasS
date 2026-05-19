@@ -20,16 +20,16 @@ but are not written to the backend server.
 All lines are published with a line prefix to prevent collisions:
 
 ```text
-ns=2;s=LINE01.CAST01.Temperature
-ns=2;s=LINE02.CAST01.Temperature
-ns=2;s=LINE03.CAST01.Temperature
+ns=2;s=LINE01.CAST01.InjectionPressure
+ns=2;s=LINE02.CNC01.SpindleSpeed
+ns=2;s=LINE03.WASH01.CleaningTemperature
 ```
 
 For compatibility with the BE table, LINE-01 is also published without the line
 prefix:
 
 ```text
-ns=2;s=CAST01.Temperature
+ns=2;s=CAST01.InjectionPressure
 ```
 
 Each equipment also has a combined JSON snapshot:
@@ -61,28 +61,32 @@ without `{LINE}.`.
 
 | Process | Equipment | Backend Node ID | Type | Source line tag | BE handling |
 |---|---|---|---|---|---|
-| Casting | CAST-01 | `ns=2;s={LINE}.CAST01.Temperature` | Double | `mold_temperature` | Buffer: `CAST01:temperature` |
-| Casting | CAST-01 | `ns=2;s={LINE}.CAST01.Pressure` | Double | `injection_pressure` | Buffer: `CAST01:pressure` |
+| Casting | CAST-01 | `ns=2;s={LINE}.CAST01.InjectionPressure` | Double | `injection_pressure` | Buffer: `CAST01:injection_pressure` |
+| Casting | CAST-01 | `ns=2;s={LINE}.CAST01.MoldTemperature` | Double | `mold_temperature` | Buffer: `CAST01:mold_temperature` |
+| Casting | CAST-01 | `ns=2;s={LINE}.CAST01.CoolingFlow` | Double | `cooling_flow` | Buffer: `CAST01:cooling_flow` |
 | Casting | CAST-01 | `ns=2;s={LINE}.CAST01.CycleTime` | Double | `cycle_time` | Buffer: `CAST01:cycle_time` |
 | Casting | CAST-01 | `ns=2;s={LINE}.CAST01.Status` | Int32 | `status` | `equipment_status` UPSERT |
 | Casting | CAST-01 | `ns=2;s={LINE}.CAST01.AlarmCode` | Int32 | derived `0` | `alarms` INSERT when non-zero |
-| Machining | CNC-01/02/03 | `ns=2;s={LINE}.CNC01.SpindleLoad` | Double | `tool_usage` | Buffer, FFT trigger can use this |
-| Machining | CNC-01/02/03 | `ns=2;s={LINE}.CNC01.SpindleRPM` | Double | `spindle_speed` | Buffer |
-| Machining | CNC-01/02/03 | `ns=2;s={LINE}.CNC01.FeedRate` | Double | `coolant_flow` simulator fallback | Buffer |
+| Machining | CNC-01/02/03 | `ns=2;s={LINE}.CNC01.SpindleSpeed` | Int32 | `spindle_speed` | Buffer: `CNC01:spindle_speed` |
+| Machining | CNC-01/02/03 | `ns=2;s={LINE}.CNC01.ToolUsage` | Double | `tool_usage` | Buffer: `CNC01:tool_usage` |
+| Machining | CNC-01/02/03 | `ns=2;s={LINE}.CNC01.CoolantFlow` | Double | `coolant_flow` | Buffer: `CNC01:coolant_flow` |
 | Machining | CNC-01/02/03 | `ns=2;s={LINE}.CNC01.CycleTime` | Double | `cycle_time` | Buffer |
 | Machining | CNC-01/02/03 | `ns=2;s={LINE}.CNC01.Status` | Int32 | `status` | `equipment_status` UPSERT |
 | Machining | CNC-01/02/03 | `ns=2;s={LINE}.CNC01.AlarmCode` | Int32 | derived `0` | `alarms` INSERT when non-zero |
-| Washing | WASH-01 | `ns=2;s={LINE}.WASH01.WaterTemp` | Double | `cleaning_temperature` | Buffer |
-| Washing | WASH-01 | `ns=2;s={LINE}.WASH01.FlowRate` | Double | `cleaning_flow` | Buffer |
+| Washing | WASH-01 | `ns=2;s={LINE}.WASH01.CleaningConcentration` | Double | `cleaning_concentration` | Buffer: `WASH01:cleaning_concentration` |
+| Washing | WASH-01 | `ns=2;s={LINE}.WASH01.CleaningTemperature` | Double | `cleaning_temperature` | Buffer: `WASH01:cleaning_temperature` |
+| Washing | WASH-01 | `ns=2;s={LINE}.WASH01.CleaningPressure` | Double | `cleaning_pressure` | Buffer: `WASH01:cleaning_pressure` |
 | Washing | WASH-01 | `ns=2;s={LINE}.WASH01.CycleTime` | Double | `cycle_time` | Buffer |
 | Washing | WASH-01 | `ns=2;s={LINE}.WASH01.Status` | Int32 | `status` | `equipment_status` UPSERT |
-| Assembly | ASSY-01/02 | `ns=2;s={LINE}.ASSY01.TorqueValue` | Double | `tightening_torque` | Buffer: `ASSY01:torque` |
-| Assembly | ASSY-01/02 | `ns=2;s={LINE}.ASSY01.CycleCount` | Int32 | derived from `progress` | `operation_log` update |
+| Assembly | ASSY-01/02 | `ns=2;s={LINE}.ASSY01.TighteningTorque` | Double | `tightening_torque` | Buffer: `ASSY01:tightening_torque` |
+| Assembly | ASSY-01/02 | `ns=2;s={LINE}.ASSY01.TighteningAngle` | Double | `tightening_angle` | Buffer: `ASSY01:tightening_angle` |
+| Assembly | ASSY-01/02 | `ns=2;s={LINE}.ASSY01.PressForce` | Double | `press_force` | Buffer: `ASSY01:press_force` |
 | Assembly | ASSY-01/02 | `ns=2;s={LINE}.ASSY01.CycleTime` | Double | `cycle_time` | Buffer |
 | Assembly | ASSY-01/02 | `ns=2;s={LINE}.ASSY01.Status` | Int32 | `status` | `equipment_status` UPSERT |
 | Assembly | ASSY-01/02 | `ns=2;s={LINE}.ASSY01.AlarmCode` | Int32 | derived `0` | `alarms` INSERT when non-zero |
-| Test | TEST-01/02 | `ns=2;s={LINE}.TEST01.LeakPressure` | Double | `hole_dimension` simulator fallback | Buffer: `TEST01:leak_pressure` |
-| Test | TEST-01/02 | `ns=2;s={LINE}.TEST01.LeakResult` | Boolean | `result_ok` | Fail can insert alarm |
+| Test | TEST-01/02 | `ns=2;s={LINE}.TEST01.BoreDimension` | Double | `bore_dimension` | Buffer: `TEST01:bore_dimension` |
+| Test | TEST-01/02 | `ns=2;s={LINE}.TEST01.HoleDimension` | Double | `hole_dimension` | Buffer: `TEST01:hole_dimension` |
+| Test | TEST-01/02 | `ns=2;s={LINE}.TEST01.ResultOk` | Boolean | `result_ok` | Buffer: `TEST01:result_ok` |
 | Test | TEST-01/02 | `ns=2;s={LINE}.TEST01.CycleTime` | Double | `cycle_time` | Buffer |
 | Test | TEST-01/02 | `ns=2;s={LINE}.TEST01.Status` | Int32 | `status` | `equipment_status` UPSERT |
 

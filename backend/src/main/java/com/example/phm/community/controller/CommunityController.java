@@ -63,7 +63,9 @@ public class CommunityController {
     }
 
     @GetMapping("/factory-report")
-    public FactoryReportResponse factoryReport() {
-        return communityService.factoryReport();
+    public FactoryReportResponse factoryReport(
+            @RequestParam(defaultValue = "factory") String type
+    ) {
+        return communityService.factoryReport(type);
     }
 }

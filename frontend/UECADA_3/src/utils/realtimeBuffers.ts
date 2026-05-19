@@ -6,6 +6,21 @@ export type RealtimeMetric =
   | 'sensor_voltage'
   | 'sensor_temperature'
   | 'sensor_vibration'
+  | 'injection_pressure'
+  | 'mold_temperature'
+  | 'cooling_flow'
+  | 'spindle_speed'
+  | 'tool_usage'
+  | 'coolant_flow'
+  | 'cleaning_concentration'
+  | 'cleaning_temperature'
+  | 'cleaning_pressure'
+  | 'tightening_torque'
+  | 'tightening_angle'
+  | 'press_force'
+  | 'bore_dimension'
+  | 'hole_dimension'
+  | 'result_ok'
   | 'temperature'
   | 'pressure'
   | 'spindle_load'
@@ -38,6 +53,21 @@ export const MONITORING_REALTIME_METRICS: readonly RealtimeMetric[] = [
   'sensor_voltage',
   'sensor_temperature',
   'sensor_vibration',
+  'injection_pressure',
+  'mold_temperature',
+  'cooling_flow',
+  'spindle_speed',
+  'tool_usage',
+  'coolant_flow',
+  'cleaning_concentration',
+  'cleaning_temperature',
+  'cleaning_pressure',
+  'tightening_torque',
+  'tightening_angle',
+  'press_force',
+  'bore_dimension',
+  'hole_dimension',
+  'result_ok',
   'temperature',
   'pressure',
   'spindle_load',
@@ -51,28 +81,29 @@ export const MONITORING_REALTIME_METRICS: readonly RealtimeMetric[] = [
 
 const PROCESS_METRICS: Record<string, readonly RealtimeMetricConfig[]> = {
   주조: [
-    { metric: 'temperature', label: '용탕 온도', unit: '°C', digits: 1, status: 'X_DAS 온도 버퍼' },
-    { metric: 'pressure', label: '사출 압력', unit: 'bar', digits: 2, status: 'X_DAS 압력 버퍼' },
-    { metric: 'cycle_time', label: '싸이클 타임', unit: 's', digits: 1, status: 'X_DAS cycle_time' },
+    { metric: 'injection_pressure', label: 'injection_pressure', unit: 'MPa', digits: 2, status: 'X_DAS injection_pressure' },
+    { metric: 'mold_temperature', label: 'mold_temperature', unit: '℃', digits: 1, status: 'X_DAS mold_temperature' },
+    { metric: 'cooling_flow', label: 'cooling_flow', unit: 'L/min', digits: 1, status: 'X_DAS cooling_flow' },
   ],
   가공: [
-    { metric: 'spindle_load', label: '스핀들 부하', unit: '%', digits: 1, status: 'X_DAS spindle_load' },
-    { metric: 'spindle_rpm', label: '스핀들 RPM', unit: 'RPM', digits: 0, status: 'X_DAS spindle_rpm' },
-    { metric: 'feed_rate', label: '이송 속도', unit: 'mm/s', digits: 1, status: 'X_DAS feed_rate' },
-    { metric: 'cycle_time', label: '싸이클 타임', unit: 's', digits: 1, status: 'X_DAS cycle_time' },
+    { metric: 'spindle_speed', label: 'spindle_speed', unit: 'rpm', digits: 0, status: 'X_DAS spindle_speed' },
+    { metric: 'tool_usage', label: 'tool_usage', unit: '%', digits: 1, status: 'X_DAS tool_usage' },
+    { metric: 'coolant_flow', label: 'coolant_flow', unit: 'L/min', digits: 1, status: 'X_DAS coolant_flow' },
   ],
   세척: [
-    { metric: 'water_temp', label: '세척수 온도', unit: '°C', digits: 1, status: 'X_DAS water_temp' },
-    { metric: 'flow_rate', label: '유량', unit: 'L/min', digits: 1, status: 'X_DAS flow_rate' },
-    { metric: 'cycle_time', label: '싸이클 타임', unit: 's', digits: 1, status: 'X_DAS cycle_time' },
+    { metric: 'cleaning_concentration', label: 'cleaning_concentration', unit: '%', digits: 2, status: 'X_DAS cleaning_concentration' },
+    { metric: 'cleaning_temperature', label: 'cleaning_temperature', unit: '℃', digits: 1, status: 'X_DAS cleaning_temperature' },
+    { metric: 'cleaning_pressure', label: 'cleaning_pressure', unit: 'bar', digits: 2, status: 'X_DAS cleaning_pressure' },
   ],
   조립: [
-    { metric: 'torque', label: '체결 토크', unit: 'N·m', digits: 2, status: 'X_DAS torque' },
-    { metric: 'cycle_time', label: '싸이클 타임', unit: 's', digits: 1, status: 'X_DAS cycle_time' },
+    { metric: 'tightening_torque', label: 'tightening_torque', unit: 'Nm', digits: 2, status: 'X_DAS tightening_torque' },
+    { metric: 'tightening_angle', label: 'tightening_angle', unit: 'deg', digits: 1, status: 'X_DAS tightening_angle' },
+    { metric: 'press_force', label: 'press_force', unit: 'N', digits: 1, status: 'X_DAS press_force' },
   ],
   검사: [
-    { metric: 'leak_pressure', label: '리크 압력', unit: 'Pa', digits: 3, status: 'X_DAS leak_pressure' },
-    { metric: 'cycle_time', label: '싸이클 타임', unit: 's', digits: 1, status: 'X_DAS cycle_time' },
+    { metric: 'bore_dimension', label: 'bore_dimension', unit: 'mm', digits: 3, status: 'X_DAS bore_dimension' },
+    { metric: 'hole_dimension', label: 'hole_dimension', unit: 'mm', digits: 3, status: 'X_DAS hole_dimension' },
+    { metric: 'result_ok', label: 'result_ok', unit: 'bool', digits: 0, status: 'X_DAS result_ok' },
   ],
 }
 
