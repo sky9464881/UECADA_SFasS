@@ -7,6 +7,7 @@ export function useDashboard() {
     queryKey: ['dashboard', 'summary'],
     queryFn: fetchDashboardSummary,
     refetchInterval: POLL_INTERVAL_MS.dashboard,
-    staleTime: 5_000,
+    staleTime: 0,
+    refetchIntervalInBackground: true,
   })
 }

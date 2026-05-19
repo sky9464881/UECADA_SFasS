@@ -16,10 +16,11 @@ export async function createUser(payload: UserCreatePayload): Promise<UserRespon
 export async function updateUserRole(
   userId: string,
   roleName: RoleCode,
+  lineId?: string | null,
 ): Promise<UserResponse> {
   const { data } = await api.patch<UserResponse>(
     `/api/users/${encodeURIComponent(userId)}/role`,
-    { roleName },
+    { roleName, lineId },
   )
   return data
 }

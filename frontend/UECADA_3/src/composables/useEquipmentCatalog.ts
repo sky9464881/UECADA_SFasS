@@ -98,10 +98,6 @@ function formatMetric(value: number | null | undefined, unit: string, digits = 1
   return `${Number(value).toFixed(digits)}${unit}`
 }
 
-function buildRealtimeKeys(equipments: readonly Equipment[]): string[] {
-  return realtimeKeysForEquipments(equipments)
-}
-
 function latestFrameMap(items: readonly SensorBufferLatest[]): LatestFrameMap {
   const map: LatestFrameMap = new Map()
   for (const item of items) {
@@ -136,15 +132,6 @@ function realtimeRate(map: LatestFrameMap, equipmentCode: string, fallbackState:
   return Math.max(0, Math.round(100 - ((age - FRESH_MS) / (STALE_MS - FRESH_MS)) * 100))
 }
 
-function realtimeLabel(map: LatestFrameMap, equipmentCode: string): string {
-  const ts = latestTimestamp(map, equipmentCode)
-  if (ts == null) return '미수신'
-  const age = Date.now() - ts
-  if (age <= FRESH_MS) return '실시간'
-  if (age <= STALE_MS) return '지연'
-  return '오프라인'
-}
-
 function buildCommon(equipment: Equipment, realtime: LatestFrameMap): EquipmentCommonMetric[] {
   const current = latestValue(realtime, equipment.equipmentCode, 'sensor_current')
   const voltage = latestValue(realtime, equipment.equipmentCode, 'sensor_voltage')
@@ -154,24 +141,19 @@ function buildCommon(equipment: Equipment, realtime: LatestFrameMap): EquipmentC
   return [
     { label: '전류', value: formatMetric(current, 'A', 1) },
     { label: '전압', value: formatMetric(voltage, 'V', 1) },
-    { label: '온도', value: formatMetric(temperature, '°C', 1) },
+    { label: '온도', value: formatMetric(temperature, '℃', 1) },
     { label: '진동', value: formatMetric(vibration, '', 3) },
   ]
 }
 
 function formatRealtimeMetric(value: number | null | undefined, config: RealtimeMetricConfig): string {
   if (value == null || Number.isNaN(Number(value))) return '-'
-  if (config.metric === 'result_ok') {
-    return value >= 0.5 ? 'true' : 'false'
-  }
+  if (config.metric === 'result_ok') return value >= 0.5 ? 'true' : 'false'
   return formatMetric(value, config.unit, config.digits)
 }
 
-function buildRealtimeSpecific(
-  equipment: Equipment,
-  realtime: LatestFrameMap,
-): EquipmentSpecificMetric[] {
-  return processRealtimeMetricConfigs(equipment.processType).map((config: RealtimeMetricConfig) => {
+function buildSpecific(equipment: Equipment, realtime: LatestFrameMap): EquipmentSpecificMetric[] {
+  const items = processRealtimeMetricConfigs(equipment.processType).map((config: RealtimeMetricConfig) => {
     const value = latestValue(realtime, equipment.equipmentCode, config.metric)
     return {
       label: config.label,
@@ -179,13 +161,6 @@ function buildRealtimeSpecific(
       status: value == null ? '버퍼 수신 대기' : config.status,
     }
   })
-}
-
-function buildSpecific(
-  equipment: Equipment,
-  realtime: LatestFrameMap,
-): EquipmentSpecificMetric[] {
-  const items = buildRealtimeSpecific(equipment, realtime)
   return items.length ? items : [{ label: 'type_data', value: '-', status: '버퍼 수신 대기' }]
 }
 
@@ -197,14 +172,15 @@ export function useEquipmentCatalog() {
   })
 
   const equipIds = computed(() => (equipmentsQuery.data.value ?? []).map((e) => e.equipmentCode))
-  const realtimeKeys = computed(() => buildRealtimeKeys(equipmentsQuery.data.value ?? []))
+  const realtimeKeys = computed(() => realtimeKeysForEquipments(equipmentsQuery.data.value ?? []))
 
   const statusQuery = useQuery({
     queryKey: computed(() => ['equipment-statuses', equipIds.value]),
     queryFn: () => fetchEquipmentStatuses(equipIds.value),
     enabled: computed(() => equipIds.value.length > 0),
     refetchInterval: POLL_INTERVAL_MS.equipmentCategory,
-    staleTime: 5_000,
+    staleTime: 0,
+    refetchIntervalInBackground: true,
   })
 
   const realtimeQuery = useQuery({

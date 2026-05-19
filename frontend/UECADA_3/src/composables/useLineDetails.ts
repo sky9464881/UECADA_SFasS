@@ -138,7 +138,7 @@ function processStages(
           state: equipmentState(statuses.get(equipment.equipmentCode)),
           cycle,
           cycleLabel: cycle == null ? 'CT 대기' : `CT ${cycle.toFixed(1)}s`,
-          tempLabel: temperature == null ? '온도 대기' : `${temperature.toFixed(1)}°C`,
+          tempLabel: temperature == null ? '온도 대기' : `${temperature.toFixed(1)}℃`,
         }
       }),
   }))
@@ -220,7 +220,8 @@ export function useLineDetails() {
     queryKey: ['line-details', 'FACTORY-01'],
     queryFn: () => fetchLines('FACTORY-01'),
     refetchInterval: POLL_INTERVAL_MS.lineDetail,
-    staleTime: 5_000,
+    staleTime: 0,
+    refetchIntervalInBackground: true,
   })
 
   const equipmentsQuery = useQuery({
@@ -236,7 +237,8 @@ export function useLineDetails() {
     queryFn: () => fetchEquipmentStatuses(equipmentCodes.value),
     enabled: computed(() => equipmentCodes.value.length > 0),
     refetchInterval: POLL_INTERVAL_MS.equipmentCategory,
-    staleTime: 5_000,
+    staleTime: 0,
+    refetchIntervalInBackground: true,
   })
 
   const realtimeKeys = computed(() =>
