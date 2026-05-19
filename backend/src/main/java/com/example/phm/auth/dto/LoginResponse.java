@@ -1,5 +1,7 @@
 package com.example.phm.auth.dto;
 
+import java.time.LocalDateTime;
+
 import com.example.phm.auth.entity.User;
 
 public record LoginResponse(
@@ -8,7 +10,8 @@ public record LoginResponse(
         String userName,
         String email,
         String roleName,
-        String lineId
+        String lineId,
+        LocalDateTime lastLoginAt
 ) {
     public static LoginResponse from(User user) {
         return new LoginResponse(
@@ -17,7 +20,8 @@ public record LoginResponse(
                 user.getUserName(),
                 user.getEmail(),
                 user.getRoleName(),
-                user.getLineId()
+                user.getLineId(),
+                user.getLastLoginAt()
         );
     }
 }

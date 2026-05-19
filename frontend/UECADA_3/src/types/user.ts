@@ -7,6 +7,9 @@ export interface UserResponse {
   email: string | null
   roleName: RoleCode
   lineId: string | null
+  lastLoginAt: string | null
+  failedLoginCount: number
+  locked: boolean
   createdAt: string
 }
 

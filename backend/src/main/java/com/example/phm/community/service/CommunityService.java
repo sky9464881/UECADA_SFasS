@@ -26,6 +26,7 @@ import com.example.phm.community.entity.ChatRoomReadState;
 import com.example.phm.community.repository.ChatMessageRepository;
 import com.example.phm.community.repository.ChatRoomReadStateRepository;
 import com.example.phm.community.repository.ChatRoomRepository;
+import com.example.phm.demo.service.DemoMetricsService;
 import com.example.phm.equipment.entity.Equipment;
 import com.example.phm.equipment.repository.EquipmentRepository;
 import com.example.phm.line.dto.LineResponse;
@@ -55,6 +56,7 @@ public class CommunityService {
     private final EquipmentRepository equipmentRepository;
     private final AlarmRepository alarmRepository;
     private final SensorBufferRegistry sensorBufferRegistry;
+    private final DemoMetricsService demoMetricsService;
 
     public CommunityService(
             UserRepository userRepository,
@@ -65,7 +67,8 @@ public class CommunityService {
             LineAggregationService lineAggregationService,
             EquipmentRepository equipmentRepository,
             AlarmRepository alarmRepository,
-            SensorBufferRegistry sensorBufferRegistry
+            SensorBufferRegistry sensorBufferRegistry,
+            DemoMetricsService demoMetricsService
     ) {
         this.userRepository = userRepository;
         this.lineRepository = lineRepository;
@@ -76,6 +79,7 @@ public class CommunityService {
         this.equipmentRepository = equipmentRepository;
         this.alarmRepository = alarmRepository;
         this.sensorBufferRegistry = sensorBufferRegistry;
+        this.demoMetricsService = demoMetricsService;
     }
 
     @Transactional(readOnly = true)
@@ -411,8 +415,11 @@ public class CommunityService {
         List<LineResponse> lines = lineAggregationService.getLines("FACTORY-01");
         List<Equipment> equipments = equipmentRepository.findAll();
         List<Alarm> openAlarmRows = alarmRepository.findByFilters("OPEN", null, null, null);
+        Map<String, DemoMetricsService.EquipmentRuntimeDto> runtimeByCode = demoMetricsService.equipmentRuntimeFor(
+                equipments.stream().map(Equipment::getEquipmentCode).toList()
+        );
         List<EquipmentEnergyRow> energyRows = equipments.stream()
-                .map(this::equipmentEnergyRow)
+                .map(equipment -> equipmentEnergyRow(equipment, runtimeByCode.get(equipment.getEquipmentCode())))
                 .toList();
 
         long equipmentTotal = lines.stream().mapToLong(LineResponse::equipmentTotal).sum();
@@ -470,10 +477,22 @@ public class CommunityService {
         );
     }
 
-    private EquipmentEnergyRow equipmentEnergyRow(Equipment equipment) {
-        Double voltage = latestMetricValue(equipment.getEquipmentCode(), "sensor_voltage");
-        Double current = latestMetricValue(equipment.getEquipmentCode(), "sensor_current");
-        Double temperature = latestMetricValue(equipment.getEquipmentCode(), "sensor_temperature");
+    private EquipmentEnergyRow equipmentEnergyRow(
+            Equipment equipment,
+            DemoMetricsService.EquipmentRuntimeDto fallback
+    ) {
+        Double current = firstNonNull(
+                latestMetricValue(equipment.getEquipmentCode(), "sensor_current"),
+                fallback == null ? null : fallback.currentAmp()
+        );
+        Double voltage = firstNonNull(
+                latestMetricValue(equipment.getEquipmentCode(), "sensor_voltage"),
+                current == null ? null : 220.0
+        );
+        Double temperature = firstNonNull(
+                latestMetricValue(equipment.getEquipmentCode(), "sensor_temperature"),
+                fallback == null ? null : fallback.temperatureC()
+        );
         double powerW = voltage != null && current != null ? voltage * current : 0.0;
         double dailyKwh = powerW / 1000.0 * 24.0;
         double annualKwh = dailyKwh * 365.0;
@@ -492,6 +511,10 @@ public class CommunityService {
                 annualEmissionsTco2,
                 voltage != null || current != null || temperature != null
         );
+    }
+
+    private Double firstNonNull(Double primary, Double fallback) {
+        return primary != null ? primary : fallback;
     }
 
     private void appendDocumentInfo(

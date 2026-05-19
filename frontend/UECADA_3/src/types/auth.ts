@@ -7,6 +7,7 @@ export interface AuthUser {
   email: string | null
   roleName: string
   lineId: string | null
+  lastLoginAt?: string | null
 }
 
 export interface LoginPayload {

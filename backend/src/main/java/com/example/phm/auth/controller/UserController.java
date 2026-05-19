@@ -3,6 +3,7 @@ package com.example.phm.auth.controller;
 import java.util.List;
 
 import com.example.phm.auth.dto.UserCreateRequest;
+import com.example.phm.auth.dto.UserLockUpdateRequest;
 import com.example.phm.auth.dto.UserResponse;
 import com.example.phm.auth.dto.UserRoleUpdateRequest;
 import com.example.phm.auth.service.UserService;
@@ -45,5 +46,13 @@ public class UserController {
             @Valid @RequestBody UserRoleUpdateRequest request
     ) {
         return userService.updateRole(userId, request);
+    }
+
+    @PatchMapping("/{userId}/lock")
+    public UserResponse updateLock(
+            @PathVariable String userId,
+            @RequestBody UserLockUpdateRequest request
+    ) {
+        return userService.updateLock(userId, request);
     }
 }
