@@ -9,6 +9,7 @@ import {
   Eye,
   FileText,
   LogOut,
+  Maximize2,
   Megaphone,
   MessageSquare,
   Pencil,
@@ -17,6 +18,7 @@ import {
   Sparkles,
   UserRound,
   Users,
+  X,
 } from 'lucide-vue-next'
 import {
   createDirectChatRoom,
@@ -30,10 +32,12 @@ import {
   type LineGroup,
   type LineGroupUser,
 } from '@/api/communityApi'
+import { fetchAlarmList } from '@/api/alarmApi'
 import { createPost, fetchPosts } from '@/api/postApi'
 import { useAppNav } from '@/composables/useAppNav'
 import { useLogout } from '@/composables/useLogout'
 import { useAuthStore } from '@/stores/auth'
+import type { PostResponse } from '@/types/post'
 import { CATEGORY_OPTIONS, categoryLabel } from '@/types/post'
 
 const { navItems } = useAppNav()
@@ -67,12 +71,16 @@ const selectedGroupLineId = ref<string>('ALL')
 const selectedRoomId = ref<number | null>(null)
 const selectedReportType = ref<FactoryReportType>('heat_safety')
 const selectedGroupModal = ref<LineGroup | null>(null)
+const selectedPost = ref<PostResponse | null>(null)
 const chatMode = ref<'LINE' | 'DIRECT'>('LINE')
 const chatDraft = ref('')
 const searchText = ref('')
 const directSearch = ref('')
 const reportByType = ref<Partial<Record<FactoryReportType, FactoryReport>>>({})
 const showPostComposer = ref(false)
+const showNotificationPanel = ref(false)
+const showUserPanel = ref(false)
+const showReportPreviewModal = ref(false)
 const boardPanelRef = ref<HTMLElement | null>(null)
 
 const postForm = reactive({
@@ -99,6 +107,14 @@ const postsQuery = useQuery({
   refetchIntervalInBackground: true,
 })
 
+const allPostsQuery = useQuery({
+  queryKey: ['community', 'posts', 'all'],
+  queryFn: () => fetchPosts(),
+  staleTime: 2_000,
+  refetchInterval: 5_000,
+  refetchIntervalInBackground: true,
+})
+
 const roomsQuery = useQuery({
   queryKey: computed(() => ['community', 'chat-rooms', currentUser.value.userId]),
   queryFn: () => fetchChatRooms(currentUser.value.userId),
@@ -118,6 +134,14 @@ const messagesQuery = useQuery({
   refetchIntervalInBackground: true,
 })
 
+const alarmsQuery = useQuery({
+  queryKey: ['community', 'alarm-list'],
+  queryFn: fetchAlarmList,
+  staleTime: 2_000,
+  refetchInterval: 5_000,
+  refetchIntervalInBackground: true,
+})
+
 watch(selectedBoardCategory, (category) => {
   postForm.category = category
   postForm.notice = category === 'NOTICE'
@@ -128,8 +152,20 @@ const allUsers = computed(() =>
   groups.value.flatMap((group) => groupMembers(group)),
 )
 const posts = computed(() => postsQuery.data.value ?? [])
-const pinnedPosts = computed(() => posts.value.filter((post) => post.notice).slice(0, 3))
-const tablePosts = computed(() => posts.value.filter((post) => !post.notice).slice(0, 8))
+const allBoardPosts = computed(() =>
+  (allPostsQuery.data.value ?? []).filter((post) =>
+    ['NOTICE', 'QNA', 'HANDOVER'].includes(String(post.category ?? '')),
+  ),
+)
+const boardSearchQuery = computed(() => searchText.value.trim().toLowerCase())
+const visiblePosts = computed(() => {
+  if (!boardSearchQuery.value) return posts.value
+  return allBoardPosts.value.filter((post) =>
+    post.title.toLowerCase().includes(boardSearchQuery.value),
+  )
+})
+const pinnedPosts = computed(() => visiblePosts.value.filter((post) => post.notice).slice(0, 3))
+const tablePosts = computed(() => visiblePosts.value.filter((post) => !post.notice).slice(0, 8))
 const rooms = computed(() => roomsQuery.data.value ?? [])
 const filteredRooms = computed(() =>
   rooms.value.filter((room) => {
@@ -140,6 +176,18 @@ const filteredRooms = computed(() =>
 const selectedRoom = computed(() => rooms.value.find((room) => room.chatRoomId === selectedRoomId.value) ?? null)
 const messages = computed(() => messagesQuery.data.value ?? [])
 const selectedReport = computed(() => reportByType.value[selectedReportType.value] ?? null)
+const alarmRows = computed(() => alarmsQuery.data.value?.rows ?? [])
+const activeAlarmRows = computed(() =>
+  alarmRows.value.filter((alarm) => alarm.status !== '처리완료').slice(0, 5),
+)
+const noticePosts = computed(() =>
+  allBoardPosts.value.filter((post) => post.notice || post.category === 'NOTICE').slice(0, 5),
+)
+const unreadRooms = computed(() => rooms.value.filter((room) => unreadCount(room) > 0))
+const unreadChatTotal = computed(() => rooms.value.reduce((sum, room) => sum + unreadCount(room), 0))
+const notificationCount = computed(() =>
+  Math.min(99, unreadChatTotal.value + activeAlarmRows.value.length + noticePosts.value.length),
+)
 
 watch(
   () => [roomsQuery.data.value, chatMode.value] as const,
@@ -203,6 +251,7 @@ const createPostMutation = useMutation({
     postForm.content = ''
     showPostComposer.value = false
     queryClient.invalidateQueries({ queryKey: ['community', 'posts'] })
+    queryClient.invalidateQueries({ queryKey: ['community', 'posts', 'all'] })
   },
 })
 
@@ -289,6 +338,41 @@ function downloadReport() {
   link.download = `uecada-${report.reportType}-${new Date().toISOString().slice(0, 10)}.md`
   link.click()
   URL.revokeObjectURL(url)
+}
+
+function openPost(post: PostResponse) {
+  selectedPost.value = post
+}
+
+function closeFloatingPanels() {
+  showNotificationPanel.value = false
+  showUserPanel.value = false
+}
+
+function toggleNotificationPanel() {
+  showNotificationPanel.value = !showNotificationPanel.value
+  if (showNotificationPanel.value) showUserPanel.value = false
+}
+
+function toggleUserPanel() {
+  showUserPanel.value = !showUserPanel.value
+  if (showUserPanel.value) showNotificationPanel.value = false
+}
+
+function focusPostFromNotification(post: PostResponse) {
+  closeFloatingPanels()
+  selectedBoardCategory.value = (post.category ?? 'NOTICE') as (typeof boardTabs)[number]['code']
+  openPost(post)
+}
+
+function openRoomFromNotification(roomId: number, roomType: string) {
+  closeFloatingPanels()
+  chatMode.value = String(roomType).toUpperCase() === 'DIRECT' ? 'DIRECT' : 'LINE'
+  selectedRoomId.value = roomId
+}
+
+function clearSearch() {
+  searchText.value = ''
 }
 
 function groupMembers(group: LineGroup): LineGroupUser[] {
@@ -519,18 +603,104 @@ function markdownToHtml(markdown: string): string {
         </div>
         <div class="community-topbar-actions">
           <label class="community-search">
-            <input v-model="searchText" type="search" placeholder="검색어를 입력하세요." />
-            <Search :size="18" />
+            <input
+              v-model="searchText"
+              type="search"
+              placeholder="검색어를 입력하세요."
+              @focus="closeFloatingPanels"
+            />
+            <button type="button" aria-label="게시글 제목 검색">
+              <Search :size="18" />
+            </button>
           </label>
-          <button type="button" class="community-bell" aria-label="공지 알림">
+          <div class="community-popover-wrap">
+            <button
+              type="button"
+              class="community-bell"
+              aria-label="알림 보기"
+              :aria-expanded="showNotificationPanel"
+              @click="toggleNotificationPanel"
+            >
             <Bell :size="20" />
-            <b>{{ pinnedPosts.length }}</b>
-          </button>
-          <span class="community-user-chip">
-            <UserRound :size="20" />
-            <strong>{{ currentUser.userName }}</strong>
-            <ChevronDown :size="16" />
-          </span>
+              <b v-if="notificationCount > 0">{{ formatUnread(notificationCount) }}</b>
+            </button>
+            <section v-if="showNotificationPanel" class="community-popover community-notification-popover">
+              <header>
+                <strong>알림</strong>
+                <span>채팅 · 공장 알림 · 공지</span>
+              </header>
+              <div class="community-notification-section">
+                <b>안 읽은 채팅</b>
+                <button
+                  v-for="room in unreadRooms"
+                  :key="`notice-room-${room.chatRoomId}`"
+                  type="button"
+                  @click="openRoomFromNotification(room.chatRoomId, room.roomType)"
+                >
+                  <span>{{ room.roomName }}</span>
+                  <em>{{ formatUnread(unreadCount(room)) }}</em>
+                </button>
+                <p v-if="!unreadRooms.length">새 채팅 알림이 없습니다.</p>
+              </div>
+              <div class="community-notification-section">
+                <b>공장/라인 알림</b>
+                <article v-for="alarm in activeAlarmRows" :key="`alarm-${alarm.alarmId}-${alarm.time}`">
+                  <span>{{ alarm.equipment }} · {{ alarm.type }}</span>
+                  <small>{{ alarm.message }}</small>
+                </article>
+                <p v-if="!activeAlarmRows.length">미처리 공장 알림이 없습니다.</p>
+              </div>
+              <div class="community-notification-section">
+                <b>공지사항</b>
+                <button
+                  v-for="post in noticePosts"
+                  :key="`notice-post-${post.postId}`"
+                  type="button"
+                  @click="focusPostFromNotification(post)"
+                >
+                  <span>{{ post.title }}</span>
+                  <small>{{ post.targetLineId || '전체' }}</small>
+                </button>
+              </div>
+            </section>
+          </div>
+          <div class="community-popover-wrap">
+            <button
+              type="button"
+              class="community-user-chip"
+              aria-label="사용자 정보 보기"
+              :aria-expanded="showUserPanel"
+              @click="toggleUserPanel"
+            >
+              <UserRound :size="20" />
+              <strong>{{ currentUser.userName }}</strong>
+              <ChevronDown :size="16" />
+            </button>
+            <section v-if="showUserPanel" class="community-popover community-user-popover">
+              <header>
+                <strong>{{ currentUser.userName }}</strong>
+                <span>{{ roleLabel(currentUser.roleName) }}</span>
+              </header>
+              <dl>
+                <div>
+                  <dt>로그인 ID</dt>
+                  <dd>{{ currentUser.loginId }}</dd>
+                </div>
+                <div>
+                  <dt>담당 라인</dt>
+                  <dd>{{ currentUser.lineId || '전체' }}</dd>
+                </div>
+                <div>
+                  <dt>이메일</dt>
+                  <dd>{{ currentUser.email || '-' }}</dd>
+                </div>
+              </dl>
+              <button type="button" class="ghost-button" @click="logout">
+                <LogOut :size="16" />
+                로그아웃
+              </button>
+            </section>
+          </div>
           <button type="button" class="icon-link" @click="logout">
             <LogOut :size="16" />
             <span>로그아웃</span>
@@ -578,7 +748,14 @@ function markdownToHtml(markdown: string): string {
         </form>
 
         <div class="community-notice-list">
-          <article v-for="post in pinnedPosts" :key="`pin-${post.postId}`">
+          <article
+            v-for="post in pinnedPosts"
+            :key="`pin-${post.postId}`"
+            role="button"
+            tabindex="0"
+            @click="openPost(post)"
+            @keydown.enter.prevent="openPost(post)"
+          >
             <Megaphone :size="16" />
             <strong>{{ categoryLabel(post.category) }}</strong>
             <span>{{ post.title }}</span>
@@ -602,7 +779,12 @@ function markdownToHtml(markdown: string): string {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="post in tablePosts" :key="post.postId">
+            <tr
+              v-for="post in tablePosts"
+              :key="post.postId"
+              class="community-clickable-row"
+              @click="openPost(post)"
+            >
               <td>{{ post.postId }}</td>
               <td>{{ post.title }}</td>
               <td><span class="community-category-badge">{{ categoryLabel(post.category) }}</span></td>
@@ -611,10 +793,16 @@ function markdownToHtml(markdown: string): string {
               <td>{{ Math.max(1, post.postId % 137) }}</td>
             </tr>
             <tr v-if="!tablePosts.length">
-              <td colspan="6">게시글이 없습니다.</td>
+              <td colspan="6">
+                {{ boardSearchQuery ? '검색 결과가 없습니다.' : '게시글이 없습니다.' }}
+              </td>
             </tr>
           </tbody>
         </table>
+        <div v-if="boardSearchQuery" class="community-search-result-note">
+          <span>`{{ searchText }}` 제목 검색 결과 {{ visiblePosts.length }}건</span>
+          <button type="button" @click="clearSearch">검색 초기화</button>
+        </div>
       </section>
 
       <section class="community-lower-grid">
@@ -815,6 +1003,15 @@ function markdownToHtml(markdown: string): string {
                 <Download :size="16" />
                 <span>저장</span>
               </button>
+              <button
+                class="ghost-button"
+                type="button"
+                :disabled="!selectedReport"
+                @click="showReportPreviewModal = true"
+              >
+                <Maximize2 :size="16" />
+                <span>크게 보기</span>
+              </button>
             </aside>
             <iframe
               class="community-report-frame"
@@ -866,6 +1063,49 @@ function markdownToHtml(markdown: string): string {
           </div>
         </section>
       </div>
+
+      <div v-if="selectedPost" class="community-modal-backdrop" @click.self="selectedPost = null">
+        <section class="community-post-modal" role="dialog" aria-modal="true" :aria-label="selectedPost.title">
+          <header>
+            <div>
+              <p class="panel-kicker">{{ categoryLabel(selectedPost.category) }}</p>
+              <h2>{{ selectedPost.title }}</h2>
+              <span>{{ selectedPost.targetLineId || '전체 라인' }} · {{ formatDate(selectedPost.createdAt) }}</span>
+            </div>
+            <button type="button" aria-label="닫기" @click="selectedPost = null">
+              <X :size="18" />
+            </button>
+          </header>
+          <article class="community-post-body">
+            {{ selectedPost.content }}
+          </article>
+        </section>
+      </div>
+
+      <div v-if="showReportPreviewModal" class="community-modal-backdrop" @click.self="showReportPreviewModal = false">
+        <section class="community-report-modal" role="dialog" aria-modal="true" :aria-label="`${selectedReportLabel} 크게 보기`">
+          <header>
+            <div>
+              <p class="panel-kicker">Auto Documentation</p>
+              <h2>{{ selectedReportLabel }}</h2>
+            </div>
+            <div>
+              <button class="ghost-button" type="button" :disabled="!selectedReport" @click="downloadReport">
+                <Download :size="16" />
+                저장
+              </button>
+              <button type="button" aria-label="닫기" @click="showReportPreviewModal = false">
+                <X :size="18" />
+              </button>
+            </div>
+          </header>
+          <iframe
+            class="community-report-frame community-report-frame-large"
+            title="자동 문서화 Markdown 큰 미리보기"
+            :srcdoc="reportPreviewSrcdoc"
+          />
+        </section>
+      </div>
     </section>
   </main>
 </template>
@@ -906,6 +1146,10 @@ function markdownToHtml(markdown: string): string {
   background: #fff;
 }
 
+.community-popover-wrap {
+  position: relative;
+}
+
 .community-search input {
   width: 100%;
   min-width: 0;
@@ -913,6 +1157,17 @@ function markdownToHtml(markdown: string): string {
   outline: 0;
   padding: 11px 0;
   font: inherit;
+}
+
+.community-search button {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  background: transparent;
+  color: #0f1f38;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
 }
 
 .community-bell {
@@ -942,10 +1197,141 @@ function markdownToHtml(markdown: string): string {
 }
 
 .community-user-chip {
+  border: 0;
   border-radius: 999px;
   background: #fff;
   padding: 7px 11px;
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+  cursor: pointer;
+}
+
+.community-popover {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  z-index: 80;
+  width: min(360px, calc(100vw - 32px));
+  border: 1px solid #dbe5f0;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 22px 50px rgba(15, 23, 42, 0.18);
+  padding: 14px;
+}
+
+.community-popover header {
+  display: grid;
+  gap: 3px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 10px;
+}
+
+.community-popover header strong {
+  color: #0f1f38;
+  font-size: 15px;
+}
+
+.community-popover header span {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.community-notification-popover {
+  max-height: min(560px, calc(100vh - 120px));
+  overflow: auto;
+}
+
+.community-notification-section {
+  display: grid;
+  gap: 7px;
+  padding: 8px 0;
+  border-bottom: 1px solid #edf2f7;
+}
+
+.community-notification-section:last-child {
+  border-bottom: 0;
+}
+
+.community-notification-section > b {
+  color: #315174;
+  font-size: 12px;
+}
+
+.community-notification-section button,
+.community-notification-section article {
+  width: 100%;
+  border: 1px solid #dbe5f0;
+  border-radius: 8px;
+  background: #f8fbff;
+  padding: 8px 10px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+  text-align: left;
+}
+
+.community-notification-section button {
+  cursor: pointer;
+}
+
+.community-notification-section span,
+.community-notification-section small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.community-notification-section small,
+.community-notification-section p {
+  color: #64748b;
+  font-size: 12px;
+  margin: 0;
+}
+
+.community-notification-section em {
+  min-width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: #2563eb;
+  color: #fff;
+  display: inline-grid;
+  place-items: center;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.community-user-popover {
+  width: 300px;
+}
+
+.community-user-popover dl {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.community-user-popover dl div {
+  display: grid;
+  grid-template-columns: 80px minmax(0, 1fr);
+  gap: 10px;
+  font-size: 13px;
+}
+
+.community-user-popover dt {
+  color: #64748b;
+  font-weight: 800;
+}
+
+.community-user-popover dd {
+  margin: 0;
+  color: #0f1f38;
+  font-weight: 900;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .community-board-panel,
@@ -1053,6 +1439,12 @@ function markdownToHtml(markdown: string): string {
   padding: 0 12px;
   border-bottom: 1px solid #dce8ff;
   color: #334155;
+  cursor: pointer;
+}
+
+.community-notice-list article:hover,
+.community-clickable-row:hover {
+  background: #eef6ff;
 }
 
 .community-notice-list article:last-child {
@@ -1084,6 +1476,33 @@ function markdownToHtml(markdown: string): string {
   color: #64748b;
   font-size: 12px;
   font-weight: 900;
+}
+
+.community-clickable-row {
+  cursor: pointer;
+}
+
+.community-search-result-note {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 9px 12px;
+  border: 1px solid #dbe5f0;
+  border-radius: 8px;
+  background: #f8fbff;
+  color: #334155;
+  font-size: 13px;
+}
+
+.community-search-result-note button {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  padding: 6px 10px;
+  font-weight: 900;
+  cursor: pointer;
 }
 
 .community-category-badge {
@@ -1564,6 +1983,78 @@ function markdownToHtml(markdown: string): string {
   height: 360px;
   border: 0;
   background: #fff;
+}
+
+.community-post-modal,
+.community-report-modal {
+  width: min(980px, 100%);
+  max-height: min(820px, calc(100vh - 48px));
+  overflow: hidden;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.22);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.community-post-modal header,
+.community-report-modal header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.community-post-modal header h2,
+.community-report-modal header h2 {
+  margin: 2px 0 6px;
+  color: #0f1f38;
+  font-size: 22px;
+  line-height: 1.25;
+}
+
+.community-post-modal header span {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.community-post-modal header button,
+.community-report-modal header > button,
+.community-report-modal header div:last-child button {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  color: #0f1f38;
+  min-width: 40px;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.community-report-modal header div:last-child {
+  display: flex;
+  gap: 8px;
+}
+
+.community-post-body {
+  padding: 22px;
+  overflow: auto;
+  color: #0f1f38;
+  line-height: 1.75;
+  white-space: pre-wrap;
+}
+
+.community-report-modal {
+  width: min(1180px, 100%);
+}
+
+.community-report-frame-large {
+  height: min(720px, calc(100vh - 150px));
 }
 
 .community-empty-row {
