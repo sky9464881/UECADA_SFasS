@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import com.example.phm.alarm.entity.Alarm;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -22,8 +23,13 @@ public interface AlarmRepository extends JpaRepository<Alarm, Long> {
             @Param("status") String status,
             @Param("equipmentCode") String equipmentCode,
             @Param("from") LocalDateTime from,
-            @Param("to") LocalDateTime to
+            @Param("to") LocalDateTime to,
+            Pageable pageable
     );
+
+    long countByStatus(String status);
+
+    long countBySeverityIn(java.util.List<String> severities);
 
     @Query(value = """
             SELECT DATE(occurred_at) AS stat_date,

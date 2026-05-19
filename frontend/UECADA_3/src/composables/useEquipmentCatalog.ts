@@ -244,11 +244,11 @@ export function useEquipmentCatalog() {
         const code = sMap.get(e.equipmentCode)
         let state = statusCodeToState(code)
         const cycleTime = latestValue(rMap, e.equipmentCode, 'cycle_time')
-        // 10분 기준 가동률: DB 기록 없으면 sensor 기반 fallback
+        // 현재 센서값(Type Data) 먼저 체크 → 꺼진 상태 즉시 반영
+        const sensorRate = realtimeRate(rMap, e.equipmentCode, state, e.processType)
+        // 센서가 꺼진 상태(0)면 즉시 0, 아니면 10분 가동률 버퍼 사용
         const dbRate = availabilityMap.value.get(e.equipmentCode)
-        const rate = dbRate !== undefined
-          ? dbRate
-          : realtimeRate(rMap, e.equipmentCode, state, e.processType)
+        const rate = sensorRate === 0 ? 0 : (dbRate !== undefined ? dbRate : sensorRate)
         if (rate === 0 && (state === '운전' || state === '대기')) state = '점검'
         return {
           id: e.equipmentCode,

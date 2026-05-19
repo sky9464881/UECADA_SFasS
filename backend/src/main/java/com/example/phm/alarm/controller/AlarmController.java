@@ -2,6 +2,7 @@ package com.example.phm.alarm.controller;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 import com.example.phm.alarm.dto.AlarmCreateRequest;
 import com.example.phm.alarm.dto.AlarmResolveRequest;
@@ -42,9 +43,10 @@ public class AlarmController {
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String equipmentCode,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
+            @RequestParam(required = false, defaultValue = "200") int limit
     ) {
-        return alarmService.findByFilters(status, equipmentCode, from, to);
+        return alarmService.findByFilters(status, equipmentCode, from, to, limit);
     }
 
     @PatchMapping("/{alarmId}/resolve")
@@ -53,6 +55,12 @@ public class AlarmController {
             @RequestBody AlarmResolveRequest request
     ) {
         return alarmService.resolve(alarmId, request);
+    }
+
+    /** 필터 없는 전체 카운트 (요약 카드용) */
+    @GetMapping("/counts")
+    public Map<String, Long> counts() {
+        return alarmService.getCounts();
     }
 
     @GetMapping("/stats")

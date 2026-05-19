@@ -16,8 +16,10 @@ import com.example.phm.alarm.entity.Alarm;
 import com.example.phm.alarm.entity.AlarmHistory;
 import com.example.phm.alarm.repository.AlarmHistoryRepository;
 import com.example.phm.alarm.repository.AlarmRepository;
+import org.springframework.data.domain.PageRequest;
 import com.example.phm.kpi.entity.LineKpiLog;
 import com.example.phm.kpi.repository.LineKpiLogRepository;
+import com.example.phm.kpi.service.KpiRealtimeService;
 import com.example.phm.analysis.entity.AnalysisResult;
 import com.example.phm.analysis.repository.AnalysisResultRepository;
 import com.example.phm.dashboard.dto.DashboardFrontendResponse;
@@ -43,6 +45,7 @@ public class DashboardController {
     private final LineAggregationService lineAggregationService;
     private final VibrationWindowMonitorService vibrationWindowMonitorService;
     private final LineKpiLogRepository lineKpiLogRepository;
+    private final KpiRealtimeService kpiRealtimeService;
 
     public DashboardController(
             EquipmentRepository equipmentRepository,
@@ -51,7 +54,8 @@ public class DashboardController {
             AlarmRepository alarmRepository,
             LineAggregationService lineAggregationService,
             VibrationWindowMonitorService vibrationWindowMonitorService,
-            LineKpiLogRepository lineKpiLogRepository
+            LineKpiLogRepository lineKpiLogRepository,
+            KpiRealtimeService kpiRealtimeService
     ) {
         this.equipmentRepository = equipmentRepository;
         this.analysisResultRepository = analysisResultRepository;
@@ -60,6 +64,7 @@ public class DashboardController {
         this.lineAggregationService = lineAggregationService;
         this.vibrationWindowMonitorService = vibrationWindowMonitorService;
         this.lineKpiLogRepository = lineKpiLogRepository;
+        this.kpiRealtimeService = kpiRealtimeService;
     }
 
     @GetMapping("/api/dashboard/summary")
@@ -81,13 +86,17 @@ public class DashboardController {
     public DashboardFrontendResponse frontendSummary() {
         List<LineResponse> lines = lineAggregationService.getLines("FACTORY-01");
 
+        // 실시간 OEE: 가용성 × 성능 × 품질 (10분 슬라이딩 윈도우)
+        Map<String, Double> lineOeeMap = kpiRealtimeService.lineOeeMap();
+        double factoryOee = kpiRealtimeService.factoryOee(lineOeeMap);
+
         DashboardFrontendResponse.StatusDonut statusDonut = statusDonut(lines);
         DashboardFrontendResponse.AlarmSummary alarmSummary = realtimeAlarmSummary();
         List<DashboardFrontendResponse.LineStat> lineStats = lines.stream()
                 .map(line -> new DashboardFrontendResponse.LineStat(
                         line.lineId(),
                         line.lineName(),
-                        line.latestOee()
+                        lineOeeMap.getOrDefault(line.lineId(), line.latestOee())
                 ))
                 .toList();
         List<DashboardFrontendResponse.OeeHourlySeries> hourlySeries = lines.stream()
@@ -95,7 +104,7 @@ public class DashboardController {
                 .toList();
 
         return new DashboardFrontendResponse(
-                averageOee(lines),
+                factoryOee,
                 statusDonut,
                 alarmSummary,
                 lineStats,
@@ -165,57 +174,35 @@ public class DashboardController {
     }
 
     private DashboardFrontendResponse.AlarmSummary realtimeAlarmSummary() {
-        List<VibrationRealtimeResponse> realtime = vibrationWindowMonitorService.latestRealtimeAll();
-        long critical = realtime.stream().filter(item -> realtimeAlarmLevelEquals(item, "danger")).count();
-        long warning = realtime.stream().filter(item -> realtimeAlarmLevelEquals(item, "warning")).count();
-        long open = critical + warning;
-
-        // 진동 모니터 기반 카운트가 모두 0 이면 알람 테이블 기반 폴백 적용.
-        // 응답 필드 시그니처는 그대로 유지하되 0 만 노출되던 문제 해소.
-        if (open == 0) {
-            List<Alarm> openAlarms = alarmRepository.findByFilters("OPEN", null, null, null);
-            critical = openAlarms.stream()
-                    .filter(a -> isSeverity(a, "CRITICAL", "DANGER"))
-                    .count();
-            warning = openAlarms.stream()
-                    .filter(a -> isSeverity(a, "WARNING", "WARN"))
-                    .count();
-            open = openAlarms.size();
-        }
-
-        return new DashboardFrontendResponse.AlarmSummary(open, critical, warning, 0, open);
+        // alarm 테이블 기반으로 통일 (대시보드와 알람 탭 카운트 일치)
+        List<Alarm> recent = alarmRepository.findByFilters(null, null, null, null, PageRequest.of(0, 1000));
+        long total = recent.size();
+        long critical = recent.stream().filter(a -> isSeverity(a, "CRITICAL", "DANGER")).count();
+        long resolved = recent.stream().filter(a -> "RESOLVED".equals(a.getStatus())).count();
+        long open = recent.stream().filter(a -> "OPEN".equals(a.getStatus())).count();
+        return new DashboardFrontendResponse.AlarmSummary(total, critical, 0, resolved, open);
     }
 
     private DashboardFrontendResponse.OeeHourlySeries hourlySeries(LineResponse line) {
         LocalDateTime todayStart = LocalDate.now().atStartOfDay();
         LocalDateTime now = LocalDateTime.now();
-        int currentHour = now.getHour();
 
-        // 오늘 데이터 전체 조회 후 시(hour) 단위로 평균
+        // 오늘 데이터 조회 후 시(hour) 단위 평균
         List<LineKpiLog> logs = lineKpiLogRepository.findByLineIdAndRecordedAtBetween(
                 line.lineId(), todayStart, now.plusSeconds(1)
         );
-        Map<Integer, Double> avgByHour = logs.stream()
+        Map<Integer, Double> oeeByHour = logs.stream()
+                .filter(log -> log.getLineOee() != null)
                 .collect(Collectors.groupingBy(
                         log -> log.getRecordedAt().getHour(),
                         Collectors.averagingDouble(LineKpiLog::getLineOee)
                 ));
 
-        // 시(hour) 단위 평균을 2시간 버킷으로 재집계
-        Map<Integer, List<Double>> byBucket = new java.util.TreeMap<>();
-        avgByHour.forEach((h, oee) -> {
-            int bucket = (h / 2) * 2;
-            byBucket.computeIfAbsent(bucket, k -> new ArrayList<>()).add(oee);
-        });
-
-        // X축: 00:00, 02:00, ..., 22:00 하루 전체 고정, 데이터 없으면 null
+        // 하루 전체 1시간 슬롯 24개 (00:00 ~ 23:00), 미기록은 null
         List<DashboardFrontendResponse.OeePoint> points = new ArrayList<>();
-        for (int b = 0; b <= 22; b += 2) {
-            String label = String.format("%02d:00", b);
-            List<Double> vals = byBucket.get(b);
-            Double oee = (vals != null && !vals.isEmpty())
-                    ? round1(vals.stream().mapToDouble(Double::doubleValue).average().orElse(0))
-                    : null;
+        for (int h = 0; h < 24; h++) {
+            String label = String.format("%02d:00", h);
+            Double oee = oeeByHour.containsKey(h) ? round1(oeeByHour.get(h)) : null;
             points.add(new DashboardFrontendResponse.OeePoint(label, oee));
         }
 

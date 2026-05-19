@@ -128,6 +128,11 @@ const oeeHourLabels = computed(() => {
   return first.data.map((p) => p.time)
 })
 
+// X축 레이블: 2시간 간격(0, 2, 4, ... 22시)만 표시, 나머지 빈 문자열
+const oeeXaxisCategories = computed(() =>
+  oeeHourLabels.value.map((label, idx) => idx % 2 === 0 ? label : '')
+)
+
 const oeeHourlySeries = computed(() => {
   const series = dashboardData.value?.oeeHourlySeries
   if (!series?.length) {
@@ -137,33 +142,46 @@ const oeeHourlySeries = computed(() => {
       { name: '3라인', data: [] },
     ]
   }
-  return series.map((s) => ({
-    name: s.lineName ?? s.lineId,
-    data: (s.data ?? []).map((p) => (p.oee == null ? null : Number(p.oee))),
-  }))
+  return series.map((s) => {
+    const raw = (s.data ?? []).map((p) => (p.oee == null ? null : Number(p.oee)))
+
+    // 첫 데이터~마지막 데이터 사이의 null을 직전 값으로 채워서 선 연결
+    let firstIdx = raw.findIndex((v) => v !== null)
+    let lastIdx = raw.length - 1 - [...raw].reverse().findIndex((v) => v !== null)
+    if (firstIdx < 0) return { name: s.lineName ?? s.lineId, data: raw }
+
+    let prev: number | null = null
+    const filled = raw.map((v, i) => {
+      if (v !== null) { prev = v; return v }
+      if (i > firstIdx && i <= lastIdx) return prev
+      return null
+    })
+
+    return { name: s.lineName ?? s.lineId, data: filled }
+  })
 })
 
 const oeeHourlyOptions = computed((): Record<string, unknown> => ({
-  chart: { type: 'line', toolbar: { show: false }, fontFamily: 'inherit', zoom: { enabled: false } },
+  chart: { type: 'line', toolbar: { show: false }, fontFamily: 'inherit', zoom: { enabled: false }, animations: { enabled: false } },
   colors: ['#002c5f', '#62b3ff', '#0a9f68'],
   stroke: {
     curve: 'straight',
     width: 2.5,
   },
   markers: {
-    size: 4,
-    strokeWidth: 2,
+    size: 2,
+    strokeWidth: 1,
     strokeColors: '#ffffff',
-    hover: { size: 6 },
+    hover: { size: 4 },
   },
   dataLabels: {
     enabled: false,
   },
   xaxis: {
-    categories: oeeHourLabels.value,
+    categories: oeeXaxisCategories.value,
     labels: { style: { fontSize: '12px', fontWeight: 700, colors: '#475569' } },
     axisBorder: { show: true, color: '#cbd5e1' },
-    axisTicks: { show: true, color: '#cbd5e1' },
+    axisTicks: { show: false },
   },
   yaxis: {
     min: 50,

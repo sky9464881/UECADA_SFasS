@@ -43,15 +43,14 @@ const MOCK: AlarmListResponse = {
 }
 
 function useMockAlarms(): boolean {
-  const mock = import.meta.env.VITE_USE_MOCK_ALARMS
-  const base = import.meta.env.VITE_API_BASE_URL
-  return mock === 'true' || base === '' || base == null
+  return import.meta.env.VITE_USE_MOCK_ALARMS === 'true'
 }
 
 export function mapSeverityToType(severity: string): string {
   switch (severity?.toUpperCase()) {
     case 'CRITICAL':
-      return '긴급'
+    case 'DANGER':
+      return '위험'
     case 'WARNING':
       return '경고'
     case 'INFO':
@@ -88,7 +87,7 @@ function formatTime(occurredAt: string): string {
 
 function toSummary(list: AlarmResponse[]): AlarmSummaryItem[] {
   const total = list.length
-  const critical = list.filter((a) => a.severity?.toUpperCase() === 'CRITICAL').length
+  const critical = list.filter((a) => ['CRITICAL', 'DANGER'].includes(a.severity?.toUpperCase())).length
   const done = list.filter((a) => a.status?.toUpperCase() === 'RESOLVED').length
   const pending = list.filter((a) => a.status?.toUpperCase() === 'OPEN').length
   const completionRate = total > 0 ? `완료율 ${((done / total) * 100).toFixed(1)}%` : '완료율 -'
@@ -113,23 +112,38 @@ function toRows(list: AlarmResponse[]): AlarmHistoryRow[] {
   }))
 }
 
-export async function fetchAlarmsRaw(): Promise<AlarmResponse[]> {
+export async function fetchAlarmsRaw(status?: string | null): Promise<AlarmResponse[]> {
   if (useMockAlarms()) return []
-  const { data } = await api.get<AlarmResponse[]>('/api/alarms')
+  const params: Record<string, string> = { limit: '200' }
+  if (status) params.status = status
+  const { data } = await api.get<AlarmResponse[]>('/api/alarms', { params })
   return data
 }
 
-export async function fetchAlarmList(): Promise<AlarmListResponse> {
+export async function fetchAlarmList(status?: string | null): Promise<AlarmListResponse> {
   if (useMockAlarms()) {
     await new Promise((r) => setTimeout(r, 400))
     if (typeof structuredClone === 'function') return structuredClone(MOCK)
     return JSON.parse(JSON.stringify(MOCK)) as AlarmListResponse
   }
-  const data = await fetchAlarmsRaw()
+  const data = await fetchAlarmsRaw(status)
   return {
     summary: toSummary(data),
     rows: toRows(data),
   }
+}
+
+export interface AlarmCounts {
+  total: number
+  open: number
+  resolved: number
+  critical: number
+}
+
+export async function fetchAlarmCounts(): Promise<AlarmCounts> {
+  if (useMockAlarms()) return { total: 0, open: 0, resolved: 0, critical: 0 }
+  const { data } = await api.get<AlarmCounts>('/api/alarms/counts')
+  return data
 }
 
 export async function fetchAlarmStats(from: string, to: string): Promise<AlarmStatItem[]> {
