@@ -1,21 +1,71 @@
 <script setup lang="ts">
+import { computed, ref, watch } from 'vue'
 import {
   Activity,
   CalendarDays,
+  Cog,
+  Droplets,
   Factory,
+  Flame,
   Gauge,
   LogOut,
   MapPinned,
+  Search,
   TrendingUp,
+  Wrench,
 } from 'lucide-vue-next'
 import { RouterLink } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { useAppNav } from '@/composables/useAppNav'
 import { useLogout } from '@/composables/useLogout'
 import { useLineDetails } from '@/composables/useLineDetails'
+import type { LineProcessStage } from '@/composables/useLineDetails'
 
 const { navItems } = useAppNav('line')
 const logout = useLogout()
 const { lines } = useLineDetails()
+const route = useRoute()
+const selectedLineId = ref('')
+
+const selectedLine = computed(() =>
+  lines.value.find((line) => line.id === selectedLineId.value) ?? lines.value[0] ?? null,
+)
+
+watch(
+  lines,
+  (list) => {
+    if (!list.length) return
+    const queryLineId = typeof route.query.lineId === 'string' ? route.query.lineId : ''
+    if (queryLineId && list.some((line) => line.id === queryLineId)) {
+      selectedLineId.value = queryLineId
+      return
+    }
+    if (!list.some((line) => line.id === selectedLineId.value)) {
+      selectedLineId.value = list[0].id
+    }
+  },
+  { immediate: true },
+)
+
+watch(
+  () => route.query.lineId,
+  (lineId) => {
+    if (typeof lineId === 'string' && lines.value.some((line) => line.id === lineId)) {
+      selectedLineId.value = lineId
+    }
+  },
+)
+
+function processIcon(key: LineProcessStage['key']) {
+  const map = {
+    casting: Flame,
+    machining: Cog,
+    washing: Droplets,
+    assembly: Wrench,
+    inspection: Search,
+  }
+  return map[key] ?? Factory
+}
 </script>
 
 <template>
@@ -56,7 +106,7 @@ const { lines } = useLineDetails()
           </span>
           <RouterLink class="ghost-button" :to="{ name: 'layout' }">
             <MapPinned :size="16" />
-            <span>레이아웃</span>
+            <span>라인별 현황</span>
           </RouterLink>
           <button type="button" class="icon-link" @click="logout">
             <LogOut :size="16" />
@@ -64,6 +114,63 @@ const { lines } = useLineDetails()
           </button>
         </div>
       </header>
+
+      <section class="dashboard-panel line-selector-panel">
+        <div class="section-title-row">
+          <div>
+            <p class="panel-kicker">Line Flow</p>
+            <h2>라인밸런싱 대상 라인 선택</h2>
+          </div>
+          <Factory :size="22" />
+        </div>
+
+        <div class="line-selector-tabs" role="tablist" aria-label="라인 선택">
+          <button
+            v-for="line in lines"
+            :key="line.id"
+            :class="{ active: selectedLine?.id === line.id }"
+            type="button"
+            @click="selectedLineId = line.id"
+          >
+            <strong>{{ line.name }}</strong>
+            <span>OEE {{ line.oee }}% · {{ line.equipment }}대</span>
+          </button>
+        </div>
+      </section>
+
+      <section v-if="selectedLine" class="dashboard-panel line-flow-panel">
+        <div class="section-title-row">
+          <div>
+            <p class="panel-kicker">Line Layout</p>
+            <h2>{{ selectedLine.name }} 라인별 현황</h2>
+          </div>
+          <Activity :size="22" />
+        </div>
+
+        <div class="line-flow-stage-row">
+          <template v-for="(stage, index) in selectedLine.stages" :key="stage.key">
+            <div v-if="index > 0" class="line-flow-arrow" aria-hidden="true">→</div>
+            <section class="line-flow-stage">
+              <h3>
+                <component :is="processIcon(stage.key)" :size="18" />
+                <span>{{ stage.label }}</span>
+              </h3>
+              <div class="line-flow-equipment-list">
+                <article
+                  v-for="node in stage.nodes"
+                  :key="node.id"
+                  :class="['line-flow-equipment', `line-flow-equipment--${node.state}`]"
+                >
+                  <component :is="processIcon(stage.key)" :size="24" />
+                  <strong>{{ node.name }}</strong>
+                  <small>{{ node.code }}</small>
+                  <span>{{ node.cycleLabel }} · {{ node.tempLabel }}</span>
+                </article>
+              </div>
+            </section>
+          </template>
+        </div>
+      </section>
 
       <section class="dashboard-panel line-oee-analysis-panel">
         <div class="section-title-row">
@@ -137,11 +244,12 @@ const { lines } = useLineDetails()
               </div>
               <div class="line-station-bars">
                 <i
-                  v-for="(value, index) in line.stations"
-                  :key="`${line.name}-${index}`"
-                  :style="{ height: `${value}%` }"
+                  v-for="station in line.stations"
+                  :key="`${line.name}-${station.label}`"
+                  :title="station.cycle ? `${station.label} ${station.cycle.toFixed(1)}s` : station.label"
+                  :style="{ height: `${station.value}%` }"
                 >
-                  <b>{{ index + 1 }}</b>
+                  <b>{{ station.label }}</b>
                 </i>
               </div>
             </article>
