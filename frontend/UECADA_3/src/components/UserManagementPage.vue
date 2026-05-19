@@ -29,6 +29,7 @@ interface DisplayUser {
   email: string
   role: string
   roleCode: RoleCode
+  lineId: string | null
   department: string
   status: string
   lastLogin: string
@@ -39,6 +40,12 @@ const logout = useLogout()
 
 const roleFilter = ref<RoleCode | ''>('') as Ref<RoleCode | ''>
 const searchTerm = ref('')
+const lineOptions = [
+  { value: '', label: '전체/관리자' },
+  { value: 'LINE-01', label: 'LINE-01' },
+  { value: 'LINE-02', label: 'LINE-02' },
+  { value: 'LINE-03', label: 'LINE-03' },
+]
 
 const { users: backendUsers, isPending, isError, error, refetch, updateRole, create } = useUsers({
   roleName: roleFilter,
@@ -56,7 +63,8 @@ const users = computed(() =>
     email: u.email ?? '',
     role: roleLabel(u.roleName),
     roleCode: u.roleName,
-    department: '-', // 백엔드 DTO 미제공
+    lineId: u.lineId,
+    department: u.lineId ?? '전체',
     status: '활성', // 백엔드에 잠금/접속중 개념 없음 — 기본값
     lastLogin: formatDateTime(u.createdAt), // 백엔드 lastLoginAt 미노출 → 가입일시 표시
   })),
@@ -85,6 +93,16 @@ const roles = [
     ],
   },
   {
+    name: '라인 관리자',
+    count: 3,
+    links: [
+      { id: 'manager_line_view', label: '담당 라인 조회', icon: MapPinned },
+      { id: 'manager_worker_notice', label: '라인 공지 발송', icon: MessageSquare },
+      { id: 'manager_alarm_act', label: '알람 조치 관리', icon: Bell },
+      { id: 'manager_report_view', label: '운영 보고서 조회', icon: LayoutDashboard },
+    ],
+  },
+  {
     name: '작업자',
     count: 56,
     links: [
@@ -99,17 +117,33 @@ const roles = [
 function handleRoleChange(user: DisplayUser, event: Event) {
   const next = (event.target as HTMLSelectElement | null)?.value as RoleCode | undefined
   if (!next || next === user.roleCode) return
-  updateRole.mutate({ userId: user.id, roleName: next })
+  updateRole.mutate({
+    userId: user.id,
+    roleName: next,
+    lineId: next === 'ADMIN' ? null : user.lineId,
+  })
+}
+
+function handleLineChange(user: DisplayUser, event: Event) {
+  const next = (event.target as HTMLSelectElement | null)?.value ?? ''
+  updateRole.mutate({
+    userId: user.id,
+    roleName: user.roleCode,
+    lineId: next || null,
+  })
 }
 
 const showCreateModal = ref(false)
 const createForm = reactive({
   userId: '',
   loginId: '',
+  lineId: '',
   userName: '',
   email: '',
   roleName: 'OPERATOR',
   password: '',
+  securityQuestion: '초기 보안 답변은?',
+  securityAnswer: 'secret',
 })
 const createError = ref('')
 
@@ -118,10 +152,13 @@ function openCreateModal() {
   Object.assign(createForm, {
     userId: '',
     loginId: '',
+    lineId: '',
     userName: '',
     email: '',
     roleName: 'OPERATOR',
     password: '',
+    securityQuestion: '초기 보안 답변은?',
+    securityAnswer: 'secret',
   })
   showCreateModal.value = true
 }
@@ -140,10 +177,13 @@ async function submitCreateUser() {
     await create.mutateAsync({
       userId: createForm.userId,
       loginId: createForm.loginId,
+      lineId: createForm.lineId || null,
       userName: createForm.userName,
       email: createForm.email || undefined,
       roleName: createForm.roleName,
       password: createForm.password,
+      securityQuestion: createForm.securityQuestion,
+      securityAnswer: createForm.securityAnswer,
     })
     closeCreateModal()
   } catch (e: unknown) {
@@ -152,7 +192,7 @@ async function submitCreateUser() {
   }
 }
 
-type SummaryKey = 'total' | 'admin' | 'operator' | 'locked' | null
+type SummaryKey = 'total' | 'admin' | 'manager' | 'operator' | 'locked' | null
 const activeSummaryKey = ref<SummaryKey>(null)
 const userListSectionRef = ref<HTMLElement | null>(null)
 
@@ -189,6 +229,7 @@ onUnmounted(() => {
 
 function roleNameFromKey(key: Exclude<SummaryKey, null>): string {
   if (key === 'admin') return '관리자'
+  if (key === 'manager') return '라인 관리자'
   if (key === 'operator') return '작업자'
   return ''
 }
@@ -239,9 +280,10 @@ function setRolePerm(roleName: string, permId: string, on: boolean) {
 const userStats = computed(() => {
   const total = users.value.length
   const admin = users.value.filter((u) => u.roleCode === 'ADMIN').length
+  const manager = users.value.filter((u) => u.roleCode === 'MANAGER').length
   const operator = users.value.filter((u) => u.roleCode === 'OPERATOR').length
   const locked = users.value.filter((u) => u.status === '잠금').length
-  return { total, admin, operator, locked }
+  return { total, admin, manager, operator, locked }
 })
 
 type SummaryItem = {
@@ -253,7 +295,7 @@ type SummaryItem = {
 }
 
 const userSummaryItems = computed<SummaryItem[]>(() => {
-  const { total, admin, operator, locked } = userStats.value
+  const { total, admin, manager, operator, locked } = userStats.value
   return [
     {
       key: 'total',
@@ -267,6 +309,13 @@ const userSummaryItems = computed<SummaryItem[]>(() => {
       label: '관리자',
       value: admin,
       detail: '시스템·계정 관리 권한',
+      tone: 'done',
+    },
+    {
+      key: 'manager',
+      label: '라인 관리자',
+      value: manager,
+      detail: '담당 라인 관리 권한',
       tone: 'done',
     },
     {
@@ -385,7 +434,7 @@ const userSummaryItems = computed<SummaryItem[]>(() => {
                 >
                   <header class="user-perm-drop__head">
                     <p class="user-perm-drop__title">
-                      <template v-if="item.key === 'admin' || item.key === 'operator'">
+                      <template v-if="item.key === 'admin' || item.key === 'manager' || item.key === 'operator'">
                         {{ roleNameFromKey(item.key) }} · 허용 기능 선택
                       </template>
                       <template v-else-if="item.key === 'total'">등록 사용자 · 빠른 작업</template>
@@ -394,7 +443,7 @@ const userSummaryItems = computed<SummaryItem[]>(() => {
                   </header>
 
                   <ul
-                    v-if="item.key === 'admin' || item.key === 'operator'"
+                    v-if="item.key === 'admin' || item.key === 'manager' || item.key === 'operator'"
                     class="user-perm-drop__list"
                     role="list"
                   >
@@ -514,15 +563,16 @@ const userSummaryItems = computed<SummaryItem[]>(() => {
                     <tr>
                       <th>사용자</th>
                       <th>역할(권한)</th>
+                      <th>담당 라인</th>
                       <th>이메일</th>
                       <th>계정 상태</th>
                       <th>가입일시</th>
-                      <th>권한 변경</th>
+                      <th>권한/라인 변경</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr v-if="filteredUsers.length === 0">
-                      <td colspan="6" style="text-align: center; padding: 24px; color: #64748b">
+                      <td colspan="7" style="text-align: center; padding: 24px; color: #64748b">
                         조건에 맞는 사용자가 없습니다.
                       </td>
                     </tr>
@@ -531,7 +581,8 @@ const userSummaryItems = computed<SummaryItem[]>(() => {
                         <strong>{{ user.name }}</strong>
                         <span>{{ user.id }}</span>
                       </td>
-                      <td><span :class="['role-badge', user.role]">{{ user.role }}</span></td>
+                      <td><span :class="['role-badge', user.roleCode]">{{ user.role }}</span></td>
+                      <td>{{ user.lineId || '전체' }}</td>
                       <td>{{ user.email || '-' }}</td>
                       <td><span :class="['account-status-badge', user.status]">{{ user.status }}</span></td>
                       <td>
@@ -541,17 +592,28 @@ const userSummaryItems = computed<SummaryItem[]>(() => {
                         </div>
                       </td>
                       <td>
-                        <select
-                          class="permission-button"
-                          :value="user.roleCode"
-                          :disabled="updateRole.isPending.value"
-                          style="padding: 6px 10px; border-radius: 8px"
-                          @change="handleRoleChange(user, $event)"
-                        >
-                          <option v-for="opt in ROLE_OPTIONS" :key="opt.code" :value="opt.code">
-                            {{ opt.label }}
-                          </option>
-                        </select>
+                        <div class="user-assignment-controls">
+                          <select
+                            class="permission-button"
+                            :value="user.roleCode"
+                            :disabled="updateRole.isPending.value"
+                            @change="handleRoleChange(user, $event)"
+                          >
+                            <option v-for="opt in ROLE_OPTIONS" :key="opt.code" :value="opt.code">
+                              {{ opt.label }}
+                            </option>
+                          </select>
+                          <select
+                            class="permission-button"
+                            :value="user.lineId || ''"
+                            :disabled="updateRole.isPending.value || user.roleCode === 'ADMIN'"
+                            @change="handleLineChange(user, $event)"
+                          >
+                            <option v-for="line in lineOptions" :key="line.value" :value="line.value">
+                              {{ line.label }}
+                            </option>
+                          </select>
+                        </div>
                       </td>
                     </tr>
                   </tbody>
@@ -581,6 +643,15 @@ const userSummaryItems = computed<SummaryItem[]>(() => {
             <input v-model="createForm.loginId" type="text" maxlength="50" required />
           </label>
           <label>
+            <span>라인</span>
+            <select v-model="createForm.lineId">
+              <option value="">전체/관리자</option>
+              <option value="LINE-01">LINE-01</option>
+              <option value="LINE-02">LINE-02</option>
+              <option value="LINE-03">LINE-03</option>
+            </select>
+          </label>
+          <label>
             <span>이름 *</span>
             <input v-model="createForm.userName" type="text" maxlength="50" required />
           </label>
@@ -600,6 +671,14 @@ const userSummaryItems = computed<SummaryItem[]>(() => {
             <span>비밀번호 *</span>
             <input v-model="createForm.password" type="password" required />
           </label>
+          <label>
+            <span>보안 질문 *</span>
+            <input v-model="createForm.securityQuestion" type="text" required />
+          </label>
+          <label>
+            <span>보안 답변 *</span>
+            <input v-model="createForm.securityAnswer" type="text" required />
+          </label>
 
           <p v-if="createError" class="user-create-modal__error">{{ createError }}</p>
 
@@ -616,6 +695,23 @@ const userSummaryItems = computed<SummaryItem[]>(() => {
 </template>
 
 <style scoped>
+.user-assignment-controls {
+  display: grid;
+  grid-template-columns: minmax(110px, 1fr) minmax(110px, 1fr);
+  gap: 8px;
+  min-width: 240px;
+}
+
+.user-assignment-controls select {
+  width: 100%;
+  min-width: 0;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  font: inherit;
+}
+
 .user-create-modal {
   position: fixed;
   inset: 0;
