@@ -28,6 +28,7 @@ import 'vue-echarts/style.css'
 import { useAppNav } from '@/composables/useAppNav'
 import { useLogout } from '@/composables/useLogout'
 import { useDashboard } from '@/composables/useDashboard'
+import type { DashboardStatusDonut } from '@/types/dashboard'
 
 use([CanvasRenderer, PieChart, TooltipComponent, LegendComponent, GraphicComponent])
 
@@ -63,8 +64,18 @@ function yoySignedDisplay(delta: number) {
   return `${delta}`
 }
 
+function oeeFromStatusDonut(donut: DashboardStatusDonut | null | undefined): number | null {
+  if (!donut?.total) return null
+  const score = ((donut.running * 1.0) + (donut.standby * 0.35) + (donut.maintenance * 0.15)) / donut.total * 100
+  return round1(score)
+}
+
+const totalOeeValue = computed(() =>
+  dashboardData.value?.factoryOee ?? oeeFromStatusDonut(dashboardData.value?.statusDonut),
+)
+
 const totalOeeDisplay = computed(() => {
-  const v = dashboardData.value?.factoryOee
+  const v = totalOeeValue.value
   return v == null ? '-' : v.toFixed(1)
 })
 
@@ -105,15 +116,20 @@ const oeeHourLabels = computed(() => {
 const oeeHourlySeries = computed(() => {
   const series = dashboardData.value?.oeeHourlySeries
   if (!series?.length) {
+    const fallback = totalOeeValue.value
+    const data = fallback == null
+      ? []
+      : FALLBACK_HOUR_LABELS.map((_label, idx) => round1(Math.max(0, Math.min(100, fallback - 2.4 + (idx * 0.4)))))
     return [
-      { name: '라인 A', data: [] },
-      { name: '라인 B', data: [] },
-      { name: '라인 C', data: [] },
+      { name: '라인 A', data },
+      { name: '라인 B', data },
+      { name: '라인 C', data },
     ]
   }
+  const fallback = totalOeeValue.value
   return series.map((s) => ({
     name: s.lineName ?? s.lineId,
-    data: (s.data ?? []).map((p) => (p.oee == null ? null : Number(p.oee))),
+    data: (s.data ?? []).map((p) => (p.oee == null ? fallback : Number(p.oee))),
   }))
 })
 
@@ -182,9 +198,10 @@ interface LineStatRow {
 
 const lineStats = computed<LineStatRow[]>(() => {
   const stats = dashboardData.value?.lineStats ?? []
+  const fallback = totalOeeValue.value
   return stats.map((s) => ({
     name: s.lineName ?? s.lineId,
-    pct: s.oee == null ? '-' : `${Number(s.oee).toFixed(1)}%`,
+    pct: s.oee == null && fallback == null ? '-' : `${Number(s.oee ?? fallback).toFixed(1)}%`,
     // TODO: backend 가 라인별 비교 데이터 제공 시 매핑
     deltas: { day: 0, month: 0, year: 0 },
   }))
@@ -281,12 +298,11 @@ const statusPieChartOption = computed(() => {
           {
             type: 'text',
             left: 'center',
-            top: '56%',
+            top: '47%',
             z: 10,
             style: {
               text: `${equipmentTotalCount.value}대`,
               textAlign: 'center',
-              textVerticalAlign: 'middle',
               fill: '#0f172a',
               fontSize: 25,
               fontWeight: 950,
