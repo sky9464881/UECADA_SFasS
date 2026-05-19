@@ -145,9 +145,9 @@ phm:
 X_DAS Node ID는 라인별 버퍼 키로 저장됩니다. LINE01은 기존 표와 API 호환을 위해 라인 없는 alias 버퍼에도 같이 적재됩니다.
 
 ```text
-ns=2;s=LINE01.CAST01.Temperature       -> LINE01.CAST01:temperature, CAST01:temperature
-ns=2;s=LINE02.CAST01.Temperature       -> LINE02.CAST01:temperature
-ns=2;s=LINE03.CNC01.SpindleLoad        -> LINE03.CNC01:spindle_load
+ns=2;s=LINE01.CAST01.InjectionPressure -> LINE01.CAST01:injection_pressure, CAST01:injection_pressure
+ns=2;s=LINE02.CAST01.MoldTemperature   -> LINE02.CAST01:mold_temperature
+ns=2;s=LINE03.CNC01.SpindleSpeed       -> LINE03.CNC01:spindle_speed
 ns=2;s=LINE01.CAST01.SensorVibration   -> LINE01.CAST01:sensor_vibration, CAST01:sensor_vibration
 ```
 
@@ -168,6 +168,7 @@ Sensor DAS에서 X_DAS로 합쳐진 공통값은 설비별로 아래 suffix에 �
 curl http://localhost:8080/api/sensors
 curl "http://localhost:8080/api/sensors/LINE01.CAST01:temperature?last=10"
 curl "http://localhost:8080/api/sensors/LINE01.CAST01:sensor_vibration?last=10"
+curl "http://localhost:8080/api/sensors/latest-values?bufferKeys=LINE01.CAST01:sensor_current,LINE01.CAST01:sensor_voltage,LINE01.CAST01:cycle_time"
 ```
 
 상세 버퍼 명세는 `docs/das-backend-buffer-spec.md`를 기준으로 관리합니다.
