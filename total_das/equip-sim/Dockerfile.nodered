@@ -1,21 +1,26 @@
-# Node-RED 라인 DAS 이미지.
-# 베이스: 사용자 지정 4.1.10-22 고정.
+# Node-RED line DAS image.
+# Base: pinned 4.1.10-22.
 FROM nodered/node-red:4.1.10-22
 
-# 필요한 contrib 노드 설치
-#  - node-red-contrib-modbus    : CAST-01
-#  - node-red-contrib-opcua     : WASH/ASSY/TEST + DAS Server
-#  - node-red-contrib-mcprotocol: CNC-01/02/03
+# Required contrib nodes
+#  - node-red-contrib-modbus    : CAST-01 ... no, actually for WASH/CNC
+#  - node-red-contrib-opcua     : ASSY/TEST + DAS Server
+#  - node-red-contrib-mcprotocol: CAST-01 (Mitsubishi MC)
 #
-# Node 24+ 환경에서 mcprotocol 의 util.log 가 제거되어 깨지므로 sed 로 치환.
+# On Node 24+ util.log was removed which breaks mcprotocol -> sed-replace.
 USER root
-COPY patch-opcua-server.js /tmp/patch-opcua-server.js
 RUN cd /usr/src/node-red \
  && npm install --no-fund --no-audit --omit=dev \
       node-red-contrib-modbus \
       node-red-contrib-opcua \
       node-red-contrib-mcprotocol \
  && find node_modules/node-red-contrib-mcprotocol -name "*.js" \
-      -exec sed -i 's/util\.log(/console.log(/g' {} + \
- && node /tmp/patch-opcua-server.js
+      -exec sed -i 's/util\.log(/console.log(/g' {} +
+
+COPY patch-opcua-server.js /tmp/patch-opcua-server.js
+RUN node /tmp/patch-opcua-server.js && rm /tmp/patch-opcua-server.js
+
+COPY nodered/settings.js /data/settings.js
+RUN chown -R node-red:node-red /data
+
 USER node-red
