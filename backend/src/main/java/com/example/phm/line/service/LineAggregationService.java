@@ -15,10 +15,10 @@ import com.example.phm.equipment.entity.Equipment;
 import com.example.phm.equipment.entity.EquipmentStatus;
 import com.example.phm.equipment.repository.EquipmentRepository;
 import com.example.phm.equipment.repository.EquipmentStatusRepository;
-import com.example.phm.demo.service.DemoMetricsService;
 import com.example.phm.line.dto.LineResponse;
 import com.example.phm.line.entity.ProductionLine;
 import com.example.phm.line.repository.ProductionLineRepository;
+import com.example.phm.sensor.service.RealtimeEquipmentService;
 import com.example.phm.vibration.dto.VibrationRealtimeResponse;
 import com.example.phm.vibration.service.VibrationWindowMonitorService;
 import org.springframework.stereotype.Service;
@@ -32,7 +32,7 @@ public class LineAggregationService {
     private final EquipmentStatusRepository statusRepository;
     private final AnalysisResultRepository analysisResultRepository;
     private final VibrationWindowMonitorService vibrationWindowMonitorService;
-    private final DemoMetricsService demoMetricsService;
+    private final RealtimeEquipmentService realtimeEquipmentService;
 
     public LineAggregationService(
             ProductionLineRepository lineRepository,
@@ -40,14 +40,14 @@ public class LineAggregationService {
             EquipmentStatusRepository statusRepository,
             AnalysisResultRepository analysisResultRepository,
             VibrationWindowMonitorService vibrationWindowMonitorService,
-            DemoMetricsService demoMetricsService
+            RealtimeEquipmentService realtimeEquipmentService
     ) {
         this.lineRepository = lineRepository;
         this.equipmentRepository = equipmentRepository;
         this.statusRepository = statusRepository;
         this.analysisResultRepository = analysisResultRepository;
         this.vibrationWindowMonitorService = vibrationWindowMonitorService;
-        this.demoMetricsService = demoMetricsService;
+        this.realtimeEquipmentService = realtimeEquipmentService;
     }
 
     @Transactional(readOnly = true)
@@ -95,7 +95,6 @@ public class LineAggregationService {
         long maintenance = countStatus(lineEquipments, statusByEquipment, latestAlarmLevelByEquipment, "MAINTENANCE");
         long openAlarmCount = alarm;
         String lineStatus = alarm > 0 ? "ALARM" : line.getLineStatus();
-        DemoMetricsService.LineMetricsDto metrics = demoMetricsService.lineMetrics(line.getLineId());
 
         return new LineResponse(
                 line.getLineId(),
@@ -108,12 +107,7 @@ public class LineAggregationService {
                 standby,
                 maintenance,
                 openAlarmCount,
-                derivedOee(total, running, standby, maintenance),
-                metrics.balanceRate(),
-                metrics.uph(),
-                metrics.upmh(),
-                metrics.productivity(),
-                metrics.stationUtilization()
+                derivedOee(total, running, standby, maintenance)
         );
     }
 
@@ -143,6 +137,11 @@ public class LineAggregationService {
         }
         if ("normal".equals(realtimeAlarmLevel) && "ALARM".equals(baseStatus)) {
             return "RUNNING";
+        }
+
+        String sensorStatus = realtimeEquipmentService.statusOverride(equipment.getEquipmentCode());
+        if (sensorStatus != null) {
+            return sensorStatus;
         }
 
         String latestAlarmLevel = latestAlarmLevelByEquipment.get(equipment.getEquipmentCode());
