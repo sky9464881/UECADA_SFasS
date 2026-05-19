@@ -31,21 +31,39 @@ public class UserService {
         if (userRepository.existsById(request.userId())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "User already exists: " + request.userId());
         }
+        if (userRepository.existsByLoginId(request.loginId())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Login ID already exists: " + request.loginId());
+        }
         User user = new User();
         user.setUserId(request.userId());
         user.setLoginId(request.loginId());
+        user.setLineId(request.lineId());
         user.setUserName(request.userName());
         user.setEmail(request.email());
-        user.setRoleName(request.roleName());
+        user.setRoleName(normalizeRole(request.roleName()));
         user.setPasswordHash(AuthService.encodePassword(request.password()));
+        user.setSecurityQuestion(request.securityQuestion());
+        user.setSecurityAnswerHash(AuthService.encodeSecurityAnswer(request.securityAnswer()));
         return UserResponse.from(userRepository.save(user));
     }
 
     public UserResponse updateRole(String userId, UserRoleUpdateRequest request) {
-        if (!userRepository.existsById(userId)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found: " + userId);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found: " + userId));
+        String roleName = normalizeRole(request.roleName());
+        user.setRoleName(roleName);
+        user.setLineId("ADMIN".equals(roleName) ? null : normalizeLineId(request.lineId()));
+        return UserResponse.from(userRepository.save(user));
+    }
+
+    private String normalizeRole(String roleName) {
+        return roleName == null ? "OPERATOR" : roleName.trim().toUpperCase();
+    }
+
+    private String normalizeLineId(String lineId) {
+        if (lineId == null || lineId.isBlank()) {
+            return null;
         }
-        userRepository.updateRole(userId, request.roleName());
-        return UserResponse.from(userRepository.findById(userId).orElseThrow());
+        return lineId.trim().toUpperCase();
     }
 }
