@@ -35,9 +35,12 @@ export interface ChatMessage {
 
 export interface FactoryReport {
   generatedAt: string
+  reportType: string
   title: string
   markdown: string
 }
+
+export type FactoryReportType = 'heat_safety' | 'annual_esg' | 'energy_emission'
 
 export async function fetchLineGroups(): Promise<LineGroup[]> {
   const { data } = await api.get<LineGroup[]>('/api/community/line-groups')
@@ -66,7 +69,17 @@ export async function sendChatMessage(roomId: number, senderUserId: string, mess
   return data
 }
 
-export async function fetchFactoryReport(): Promise<FactoryReport> {
-  const { data } = await api.get<FactoryReport>('/api/community/factory-report')
+export async function createDirectChatRoom(requesterUserId: string, targetUserId: string): Promise<ChatRoom> {
+  const { data } = await api.post<ChatRoom>('/api/community/chat/rooms/direct', {
+    requesterUserId,
+    targetUserId,
+  })
+  return data
+}
+
+export async function fetchFactoryReport(type: FactoryReportType): Promise<FactoryReport> {
+  const { data } = await api.get<FactoryReport>('/api/community/factory-report', {
+    params: { type },
+  })
   return data
 }

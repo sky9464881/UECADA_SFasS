@@ -52,7 +52,8 @@ export function useFactoryLayout() {
     queryFn: () => fetchSensorLatestValues(sensorKeys.value),
     enabled: computed(() => sensorKeys.value.length > 0),
     refetchInterval: POLL_INTERVAL_MS.equipmentRealtime,
-    staleTime: 1_000,
+    staleTime: 0,
+    refetchIntervalInBackground: true,
   })
 
   return {

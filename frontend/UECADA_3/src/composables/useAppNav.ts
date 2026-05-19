@@ -2,7 +2,6 @@ import { computed } from 'vue'
 import type { Component } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import {
-  BarChart3,
   Bell,
   LayoutDashboard,
   MapPinned,
@@ -14,7 +13,6 @@ import {
 export type NavRouteName =
   | 'dashboard'
   | 'layout'
-  | 'lines'
   | 'equipment'
   | 'alarms'
   | 'users'
@@ -29,8 +27,7 @@ export interface AppNavItem {
 
 const DEFAULT_NAV: readonly AppNavItem[] = [
   { label: '대시보드', icon: LayoutDashboard, to: { name: 'dashboard' } },
-  { label: '레이아웃', icon: MapPinned, to: { name: 'layout' } },
-  { label: '라인 상세', icon: BarChart3, to: { name: 'lines' } },
+  { label: '라인별 현황', icon: MapPinned, to: { name: 'layout' } },
   { label: '설비 제어', icon: Wrench, to: { name: 'equipment' } },
   { label: '알람 및 이력', icon: Bell, to: { name: 'alarms' } },
   { label: '사용자·권한', icon: Users, to: { name: 'users' } },
@@ -40,8 +37,7 @@ const DEFAULT_NAV: readonly AppNavItem[] = [
 
 const LINE_NAV: readonly AppNavItem[] = [
   { label: '대시보드', icon: LayoutDashboard, to: { name: 'dashboard' } },
-  { label: '레이아웃', icon: MapPinned, to: { name: 'layout' } },
-  { label: '라인 상세', icon: BarChart3, to: { name: 'lines' } },
+  { label: '라인별 현황', icon: MapPinned, to: { name: 'layout' } },
   { label: '설비 제어', icon: Wrench, to: { name: 'equipment' } },
   { label: '알람 및 이력', icon: Bell, to: { name: 'alarms' } },
   { label: '사용자·권한', icon: Users, to: { name: 'users' } },

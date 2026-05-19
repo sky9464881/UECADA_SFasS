@@ -4,6 +4,7 @@ import java.time.Instant;
 
 public record FactoryReportResponse(
         Instant generatedAt,
+        String reportType,
         String title,
         String markdown
 ) {

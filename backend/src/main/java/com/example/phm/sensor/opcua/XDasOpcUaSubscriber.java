@@ -202,7 +202,8 @@ public class XDasOpcUaSubscriber implements SmartLifecycle {
         }
 
         Object rawValue = dataValue.getValue() == null ? null : dataValue.getValue().getValue();
-        if (!(rawValue instanceof Number number)) {
+        Double numericValue = numericValue(rawValue);
+        if (numericValue == null) {
             log.debug("Skipping non-numeric X_DAS OPC UA value. nodeId={}, value={}", item.getReadValueId().getNodeId(), rawValue);
             return;
         }
@@ -214,8 +215,18 @@ public class XDasOpcUaSubscriber implements SmartLifecycle {
             return;
         }
 
-        SensorFrame frame = new SensorFrame(System.currentTimeMillis(), number.doubleValue());
+        SensorFrame frame = new SensorFrame(System.currentTimeMillis(), numericValue);
         mapping.bufferKeys().forEach(bufferKey -> registry.push(bufferKey, frame));
+    }
+
+    private Double numericValue(Object rawValue) {
+        if (rawValue instanceof Number number) {
+            return number.doubleValue();
+        }
+        if (rawValue instanceof Boolean bool) {
+            return bool ? 1.0 : 0.0;
+        }
+        return null;
     }
 
     private void disconnectClient() {

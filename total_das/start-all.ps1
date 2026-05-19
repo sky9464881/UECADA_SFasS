@@ -8,12 +8,25 @@ function Get-DockerNetworkInfo {
     [string]$Name
   )
 
-  $inspect = docker network inspect $Name --format '{{json .}}' 2>$null
-  if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($inspect)) {
+  $existingNetwork = docker network ls --format '{{.Name}}' |
+    Where-Object { $_ -eq $Name } |
+    Select-Object -First 1
+
+  if ([string]::IsNullOrWhiteSpace($existingNetwork)) {
     return $null
   }
 
-  return $inspect | ConvertFrom-Json
+  try {
+    $inspect = docker network inspect $Name --format '{{json .}}' 2>$null
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($inspect)) {
+      return $null
+    }
+
+    return $inspect | ConvertFrom-Json
+  }
+  catch {
+    return $null
+  }
 }
 
 function Ensure-ExternalNetwork {

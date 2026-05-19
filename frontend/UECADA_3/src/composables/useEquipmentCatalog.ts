@@ -1,10 +1,8 @@
 import { computed, type Component } from 'vue'
-import { useQueries, useQuery } from '@tanstack/vue-query'
+import { useQuery } from '@tanstack/vue-query'
 import { fetchEquipments, fetchEquipmentStatuses } from '@/api/equipmentApi'
-import { fetchAnalysisResults } from '@/api/analysisApi'
 import { fetchSensorLatestValues, type SensorBufferLatest, type SensorFrame } from '@/api/sensorApi'
 import type { Equipment, EquipmentStatusCode, EquipmentStatusItem } from '@/types/equipment'
-import type { AnalysisResult } from '@/types/analysis'
 import { POLL_INTERVAL_MS, STALE_TIME_MS } from '@/constants/polling'
 import {
   MONITORING_REALTIME_METRICS,
@@ -100,15 +98,6 @@ function formatMetric(value: number | null | undefined, unit: string, digits = 1
   return `${Number(value).toFixed(digits)}${unit}`
 }
 
-function alarmLevelLabel(level: string | null | undefined): string {
-  if (!level) return '-'
-  const v = level.toLowerCase()
-  if (v === 'danger') return '위험'
-  if (v === 'warning') return '경고'
-  if (v === 'normal') return '정상'
-  return level
-}
-
 function buildRealtimeKeys(equipments: readonly Equipment[]): string[] {
   return realtimeKeysForEquipments(equipments)
 }
@@ -163,19 +152,19 @@ function buildCommon(equipment: Equipment, realtime: LatestFrameMap): EquipmentC
   const vibration = latestValue(realtime, equipment.equipmentCode, 'sensor_vibration')
 
   return [
-    { label: '설비코드', value: equipment.equipmentCode },
-    { label: '라인', value: equipment.location ?? '-' },
-    { label: '모델', value: equipment.model ?? '-' },
-    { label: '설치일', value: equipment.installDate ?? '-' },
-    { label: '수신상태', value: realtimeLabel(realtime, equipment.equipmentCode) },
     { label: '전류', value: formatMetric(current, 'A', 1) },
     { label: '전압', value: formatMetric(voltage, 'V', 1) },
     { label: '온도', value: formatMetric(temperature, '°C', 1) },
-    { label: '습도', value: '-' },
     { label: '진동', value: formatMetric(vibration, '', 3) },
-    { label: 'OK', value: '0' },
-    { label: 'NG', value: '0' },
   ]
+}
+
+function formatRealtimeMetric(value: number | null | undefined, config: RealtimeMetricConfig): string {
+  if (value == null || Number.isNaN(Number(value))) return '-'
+  if (config.metric === 'result_ok') {
+    return value >= 0.5 ? 'true' : 'false'
+  }
+  return formatMetric(value, config.unit, config.digits)
 }
 
 function buildRealtimeSpecific(
@@ -186,53 +175,18 @@ function buildRealtimeSpecific(
     const value = latestValue(realtime, equipment.equipmentCode, config.metric)
     return {
       label: config.label,
-      value: formatMetric(value, config.unit, config.digits),
+      value: formatRealtimeMetric(value, config),
       status: value == null ? '버퍼 수신 대기' : config.status,
     }
   })
 }
 
-function buildAnalysisSpecific(analysis: AnalysisResult | null): EquipmentSpecificMetric[] {
-  const items: EquipmentSpecificMetric[] = []
-  if (!analysis) return items
-  if (analysis.prediction) {
-    items.push({ label: '예측', value: analysis.prediction, status: `모델 ${analysis.modelVersion ?? '-'}` })
-  }
-  if (analysis.alarmLevel) {
-    items.push({ label: '알람 레벨', value: alarmLevelLabel(analysis.alarmLevel), status: analysis.modelStatus ?? '-' })
-  }
-  if (analysis.confidence != null) {
-    items.push({ label: '신뢰도', value: `${formatNumber(analysis.confidence * 100, 1)}%`, status: '모델 confidence' })
-  }
-  if (analysis.anomalyScore != null) {
-    items.push({ label: 'Anomaly Score', value: formatNumber(analysis.anomalyScore, 3), status: '낮을수록 정상' })
-  }
-  if (analysis.rms != null) {
-    items.push({ label: 'RMS', value: formatNumber(analysis.rms, 3), status: '진동 신호 RMS' })
-  }
-  if (analysis.peakFrequency != null) {
-    items.push({ label: 'Peak Freq', value: `${formatNumber(analysis.peakFrequency, 2)}Hz`, status: '주요 주파수' })
-  }
-  if (analysis.kurtosis != null) {
-    items.push({ label: 'Kurtosis', value: formatNumber(analysis.kurtosis, 3), status: '신호 첨도' })
-  }
-  if (analysis.crestFactor != null) {
-    items.push({ label: 'Crest Factor', value: formatNumber(analysis.crestFactor, 3), status: '피크 대 RMS' })
-  }
-
-  return items
-}
-
 function buildSpecific(
   equipment: Equipment,
   realtime: LatestFrameMap,
-  analysis: AnalysisResult | null,
 ): EquipmentSpecificMetric[] {
-  const items = [
-    ...buildRealtimeSpecific(equipment, realtime),
-    ...buildAnalysisSpecific(analysis),
-  ]
-  return items.length ? items : [{ label: '분석 결과', value: '데이터 없음', status: '실시간 분석 대기' }]
+  const items = buildRealtimeSpecific(equipment, realtime)
+  return items.length ? items : [{ label: 'type_data', value: '-', status: '버퍼 수신 대기' }]
 }
 
 export function useEquipmentCatalog() {
@@ -246,7 +200,7 @@ export function useEquipmentCatalog() {
   const realtimeKeys = computed(() => buildRealtimeKeys(equipmentsQuery.data.value ?? []))
 
   const statusQuery = useQuery({
-    queryKey: ['equipment-statuses', equipIds],
+    queryKey: computed(() => ['equipment-statuses', equipIds.value]),
     queryFn: () => fetchEquipmentStatuses(equipIds.value),
     enabled: computed(() => equipIds.value.length > 0),
     refetchInterval: POLL_INTERVAL_MS.equipmentCategory,
@@ -254,32 +208,12 @@ export function useEquipmentCatalog() {
   })
 
   const realtimeQuery = useQuery({
-    queryKey: ['equipment-realtime-latest', realtimeKeys],
+    queryKey: computed(() => ['equipment-realtime-latest', realtimeKeys.value]),
     queryFn: () => fetchSensorLatestValues(realtimeKeys.value),
     enabled: computed(() => realtimeKeys.value.length > 0),
     refetchInterval: POLL_INTERVAL_MS.equipmentRealtime,
-    staleTime: 1_000,
-  })
-
-  const analysisQueries = useQueries({
-    queries: computed(() =>
-      equipIds.value.map((code) => ({
-        queryKey: ['analysis-results', code, 'latest'],
-        queryFn: () => fetchAnalysisResults({ equipmentCode: code, limit: 1 }),
-        staleTime: STALE_TIME_MS.medium,
-        refetchInterval: POLL_INTERVAL_MS.equipmentAnalysis,
-      })),
-    ),
-  })
-
-  const analysisMap = computed(() => {
-    const map = new Map<string, AnalysisResult | null>()
-    equipIds.value.forEach((code, idx) => {
-      const data = analysisQueries.value[idx]?.data
-      const list = (data as AnalysisResult[] | undefined) ?? []
-      map.set(code, list[0] ?? null)
-    })
-    return map
+    staleTime: 0,
+    refetchIntervalInBackground: true,
   })
 
   const statusMap = computed(() => {
@@ -295,7 +229,6 @@ export function useEquipmentCatalog() {
   const categories = computed<EquipmentCategory[]>(() => {
     const equipments = (equipmentsQuery.data.value ?? []) as Equipment[]
     const sMap = statusMap.value
-    const aMap = analysisMap.value
     const rMap = realtimeMap.value
 
     return CATEGORY_DEFINITIONS.map((def) => {
@@ -303,7 +236,6 @@ export function useEquipmentCatalog() {
       const items: EquipmentDetailItem[] = inCategory.map((e) => {
         const code = sMap.get(e.equipmentCode)
         const state = statusCodeToState(code)
-        const analysis = aMap.get(e.equipmentCode) ?? null
         const cycleTime = latestValue(rMap, e.equipmentCode, 'cycle_time')
         const rate = realtimeRate(rMap, e.equipmentCode, state)
         return {
@@ -316,7 +248,7 @@ export function useEquipmentCatalog() {
           operator: '-',
           cycle: cycleTime == null ? '-' : `${formatNumber(cycleTime, 1)}s`,
           common: buildCommon(e, rMap),
-          specific: buildSpecific(e, rMap, analysis),
+          specific: buildSpecific(e, rMap),
         }
       })
 

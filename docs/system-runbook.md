@@ -81,6 +81,14 @@ docker network rm das_das-internal
 .\total_das\start-all.ps1
 ```
 
+Windows PowerShell 실행 정책 때문에 `PSSecurityException` 또는
+`UnauthorizedAccess`가 나오면 `.cmd` 래퍼로 실행한다. 이 방법은 해당 실행
+프로세스에만 `ExecutionPolicy Bypass`를 적용한다.
+
+```powershell
+.\total_das\start-all.cmd
+```
+
 만약 첫 번째 명령에서 UECADA가 아닌 다른 컨테이너가 보이면 그 컨테이너는 해당 프로젝트에서 먼저 내린 뒤 네트워크를 삭제한다. 이 정리는 `total-das-net`, `factory-net`, MySQL volume은 지우지 않으므로 DB 데이터에는 영향을 주지 않는다.
 
 다음으로 DB, FastAPI, Spring Boot를 실행한다.
@@ -156,9 +164,21 @@ Invoke-RestMethod "http://localhost:8080/api/lines?factoryId=FACTORY-01"
 
 - X_DAS OPC UA 구독 주기: 기본 1초
 - DAS/equip-sim 데이터 생성: 약 2초 주기
-- Frontend polling: 화면별 1~5초
+- Frontend polling: 알람 1초, 설비/라인 실시간 버퍼 2초
 - 실시간 상세 진동: `/api/vibration/realtime/{equipmentCode}`
 - 실시간 온도/전류/전압/싸이클타임: `/api/sensors/latest-values`
+
+설비 상세 팝업의 `Type Data`는 진동 분석 결과를 섞지 않고 PLC 타입별 3개 공정값만 표시한다.
+
+| 설비 타입 | 표시 버퍼 suffix |
+| --- | --- |
+| 주조기 | `injection_pressure`, `mold_temperature`, `cooling_flow` |
+| 가공기 | `spindle_speed`, `tool_usage`, `coolant_flow` |
+| 세척기 | `cleaning_concentration`, `cleaning_temperature`, `cleaning_pressure` |
+| 조립기 | `tightening_torque`, `tightening_angle`, `press_force` |
+| 검사기 | `bore_dimension`, `hole_dimension`, `result_ok` |
+
+공통 상세내역은 DAS/X_DAS 공통 센서 버퍼의 `sensor_current`, `sensor_voltage`, `sensor_temperature`, `sensor_vibration`을 2초 polling으로 표시한다.
 
 DB 저장은 FastAPI가 담당한다.
 
@@ -205,7 +225,7 @@ OEE = ((RUNNING * 1.0) + (STANDBY * 0.35) + (MAINTENANCE * 0.15)) / TOTAL * 100
 SWMP에서 우리 Vue 화면을 팝업으로 열 때 사용할 URL:
 
 - 설비 상세 팝업: `http://127.0.0.1:5173/#/equipment?equipmentId=LINE-01_CAST-01&popup=1`
-- 라인 상세 화면: `http://127.0.0.1:5173/#/lines?lineId=LINE-01`
+- 라인 상세 팝업: `http://127.0.0.1:5173/#/layout?lineId=LINE-01&popup=1`
 
 SWMP가 직접 데이터만 가져갈 때 사용할 API:
 
@@ -218,7 +238,7 @@ SWMP가 직접 데이터만 가져갈 때 사용할 API:
 - `GET /api/swmp/lines/{lineId}`
   - 라인 OEE
   - 설비 상태 분포
-  - Vue 라인 화면 URL
+  - Vue 라인별 현황 화면의 라인 상세 팝업 URL
 
 예시:
 
@@ -267,8 +287,14 @@ Frontend 커뮤니티 화면은 다음 API를 사용한다.
   - 채팅 메시지 조회
 - `POST /api/community/chat/rooms/{roomId}/messages`
   - 메시지 전송
-- `GET /api/community/factory-report`
-  - 현재 공장 현황 자동 문서화
+- `POST /api/community/chat/rooms/direct`
+  - 1:1 채팅방 생성
+- `GET /api/community/factory-report?type=heat_safety`
+  - 폭염 안전관리 보고서 자동 문서화
+- `GET /api/community/factory-report?type=annual_esg`
+  - 연간 ESG 운영 보고서 자동 문서화. 현재 버퍼 기준 일별/월별/연간 환산 포함
+- `GET /api/community/factory-report?type=energy_emission`
+  - 전력 사용 및 탄소배출 보고서 자동 문서화
 
 채팅 권한:
 
@@ -276,18 +302,21 @@ Frontend 커뮤니티 화면은 다음 API를 사용한다.
 - `MANAGER`, `OPERATOR`: 자기 라인 채팅 가능
 - 1:1 채팅은 관리자 전체 가능, 그 외 사용자는 같은 라인 사용자끼리 가능
 
-자동 문서화에는 다음 항목이 포함된다.
+자동 문서화 탭은 3개다.
 
-- 설비 가동상태
-- OEE
-- 알람 상태
-- 이상 설비 현황
-- 라인 현황
-- 생산률
-- ESG 대응 데이터
-  - 전압/전류 기반 추정 전력
-  - 추정 탄소배출량
-  - 온도 기반 에너지 손실/부하 징후
+- 폭염 안전관리 보고서: 온도 기준 관심/주의/경고/심각 설비 수, 조치 기준, 설비별 온도 현황
+- 연간 ESG 운영 보고서: 설비 상태, OEE, 알람, 온도 안전, 전력/탄소 배출을 일별·월별·연간으로 환산
+- 전력 사용 및 탄소배출 보고서: 전압·전류 기반 순간전력, 일/월/연 환산 전력사용량, 배출량, 주요 기여 설비
+
+산정 기준:
+
+```text
+power_w = voltage_v * current_a
+energy_kwh = Σ(power_w * interval_hour) / 1000
+emissions_tco2eq = energy_kwh * emission_factor_tco2_per_kwh
+```
+
+현재 구현은 실시간 버퍼의 최신값을 기준으로 자동 보고서를 만든다. 장기 누적 DB가 충분히 쌓이면 같은 API 내부에서 실제 누적 전력량 기준으로 보정할 수 있다.
 
 ## 9. DB 점검 쿼리
 
