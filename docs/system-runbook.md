@@ -226,6 +226,7 @@ SWMP에서 우리 Vue 화면을 팝업으로 열 때 사용할 URL:
 
 - 설비 상세 팝업: `http://127.0.0.1:5173/#/equipment?equipmentId=LINE-01_CAST-01&popup=1`
 - 라인 상세 팝업: `http://127.0.0.1:5173/#/layout?lineId=LINE-01&popup=1`
+- 팝업 화면 전용 API 명세: [`popup-api-spec.md`](popup-api-spec.md)
 
 SWMP가 직접 데이터만 가져갈 때 사용할 API:
 

@@ -31,8 +31,8 @@ export function useUsers(options: UseUsersOptions = {}) {
   })
 
   const updateRole = useMutation({
-    mutationFn: ({ userId, roleName }: { userId: string; roleName: RoleCode }) =>
-      updateUserRole(userId, roleName),
+    mutationFn: ({ userId, roleName, lineId }: { userId: string; roleName: RoleCode; lineId?: string | null }) =>
+      updateUserRole(userId, roleName, lineId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
   })
 

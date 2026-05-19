@@ -21,15 +21,6 @@ export type RealtimeMetric =
   | 'bore_dimension'
   | 'hole_dimension'
   | 'result_ok'
-  | 'temperature'
-  | 'pressure'
-  | 'spindle_load'
-  | 'spindle_rpm'
-  | 'feed_rate'
-  | 'water_temp'
-  | 'flow_rate'
-  | 'torque'
-  | 'leak_pressure'
 
 export interface RealtimeMetricConfig {
   metric: RealtimeMetric
@@ -68,15 +59,6 @@ export const MONITORING_REALTIME_METRICS: readonly RealtimeMetric[] = [
   'bore_dimension',
   'hole_dimension',
   'result_ok',
-  'temperature',
-  'pressure',
-  'spindle_load',
-  'spindle_rpm',
-  'feed_rate',
-  'water_temp',
-  'flow_rate',
-  'torque',
-  'leak_pressure',
 ] as const
 
 const PROCESS_METRICS: Record<string, readonly RealtimeMetricConfig[]> = {

@@ -48,14 +48,22 @@ public class UserService {
     }
 
     public UserResponse updateRole(String userId, UserRoleUpdateRequest request) {
-        if (!userRepository.existsById(userId)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found: " + userId);
-        }
-        userRepository.updateRole(userId, normalizeRole(request.roleName()));
-        return UserResponse.from(userRepository.findById(userId).orElseThrow());
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found: " + userId));
+        String roleName = normalizeRole(request.roleName());
+        user.setRoleName(roleName);
+        user.setLineId("ADMIN".equals(roleName) ? null : normalizeLineId(request.lineId()));
+        return UserResponse.from(userRepository.save(user));
     }
 
     private String normalizeRole(String roleName) {
         return roleName == null ? "OPERATOR" : roleName.trim().toUpperCase();
+    }
+
+    private String normalizeLineId(String lineId) {
+        if (lineId == null || lineId.isBlank()) {
+            return null;
+        }
+        return lineId.trim().toUpperCase();
     }
 }
