@@ -16,15 +16,7 @@ public record EquipmentResponse(
         String location,
         BigDecimal locationX,
         BigDecimal locationY,
-        LocalDateTime createdAt,
-        Double utilizationRate,
-        Integer defectCount,
-        String operatorName,
-        Double cycleTimeSec,
-        Double currentAmp,
-        Double temperatureC,
-        Double humidityPct,
-        Double vibrationMmS
+        LocalDateTime createdAt
 ) {
 
     public static EquipmentResponse from(Equipment equipment) {
@@ -38,47 +30,7 @@ public record EquipmentResponse(
                 equipment.getLocation(),
                 equipment.getLocationX(),
                 equipment.getLocationY(),
-                equipment.getCreatedAt(),
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null
-        );
-    }
-
-    public EquipmentResponse withRuntime(
-            Double utilizationRate,
-            Integer defectCount,
-            String operatorName,
-            Double cycleTimeSec,
-            Double currentAmp,
-            Double temperatureC,
-            Double humidityPct,
-            Double vibrationMmS
-    ) {
-        return new EquipmentResponse(
-                id,
-                equipmentCode,
-                equipmentName,
-                processType,
-                model,
-                installDate,
-                location,
-                locationX,
-                locationY,
-                createdAt,
-                utilizationRate,
-                defectCount,
-                operatorName,
-                cycleTimeSec,
-                currentAmp,
-                temperatureC,
-                humidityPct,
-                vibrationMmS
+                equipment.getCreatedAt()
         );
     }
 }
