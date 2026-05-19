@@ -31,7 +31,7 @@ const replacement = `timestamped_get: () => {
 
 let source = fs.readFileSync(target, "utf8");
 if (!marker.test(source)) {
-  if (source.includes("currentValue = new opcua.Variant")) {
+  if (source.includes("let currentValue;") && source.includes("variables[variableId]")) {
     console.log("node-red-contrib-opcua server getter already patched");
     process.exit(0);
   }
