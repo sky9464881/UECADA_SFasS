@@ -35,11 +35,6 @@ data.zip
 # Logs
 *.log
 
-<<<<<<< HEAD
-# OS
-.DS_Store
-Thumbs.db
-=======
 # Cursor / local browser CDP temp
 .tmp-edge-cdp*/
 
@@ -49,4 +44,3 @@ Thumbs.db
 
 # Local convenience symlink (canonical path: frontend/UECADA_3)
 /UECADA_3
->>>>>>> feature/develop_before

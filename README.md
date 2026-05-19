@@ -1,6 +1,3 @@
-<<<<<<< HEAD
-# UECADA
-=======
 # UECADA
 
 전체 DAS/equip-sim/X_DAS/backend/ai-api/frontend 실행과 정합성 검증 절차는 [docs/system-runbook.md](docs/system-runbook.md)를 기준으로 확인한다.
@@ -68,4 +65,3 @@
 - ApexCharts → ECharts 통일로 1 MB 청크 제거
 - 라인 / 설비 목록 `@Cacheable` 또는 ETag 캐싱
 - JWT 통합
->>>>>>> feature/develop_before

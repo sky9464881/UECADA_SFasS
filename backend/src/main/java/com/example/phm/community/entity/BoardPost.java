@@ -31,12 +31,9 @@ public class BoardPost {
     @Column(name = "post_type", length = 30)
     private String category;
 
-<<<<<<< HEAD
-=======
     @Column(name = "target_line_id", length = 20)
     private String targetLineId;
 
->>>>>>> feature/develop_before
     @Column(name = "is_notice", nullable = false)
     private boolean notice = false;
 
@@ -65,12 +62,9 @@ public class BoardPost {
     public String getCategory() { return category; }
     public void setCategory(String category) { this.category = category; }
 
-<<<<<<< HEAD
-=======
     public String getTargetLineId() { return targetLineId; }
     public void setTargetLineId(String targetLineId) { this.targetLineId = targetLineId; }
 
->>>>>>> feature/develop_before
     public boolean isNotice() { return notice; }
     public void setNotice(boolean notice) { this.notice = notice; }
 

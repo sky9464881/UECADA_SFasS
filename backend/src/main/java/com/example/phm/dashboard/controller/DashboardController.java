@@ -1,24 +1,11 @@
 package com.example.phm.dashboard.controller;
 
 import java.util.ArrayList;
-<<<<<<< HEAD
-=======
 import java.util.HashMap;
->>>>>>> feature/develop_before
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-<<<<<<< HEAD
-
-import com.example.phm.alarm.entity.AlarmHistory;
-import com.example.phm.alarm.repository.AlarmHistoryRepository;
-import com.example.phm.analysis.entity.AnalysisResult;
-import com.example.phm.analysis.repository.AnalysisResultRepository;
-import com.example.phm.dashboard.dto.DashboardSummaryResponse;
-import com.example.phm.equipment.entity.Equipment;
-import com.example.phm.equipment.repository.EquipmentRepository;
-=======
 import java.util.Objects;
 
 import com.example.phm.alarm.entity.Alarm;
@@ -35,7 +22,6 @@ import com.example.phm.line.dto.LineResponse;
 import com.example.phm.line.service.LineAggregationService;
 import com.example.phm.vibration.dto.VibrationRealtimeResponse;
 import com.example.phm.vibration.service.VibrationWindowMonitorService;
->>>>>>> feature/develop_before
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -45,34 +31,24 @@ public class DashboardController {
     private final EquipmentRepository equipmentRepository;
     private final AnalysisResultRepository analysisResultRepository;
     private final AlarmHistoryRepository alarmHistoryRepository;
-<<<<<<< HEAD
-=======
     private final AlarmRepository alarmRepository;
     private final LineAggregationService lineAggregationService;
     private final VibrationWindowMonitorService vibrationWindowMonitorService;
->>>>>>> feature/develop_before
 
     public DashboardController(
             EquipmentRepository equipmentRepository,
             AnalysisResultRepository analysisResultRepository,
-<<<<<<< HEAD
-            AlarmHistoryRepository alarmHistoryRepository
-=======
             AlarmHistoryRepository alarmHistoryRepository,
             AlarmRepository alarmRepository,
             LineAggregationService lineAggregationService,
             VibrationWindowMonitorService vibrationWindowMonitorService
->>>>>>> feature/develop_before
     ) {
         this.equipmentRepository = equipmentRepository;
         this.analysisResultRepository = analysisResultRepository;
         this.alarmHistoryRepository = alarmHistoryRepository;
-<<<<<<< HEAD
-=======
         this.alarmRepository = alarmRepository;
         this.lineAggregationService = lineAggregationService;
         this.vibrationWindowMonitorService = vibrationWindowMonitorService;
->>>>>>> feature/develop_before
     }
 
     @GetMapping("/api/dashboard/summary")
@@ -90,15 +66,6 @@ public class DashboardController {
         );
     }
 
-<<<<<<< HEAD
-    private List<DashboardSummaryResponse.DistributionItem> statusDistribution(List<Equipment> equipments) {
-        Map<String, Long> counts = defaultAlarmCounts();
-        for (Equipment equipment : equipments) {
-            String level = analysisResultRepository
-                    .findTopByEquipmentCodeOrderByCreatedAtDesc(equipment.getEquipmentCode())
-                    .map(AnalysisResult::getAlarmLevel)
-                    .orElse("normal");
-=======
     @GetMapping("/api/dashboard/frontend")
     public DashboardFrontendResponse frontendSummary() {
         List<LineResponse> lines = lineAggregationService.getLines("FACTORY-01");
@@ -138,7 +105,6 @@ public class DashboardController {
         }
         for (Equipment equipment : equipments) {
             String level = latestLevelByCode.getOrDefault(equipment.getEquipmentCode(), "normal");
->>>>>>> feature/develop_before
             counts.merge(normalizeLevel(level), 1L, Long::sum);
         }
         return toDistributionItems(counts);
@@ -172,8 +138,6 @@ public class DashboardController {
         }
         return alarmLevel.toLowerCase(Locale.ROOT);
     }
-<<<<<<< HEAD
-=======
 
     private DashboardFrontendResponse.StatusDonut statusDonut(List<LineResponse> lines) {
         long running = lines.stream().mapToLong(LineResponse::equipmentRunning).sum();
@@ -260,5 +224,4 @@ public class DashboardController {
     private double round1(double value) {
         return Math.round(value * 10.0) / 10.0;
     }
->>>>>>> feature/develop_before
 }

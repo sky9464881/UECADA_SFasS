@@ -6,12 +6,9 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 public class AnalyzeResponse {
 
     private Long analysisResultId;
-<<<<<<< HEAD
-=======
     private Long vibrationWindowId;
     private Boolean rawWindowSaved;
     private Boolean alarmCreated;
->>>>>>> feature/develop_before
     private String equipmentId;
     private String timestamp;
     private Integer samplingRate;
@@ -39,8 +36,6 @@ public class AnalyzeResponse {
         this.analysisResultId = analysisResultId;
     }
 
-<<<<<<< HEAD
-=======
     public Long getVibrationWindowId() {
         return vibrationWindowId;
     }
@@ -65,7 +60,6 @@ public class AnalyzeResponse {
         this.alarmCreated = alarmCreated;
     }
 
->>>>>>> feature/develop_before
     public String getEquipmentId() {
         return equipmentId;
     }

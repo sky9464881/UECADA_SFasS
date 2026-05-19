@@ -1,11 +1,8 @@
 package com.example.phm.vibration.mqtt;
 
 import java.nio.charset.StandardCharsets;
-<<<<<<< HEAD
-=======
 import java.time.OffsetDateTime;
 import java.util.List;
->>>>>>> feature/develop_before
 
 import com.example.phm.analysis.dto.AnalysisFeatures;
 import com.example.phm.analysis.dto.AnalyzeResponse;
@@ -14,11 +11,8 @@ import com.example.phm.vibration.service.VibrationIngestionResult;
 import com.example.phm.vibration.service.VibrationIngestionService;
 import com.example.phm.vibration.service.VibrationWindowMonitorService;
 import com.fasterxml.jackson.core.JsonProcessingException;
-<<<<<<< HEAD
-=======
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
->>>>>>> feature/develop_before
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,11 +47,7 @@ public class VibrationWindowMqttSubscriber {
         String payload = payloadAsString(message.getPayload());
 
         try {
-<<<<<<< HEAD
-            VibrationWindowMessage vibrationWindow = objectMapper.readValue(payload, VibrationWindowMessage.class);
-=======
             VibrationWindowMessage vibrationWindow = parseVibrationWindow(payload);
->>>>>>> feature/develop_before
             monitorService.record(vibrationWindow);
 
             log.info(
@@ -80,17 +70,6 @@ public class VibrationWindowMqttSubscriber {
                 );
             }
 
-<<<<<<< HEAD
-            VibrationIngestionResult ingestionResult = ingestionService.ingest(vibrationWindow, payload);
-            AnalyzeResponse analysis = ingestionResult.analysis();
-            AnalysisFeatures features = analysis.getFeatures();
-            log.info(
-                    "Persisted vibration pipeline: vibrationWindowId={}, analysisResultId={}, alarmCreated={}, rawFilePath={}",
-                    ingestionResult.vibrationWindow() != null ? ingestionResult.vibrationWindow().getId() : null,
-                    ingestionResult.analysisResult().getId(),
-                    ingestionResult.alarmCreated(),
-                    ingestionResult.rawFilePath()
-=======
             VibrationIngestionResult ingestionResult = ingestionService.ingest(vibrationWindow);
             AnalyzeResponse analysis = ingestionResult.analysis();
             monitorService.recordAnalysis(vibrationWindow, analysis);
@@ -101,7 +80,6 @@ public class VibrationWindowMqttSubscriber {
                     ingestionResult.analysisResultId(),
                     ingestionResult.rawWindowSaved(),
                     ingestionResult.alarmCreated()
->>>>>>> feature/develop_before
             );
             log.info(
                     "FastAPI response: equipmentId={}, windowIndex={}, rms={}, peakFrequency={}, peakToPeak={}, crestFactor={}, kurtosis={}, prediction={}, confidence={}, modelVersion={}, modelInputStrategy={}, modelStatus={}, anomalyScore={}, alarmLevel={}",
@@ -132,11 +110,7 @@ public class VibrationWindowMqttSubscriber {
         } catch (RestClientException exception) {
             log.warn("Failed to call FastAPI /analyze: {}", exception.getMessage(), exception);
         } catch (RuntimeException exception) {
-<<<<<<< HEAD
-            log.warn("Failed to persist vibration MQTT message: {}", exception.getMessage(), exception);
-=======
             log.warn("Failed to process vibration MQTT message: {}", exception.getMessage(), exception);
->>>>>>> feature/develop_before
         }
     }
 
@@ -153,8 +127,6 @@ public class VibrationWindowMqttSubscriber {
         }
         return value.substring(0, LOG_PAYLOAD_LIMIT) + "...";
     }
-<<<<<<< HEAD
-=======
 
     private VibrationWindowMessage parseVibrationWindow(String payload) throws JsonProcessingException {
         JsonNode root = objectMapper.readTree(payload);
@@ -214,5 +186,4 @@ public class VibrationWindowMqttSubscriber {
         }
         return fallback;
     }
->>>>>>> feature/develop_before
 }

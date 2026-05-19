@@ -7,10 +7,7 @@ from fastapi.responses import JSONResponse
 
 from app.api.routes.analyze_router import router as analyze_router
 from app.core.config import settings
-<<<<<<< HEAD
-=======
 from app.db.runtime_schema import ensure_runtime_schema
->>>>>>> feature/develop_before
 
 
 logger = logging.getLogger("uvicorn.error")
@@ -19,14 +16,11 @@ app = FastAPI(title=settings.app_name)
 app.include_router(analyze_router)
 
 
-<<<<<<< HEAD
-=======
 @app.on_event("startup")
 def startup_schema_check() -> None:
     ensure_runtime_schema()
 
 
->>>>>>> feature/develop_before
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}

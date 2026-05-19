@@ -1,27 +1,10 @@
-<<<<<<< HEAD
-server:
-  port: 8080
-
-=======
 # Host 직접 실행 환경 (gradlew bootRun).
 # 공통 server / jpa 설정은 application.yml 에서 상속.
->>>>>>> feature/develop_before
 spring:
   datasource:
     url: jdbc:mysql://localhost:3306/smart_factory?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
     username: smart_factory
     password: smart_factory
-<<<<<<< HEAD
-  jpa:
-    hibernate:
-      ddl-auto: validate
-    open-in-view: false
-    properties:
-      hibernate:
-        jdbc:
-          time_zone: Asia/Seoul
-=======
->>>>>>> feature/develop_before
 
 phm:
   mqtt:
@@ -33,8 +16,6 @@ phm:
     base-url: http://localhost:8001
   storage:
     raw-window-dir: ../data/raw_windows
-<<<<<<< HEAD
-=======
   opcua:
     x-das:
       # local 프로필 기본값은 false. OPC UA 브로커가 호스트에 띄워져 있을 때만 환경변수로 true 지정.
@@ -45,4 +26,3 @@ phm:
       queue-size: ${PHM_OPCUA_XDAS_QUEUE_SIZE:10}
       reconnect-delay-ms: ${PHM_OPCUA_XDAS_RECONNECT_DELAY_MS:5000}
       include-line01-alias-buffers: ${PHM_OPCUA_XDAS_INCLUDE_LINE01_ALIAS_BUFFERS:true}
->>>>>>> feature/develop_before

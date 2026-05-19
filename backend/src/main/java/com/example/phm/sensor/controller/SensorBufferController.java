@@ -1,14 +1,5 @@
 package com.example.phm.sensor.controller;
 
-<<<<<<< HEAD
-import java.util.List;
-import java.util.Set;
-
-import com.example.phm.sensor.SensorBuffer;
-import com.example.phm.sensor.SensorBufferRegistry;
-import com.example.phm.sensor.dto.SensorBufferResponse;
-import com.example.phm.sensor.dto.SensorDataRequest;
-=======
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
@@ -21,7 +12,6 @@ import com.example.phm.sensor.dto.SensorBufferLatestResponse;
 import com.example.phm.sensor.dto.SensorBufferResponse;
 import com.example.phm.sensor.dto.SensorDataRequest;
 import com.example.phm.sensor.dto.SensorLatestValuesRequest;
->>>>>>> feature/develop_before
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -44,10 +34,6 @@ public class SensorBufferController {
         this.registry = registry;
     }
 
-<<<<<<< HEAD
-    /** 센서 데이터 버퍼에 적재 (배치 push 지원) */
-    @PostMapping("/{bufferKey}")
-=======
     @GetMapping("/latest-values")
     public List<SensorBufferLatestResponse> latestValues(@RequestParam List<String> bufferKeys) {
         return latestValuesFor(bufferKeys);
@@ -59,7 +45,6 @@ public class SensorBufferController {
     }
 
     @PostMapping("/{bufferKey:.+}")
->>>>>>> feature/develop_before
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void push(
             @PathVariable String bufferKey,
@@ -68,21 +53,12 @@ public class SensorBufferController {
         request.frames().forEach(f -> registry.push(bufferKey, f));
     }
 
-<<<<<<< HEAD
-    /** 버퍼 전체 스냅샷 조회 */
-    @GetMapping("/{bufferKey}")
-=======
     @GetMapping("/{bufferKey:.+}")
->>>>>>> feature/develop_before
     public SensorBufferResponse get(
             @PathVariable String bufferKey,
             @RequestParam(defaultValue = "0") int last
     ) {
-<<<<<<< HEAD
-        SensorBuffer buf = registry.get(bufferKey);
-=======
         SensorBuffer buf = resolveBuffer(bufferKey);
->>>>>>> feature/develop_before
         if (buf == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Buffer not found: " + bufferKey);
         }
@@ -93,16 +69,10 @@ public class SensorBufferController {
         return new SensorBufferResponse(bufferKey, buf.size(), buf.capacity(), buf.latest(), result);
     }
 
-<<<<<<< HEAD
-    /** 등록된 버퍼 키 목록 */
-=======
->>>>>>> feature/develop_before
     @GetMapping
     public Set<String> listKeys() {
         return registry.registeredKeys();
     }
-<<<<<<< HEAD
-=======
 
     private List<SensorBufferLatestResponse> latestValuesFor(List<String> bufferKeys) {
         return normalizeBufferKeys(bufferKeys)
@@ -142,5 +112,4 @@ public class SensorBufferController {
         }
         return null;
     }
->>>>>>> feature/develop_before
 }

@@ -31,15 +31,6 @@ public class UserService {
         if (userRepository.existsById(request.userId())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "User already exists: " + request.userId());
         }
-<<<<<<< HEAD
-        User user = new User();
-        user.setUserId(request.userId());
-        user.setLoginId(request.loginId());
-        user.setUserName(request.userName());
-        user.setEmail(request.email());
-        user.setRoleName(request.roleName());
-        user.setPasswordHash(AuthService.encodePassword(request.password()));
-=======
         if (userRepository.existsByLoginId(request.loginId())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Login ID already exists: " + request.loginId());
         }
@@ -53,7 +44,6 @@ public class UserService {
         user.setPasswordHash(AuthService.encodePassword(request.password()));
         user.setSecurityQuestion(request.securityQuestion());
         user.setSecurityAnswerHash(AuthService.encodeSecurityAnswer(request.securityAnswer()));
->>>>>>> feature/develop_before
         return UserResponse.from(userRepository.save(user));
     }
 
@@ -61,11 +51,6 @@ public class UserService {
         if (!userRepository.existsById(userId)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found: " + userId);
         }
-<<<<<<< HEAD
-        userRepository.updateRole(userId, request.roleName());
-        return UserResponse.from(userRepository.findById(userId).orElseThrow());
-    }
-=======
         userRepository.updateRole(userId, normalizeRole(request.roleName()));
         return UserResponse.from(userRepository.findById(userId).orElseThrow());
     }
@@ -73,5 +58,4 @@ public class UserService {
     private String normalizeRole(String roleName) {
         return roleName == null ? "OPERATOR" : roleName.trim().toUpperCase();
     }
->>>>>>> feature/develop_before
 }

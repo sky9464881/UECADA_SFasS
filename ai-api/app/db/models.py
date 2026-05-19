@@ -1,17 +1,11 @@
 from datetime import datetime
 
-<<<<<<< HEAD
-from sqlalchemy import BigInteger, DateTime, Double, Integer, String, func
-=======
 from sqlalchemy import BigInteger, DateTime, Double, Integer, String, Text, func
->>>>>>> feature/develop_before
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.database import Base
 
 
-<<<<<<< HEAD
-=======
 class Equipment(Base):
     __tablename__ = "equipment"
 
@@ -43,17 +37,13 @@ class VibrationWindow(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 
->>>>>>> feature/develop_before
 class AnalysisResult(Base):
     __tablename__ = "analysis_result"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     vibration_window_id: Mapped[int | None] = mapped_column(BigInteger)
     equipment_code: Mapped[str] = mapped_column(String(50), nullable=False)
-<<<<<<< HEAD
-=======
     analysis_type: Mapped[str | None] = mapped_column(String(50))
->>>>>>> feature/develop_before
     rms: Mapped[float | None] = mapped_column(Double)
     peak_frequency: Mapped[float | None] = mapped_column(Double)
     peak_to_peak: Mapped[float | None] = mapped_column(Double)
@@ -70,8 +60,6 @@ class AnalysisResult(Base):
     anomaly_score: Mapped[float | None] = mapped_column(Double)
     alarm_level: Mapped[str | None] = mapped_column(String(20))
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
-<<<<<<< HEAD
-=======
 
 
 class AlarmHistory(Base):
@@ -87,4 +75,3 @@ class AlarmHistory(Base):
     ended_at: Mapped[datetime | None] = mapped_column(DateTime)
     duration_seconds: Mapped[int | None] = mapped_column(BigInteger)
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
->>>>>>> feature/develop_before

@@ -27,12 +27,6 @@ public class BoardPostController {
     }
 
     @GetMapping
-<<<<<<< HEAD
-    public List<PostResponse> findAll(@RequestParam(required = false) String category) {
-        List<BoardPost> posts = category != null && !category.isBlank()
-                ? boardPostRepository.findByCategoryAndDeletedFalseOrderByCreatedAtDesc(category)
-                : boardPostRepository.findByDeletedFalseOrderByCreatedAtDesc();
-=======
     public List<PostResponse> findAll(
             @RequestParam(required = false) String category,
             @RequestParam(required = false) String targetLineId
@@ -42,7 +36,6 @@ public class BoardPostController {
                 : category != null && !category.isBlank()
                     ? boardPostRepository.findByCategoryAndDeletedFalseOrderByCreatedAtDesc(category)
                     : boardPostRepository.findByDeletedFalseOrderByCreatedAtDesc();
->>>>>>> feature/develop_before
         return posts.stream().map(PostResponse::from).toList();
     }
 
@@ -54,11 +47,8 @@ public class BoardPostController {
         post.setTitle(request.title());
         post.setContent(request.content());
         post.setCategory(request.category());
-<<<<<<< HEAD
-=======
         post.setTargetLineId(request.targetLineId());
         post.setNotice(Boolean.TRUE.equals(request.notice()));
->>>>>>> feature/develop_before
         return PostResponse.from(boardPostRepository.save(post));
     }
 }

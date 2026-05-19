@@ -41,8 +41,6 @@ public interface AnalysisResultRepository extends JpaRepository<AnalysisResult, 
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end
     );
-<<<<<<< HEAD
-=======
 
     /**
      * 설비 코드 목록에 대해 각 설비의 최신 1건씩만 가져온다.
@@ -60,5 +58,4 @@ public interface AnalysisResultRepository extends JpaRepository<AnalysisResult, 
             WHERE a.rn = 1
             """, nativeQuery = true)
     List<AnalysisResult> findLatestForEquipmentCodes(@Param("equipmentCodes") List<String> equipmentCodes);
->>>>>>> feature/develop_before
 }

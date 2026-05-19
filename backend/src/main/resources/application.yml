@@ -3,8 +3,6 @@ spring:
     name: smart-factory-phm-backend
   profiles:
     active: local
-<<<<<<< HEAD
-=======
     group:
       # Host backend + Docker infra (docker-compose.local-infra.yml)
       local-docker:
@@ -27,4 +25,3 @@ server:
       charset: UTF-8
       force: true
       enabled: true
->>>>>>> feature/develop_before

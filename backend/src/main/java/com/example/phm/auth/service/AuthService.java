@@ -1,9 +1,5 @@
 package com.example.phm.auth.service;
 
-<<<<<<< HEAD
-import com.example.phm.auth.dto.LoginRequest;
-import com.example.phm.auth.dto.LoginResponse;
-=======
 import com.example.phm.auth.dto.FindLoginIdRequest;
 import com.example.phm.auth.dto.FindLoginIdResponse;
 import com.example.phm.auth.dto.LoginRequest;
@@ -12,7 +8,6 @@ import com.example.phm.auth.dto.ResetPasswordRequest;
 import com.example.phm.auth.dto.SecurityQuestionResponse;
 import com.example.phm.auth.dto.UserCreateRequest;
 import com.example.phm.auth.dto.UserResponse;
->>>>>>> feature/develop_before
 import com.example.phm.auth.entity.User;
 import com.example.phm.auth.repository.UserRepository;
 import org.springframework.http.HttpStatus;
@@ -23,12 +18,9 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class AuthService {
 
-<<<<<<< HEAD
-=======
     private static final String LEGACY_DEMO_PASSWORD_HASH =
             "$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW";
     private static final String LEGACY_DEMO_PASSWORD = "secret";
->>>>>>> feature/develop_before
     private static final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     private final UserRepository userRepository;
@@ -41,12 +33,8 @@ public class AuthService {
         User user = userRepository.findByLoginId(request.loginId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials"));
 
-<<<<<<< HEAD
-        if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
-=======
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())
                 && !isLegacyDemoPassword(request.password(), user.getPasswordHash())) {
->>>>>>> feature/develop_before
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
         }
 
@@ -54,11 +42,6 @@ public class AuthService {
         return LoginResponse.from(user);
     }
 
-<<<<<<< HEAD
-    public static String encodePassword(String rawPassword) {
-        return passwordEncoder.encode(rawPassword);
-    }
-=======
     public UserResponse signup(UserCreateRequest request) {
         if (userRepository.existsById(request.userId())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "User already exists: " + request.userId());
@@ -133,5 +116,4 @@ public class AuthService {
     private String normalizeRole(String roleName) {
         return roleName == null ? "OPERATOR" : roleName.trim().toUpperCase();
     }
->>>>>>> feature/develop_before
 }

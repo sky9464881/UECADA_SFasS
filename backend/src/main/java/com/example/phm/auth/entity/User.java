@@ -33,15 +33,12 @@ public class User {
     @Column(name = "role_name", nullable = false, length = 30)
     private String roleName;
 
-<<<<<<< HEAD
-=======
     @Column(name = "security_question", length = 255)
     private String securityQuestion;
 
     @Column(name = "security_answer_hash", length = 255)
     private String securityAnswerHash;
 
->>>>>>> feature/develop_before
     @Column(name = "last_login_at")
     private LocalDateTime lastLoginAt;
 
@@ -72,15 +69,12 @@ public class User {
     public String getRoleName() { return roleName; }
     public void setRoleName(String roleName) { this.roleName = roleName; }
 
-<<<<<<< HEAD
-=======
     public String getSecurityQuestion() { return securityQuestion; }
     public void setSecurityQuestion(String securityQuestion) { this.securityQuestion = securityQuestion; }
 
     public String getSecurityAnswerHash() { return securityAnswerHash; }
     public void setSecurityAnswerHash(String securityAnswerHash) { this.securityAnswerHash = securityAnswerHash; }
 
->>>>>>> feature/develop_before
     public LocalDateTime getLastLoginAt() { return lastLoginAt; }
     public void setLastLoginAt(LocalDateTime lastLoginAt) { this.lastLoginAt = lastLoginAt; }
 

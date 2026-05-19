@@ -5,14 +5,8 @@ Spring Boot 백엔드 위치입니다.
 역할:
 
 - MQTT vibration window 구독
-<<<<<<< HEAD
-- 원본 window 메타데이터 저장
-- FastAPI 분석 요청
-- 분석 결과와 알람 이력 저장
-=======
 - FastAPI 분석/저장 요청
 - 분석 결과, 알람 이력, 10분 raw window는 FastAPI가 DB에 저장
->>>>>>> feature/develop_before
 - Vue 대시보드용 REST API 제공
 
 패키지는 기능 기준으로 나눕니다.
@@ -63,11 +57,6 @@ curl http://localhost:8080/api/vibration/latest
 MQTT 메시지를 받은 뒤에는 FastAPI `/analyze`도 호출합니다. FastAPI가 켜져 있으면 아래 로그가 추가로 출력됩니다.
 
 ```text
-<<<<<<< HEAD
-FastAPI response: equipmentId=MOTOR_001, windowIndex=0, rms=0.12242235, peakFrequency=19.53125, peakToPeak=0.77802311, crestFactor=3.31153025, kurtosis=3.20201772, prediction=bearing, confidence=0.87, modelVersion=spectrogram-pca-rf-v1, modelInputStrategy=stft_spectrogram_64x64_from_raw, modelStatus=loaded, anomalyScore=0.389, alarmLevel=normal
-```
-
-=======
 FastAPI persisted vibration pipeline: vibrationWindowId=42, analysisResultId=123, rawWindowSaved=true, alarmCreated=false
 FastAPI response: equipmentId=MOTOR_001, windowIndex=0, rms=0.12242235, peakFrequency=19.53125, peakToPeak=0.77802311, crestFactor=3.31153025, kurtosis=3.20201772, prediction=bearing, confidence=0.87, modelVersion=spectrogram-pca-rf-v2, modelInputStrategy=stft_spectrogram_64x64_maxnorm_from_raw, modelStatus=loaded, anomalyScore=0.389, alarmLevel=normal
 ```
@@ -81,7 +70,6 @@ MQTT_VIBRATION_TOPIC=factory/motor/1/vibration/window,das/common/LINE-01/CAST-01
 
 `das/common/{line}/{equipment}/vibration/window` payload는 backend에서 기존 `VibrationWindowMessage`로 변환되어 FastAPI `/analyze`로 전달됩니다. 모든 설비 topic을 한 번에 켜면 32,000 sample window가 설비별로 계속 들어가므로, 운영 전에는 분석 대상 설비나 트리거 정책을 좁히는 것이 좋습니다.
 
->>>>>>> feature/develop_before
 ## Run With Local Java
 
 Ubuntu에 Java 21과 Gradle wrapper가 준비된 경우:
@@ -124,8 +112,6 @@ curl -X POST http://localhost:8080/api/debug/reset-data
 
 삭제 대상은 `alarm_history`, `analysis_result`, `vibration_window`, `data/raw_windows/*`입니다. `equipment`은 유지됩니다. Node-RED flow의 `RESET DB + raw files` 버튼도 같은 API를 호출합니다.
 
-<<<<<<< HEAD
-=======
 ## X_DAS OPC UA Buffer Ingestion
 
 backend는 시작 시 X_DAS OPC UA server를 client로 구독하고, 수신한 실시간 설비/센서 값을 DB에 저장하지 않고 인메모리 `SensorBufferRegistry`에 적재합니다.
@@ -187,7 +173,6 @@ curl "http://localhost:8080/api/sensors/latest-values?bufferKeys=LINE01.CAST01:s
 
 상세 버퍼 명세는 `docs/das-backend-buffer-spec.md`를 기준으로 관리합니다.
 
->>>>>>> feature/develop_before
 ## Run With Docker Compose
 
 Docker Compose로 backend와 Mosquitto를 함께 띄울 수도 있습니다.
