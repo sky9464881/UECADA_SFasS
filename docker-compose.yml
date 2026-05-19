@@ -79,6 +79,7 @@ services:
     restart: on-failure
     environment:
       SPRING_PROFILES_ACTIVE: docker
+      TZ: Asia/Seoul
       PHM_MQTT_HOST: ${PHM_MQTT_HOST:-das-mosquitto}
       MQTT_VIBRATION_TOPIC: ${MQTT_VIBRATION_TOPIC:-factory/motor/1/vibration/window,das/common/+/+/vibration/window}
       MQTT_QOS: ${MQTT_QOS:-1}

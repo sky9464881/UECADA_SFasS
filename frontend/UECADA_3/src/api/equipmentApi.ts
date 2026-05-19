@@ -1,6 +1,18 @@
 import { api } from '@/api/client'
 import type { Equipment, EquipmentStatusItem } from '@/types/equipment'
 
+export interface EquipmentAvailability {
+  equipmentCode: string
+  availabilityPct: number
+}
+
+export async function fetchEquipmentAvailability(windowMinutes = 10): Promise<EquipmentAvailability[]> {
+  const { data } = await api.get<EquipmentAvailability[]>('/api/kpi/availability', {
+    params: { windowMinutes },
+  })
+  return data
+}
+
 export async function fetchEquipments(factoryId?: string): Promise<Equipment[]> {
   const { data } = await api.get<Equipment[]>('/api/equipments', {
     params: factoryId ? { factoryId } : undefined,
