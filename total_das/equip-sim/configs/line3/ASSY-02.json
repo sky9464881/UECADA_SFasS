@@ -1,8 +1,6 @@
 {
   "equipment_name": "${LINE_ID:-LINE-00}_ASSY-02",
   "protocol": "opcua",
-  "host": "0.0.0.0",
-  "port": 5052,
   "sampling_ms": 1000,
   "tags": [
     {
@@ -18,6 +16,18 @@
       "base_value": 40.0
     },
     {
+      "name": "tightening_angle_sp",
+      "role": "setpoint",
+      "data_type": "float",
+      "base_value": 90.0
+    },
+    {
+      "name": "press_force_sp",
+      "role": "setpoint",
+      "data_type": "float",
+      "base_value": 1800.0
+    },
+    {
       "name": "tightening_torque",
       "role": "sensor",
       "data_type": "float",
@@ -28,22 +38,15 @@
       "name": "tightening_angle",
       "role": "sensor",
       "data_type": "float",
-      "base_value": 90.0,
+      "source_sp": "tightening_angle_sp",
       "stddev": 2.0
     },
     {
       "name": "press_force",
       "role": "sensor",
       "data_type": "float",
-      "base_value": 1800.0,
+      "source_sp": "press_force_sp",
       "stddev": 60.0
-    },
-    {
-      "name": "part_detected",
-      "role": "sensor",
-      "data_type": "bool",
-      "base_value": true,
-      "stddev": 0.0
     },
     {
       "name": "progress",
@@ -53,5 +56,7 @@
       "stddev": 0.0008333333333333334
     }
   ],
+  "host": "0.0.0.0",
+  "port": 5042,
   "namespace": "${LINE_ID:-LINE-00}_ASSY-02"
 }
