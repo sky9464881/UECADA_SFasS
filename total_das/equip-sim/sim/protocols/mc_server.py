@@ -368,12 +368,11 @@ def _make_request_handler(handler: MCHandler):
 # entry
 # ---------------------------------------------------------------------------
 
-def run(cfg: SimConfig, stop_event: threading.Event) -> None:
+def run(cfg: SimConfig, state: EquipmentState, stop_event: threading.Event) -> None:
     image = DeviceImage()
     tags_by_addr: Dict[Tuple[str, int], TagConfig] = {
         (t.mc.device, t.mc.address): t for t in cfg.tags
     }
-    state = EquipmentState(cfg)
 
     # 초기값 동기화
     for t in cfg.tags:
