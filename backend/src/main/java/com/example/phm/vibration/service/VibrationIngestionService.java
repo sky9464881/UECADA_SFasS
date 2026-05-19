@@ -1,5 +1,6 @@
 package com.example.phm.vibration.service;
 
+<<<<<<< HEAD
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
@@ -21,11 +22,24 @@ import com.example.phm.vibration.entity.VibrationWindow;
 import com.example.phm.vibration.repository.VibrationWindowRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+=======
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+import com.example.phm.analysis.dto.AnalyzeResponse;
+import com.example.phm.analysis.service.AiAnalysisClient;
+import com.example.phm.sensor.SensorBuffer;
+import com.example.phm.sensor.SensorBufferKeys;
+import com.example.phm.sensor.SensorBufferRegistry;
+import com.example.phm.sensor.SensorFrame;
+import com.example.phm.vibration.dto.VibrationWindowMessage;
+>>>>>>> feature/develop_before
 import org.springframework.stereotype.Service;
 
 @Service
 public class VibrationIngestionService {
 
+<<<<<<< HEAD
     private static final Duration RAW_WINDOW_SAVE_INTERVAL = Duration.ofMinutes(10);
 
     private final ConcurrentHashMap<String, LocalDateTime> lastWindowSavedAt = new ConcurrentHashMap<>();
@@ -80,6 +94,62 @@ public class VibrationIngestionService {
 
     private void recordWindowSaveTime(String equipmentCode, LocalDateTime measuredAt) {
         lastWindowSavedAt.put(equipmentCode, measuredAt);
+=======
+    private final AiAnalysisClient aiAnalysisClient;
+    private final SensorBufferRegistry sensorBufferRegistry;
+
+    public VibrationIngestionService(
+            AiAnalysisClient aiAnalysisClient,
+            SensorBufferRegistry sensorBufferRegistry
+    ) {
+        this.aiAnalysisClient = aiAnalysisClient;
+        this.sensorBufferRegistry = sensorBufferRegistry;
+    }
+
+    public VibrationIngestionResult ingest(VibrationWindowMessage message) {
+        validate(message);
+
+        AnalyzeResponse analysis = aiAnalysisClient.analyze(message, true, latestSensorSnapshot(message.getEquipmentId()));
+        return new VibrationIngestionResult(
+                analysis.getVibrationWindowId(),
+                analysis.getAnalysisResultId(),
+                Boolean.TRUE.equals(analysis.getAlarmCreated()),
+                Boolean.TRUE.equals(analysis.getRawWindowSaved()),
+                analysis
+        );
+    }
+
+    private Map<String, Object> latestSensorSnapshot(String equipmentId) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("equipment_id", equipmentId);
+        putLatest(snapshot, equipmentId, "sensor_temperature");
+        putLatest(snapshot, equipmentId, "sensor_current");
+        putLatest(snapshot, equipmentId, "sensor_voltage");
+        putLatest(snapshot, equipmentId, "sensor_vibration");
+        return snapshot;
+    }
+
+    private void putLatest(Map<String, Object> snapshot, String equipmentId, String metric) {
+        SensorFrame latest = null;
+        String latestKey = null;
+        for (String key : SensorBufferKeys.lookupKeys(equipmentId, metric)) {
+            SensorBuffer buffer = sensorBufferRegistry.get(key);
+            if (buffer != null && buffer.latest() != null) {
+                SensorFrame frame = buffer.latest();
+                if (latest == null || frame.timestampMs() > latest.timestampMs()) {
+                    latest = frame;
+                    latestKey = key;
+                }
+            }
+        }
+        if (latest == null) {
+            snapshot.put(metric, null);
+            return;
+        }
+        snapshot.put(metric, latest.value());
+        snapshot.put(metric + "_timestamp_ms", latest.timestampMs());
+        snapshot.put(metric + "_buffer_key", latestKey);
+>>>>>>> feature/develop_before
     }
 
     private void validate(VibrationWindowMessage message) {
@@ -99,6 +169,7 @@ public class VibrationIngestionService {
             throw new IllegalArgumentException("values is required");
         }
     }
+<<<<<<< HEAD
 
     private void ensureEquipmentExists(String equipmentCode) {
         if (equipmentRepository.existsByEquipmentCode(equipmentCode)) {
@@ -218,4 +289,6 @@ public class VibrationIngestionService {
             return LocalDateTime.parse(timestamp, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
         }
     }
+=======
+>>>>>>> feature/develop_before
 }

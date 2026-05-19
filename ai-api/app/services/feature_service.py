@@ -42,13 +42,33 @@ def calculate_features(values: list[float], sampling_rate: int) -> tuple[Feature
     return features, fft
 
 
+<<<<<<< HEAD
 def estimate_anomaly_score(features: FeatureResponse) -> float:
+=======
+def estimate_anomaly_score(
+    features: FeatureResponse,
+    prediction: str | None = None,
+    model_status: str | None = None,
+) -> float:
+>>>>>>> feature/develop_before
     rms_score = _clamp(features.rms / 0.5)
     peak_to_peak_score = _clamp(features.peakToPeak / 2.0)
     crest_score = _clamp((features.crestFactor - 3.0) / 5.0)
     kurtosis_score = _clamp((features.kurtosis - 3.0) / 7.0)
 
+<<<<<<< HEAD
     score = max(rms_score, peak_to_peak_score, crest_score, kurtosis_score)
+=======
+    feature_score = max(rms_score, peak_to_peak_score, crest_score, kurtosis_score)
+    if str(model_status or "").lower() == "loaded":
+        normalized_prediction = str(prediction or "").lower()
+        if normalized_prediction == "normal":
+            return 0.0
+        if normalized_prediction and normalized_prediction not in {"not_trained", "prediction_error"}:
+            return max(0.8, round(feature_score, 4))
+
+    score = feature_score
+>>>>>>> feature/develop_before
     return round(score, 4)
 
 

@@ -14,6 +14,11 @@ class VibrationWindowRequest(BaseModel):
     windowIndex: int = Field(ge=0)
     values: list[float] = Field(min_length=1)
     spectrogram: list[list[float]] | None = None
+<<<<<<< HEAD
+=======
+    sensorSnapshot: dict[str, float | str | int | None] | None = None
+    persist: bool = True
+>>>>>>> feature/develop_before
 
     @model_validator(mode="after")
     def validate_window_size(self) -> VibrationWindowRequest:
@@ -38,7 +43,14 @@ class FftResponse(BaseModel):
 
 
 class AnalyzeResponse(BaseModel):
+<<<<<<< HEAD
     analysisResultId: int
+=======
+    analysisResultId: int | None = None
+    vibrationWindowId: int | None = None
+    rawWindowSaved: bool = False
+    alarmCreated: bool = False
+>>>>>>> feature/develop_before
     equipmentId: str
     timestamp: str
     samplingRate: int

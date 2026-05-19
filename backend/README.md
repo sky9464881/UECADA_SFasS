@@ -5,9 +5,14 @@ Spring Boot 백엔드 위치입니다.
 역할:
 
 - MQTT vibration window 구독
+<<<<<<< HEAD
 - 원본 window 메타데이터 저장
 - FastAPI 분석 요청
 - 분석 결과와 알람 이력 저장
+=======
+- FastAPI 분석/저장 요청
+- 분석 결과, 알람 이력, 10분 raw window는 FastAPI가 DB에 저장
+>>>>>>> feature/develop_before
 - Vue 대시보드용 REST API 제공
 
 패키지는 기능 기준으로 나눕니다.
@@ -58,9 +63,25 @@ curl http://localhost:8080/api/vibration/latest
 MQTT 메시지를 받은 뒤에는 FastAPI `/analyze`도 호출합니다. FastAPI가 켜져 있으면 아래 로그가 추가로 출력됩니다.
 
 ```text
+<<<<<<< HEAD
 FastAPI response: equipmentId=MOTOR_001, windowIndex=0, rms=0.12242235, peakFrequency=19.53125, peakToPeak=0.77802311, crestFactor=3.31153025, kurtosis=3.20201772, prediction=bearing, confidence=0.87, modelVersion=spectrogram-pca-rf-v1, modelInputStrategy=stft_spectrogram_64x64_from_raw, modelStatus=loaded, anomalyScore=0.389, alarmLevel=normal
 ```
 
+=======
+FastAPI persisted vibration pipeline: vibrationWindowId=42, analysisResultId=123, rawWindowSaved=true, alarmCreated=false
+FastAPI response: equipmentId=MOTOR_001, windowIndex=0, rms=0.12242235, peakFrequency=19.53125, peakToPeak=0.77802311, crestFactor=3.31153025, kurtosis=3.20201772, prediction=bearing, confidence=0.87, modelVersion=spectrogram-pca-rf-v2, modelInputStrategy=stft_spectrogram_64x64_maxnorm_from_raw, modelStatus=loaded, anomalyScore=0.389, alarmLevel=normal
+```
+
+total_DAS의 실제 DAS vibration window를 바로 분석하려면 backend를 DAS Mosquitto 네트워크에 붙이고 topic을 함께 구독합니다.
+
+```text
+PHM_MQTT_HOST=das-mosquitto
+MQTT_VIBRATION_TOPIC=factory/motor/1/vibration/window,das/common/LINE-01/CAST-01/vibration/window
+```
+
+`das/common/{line}/{equipment}/vibration/window` payload는 backend에서 기존 `VibrationWindowMessage`로 변환되어 FastAPI `/analyze`로 전달됩니다. 모든 설비 topic을 한 번에 켜면 32,000 sample window가 설비별로 계속 들어가므로, 운영 전에는 분석 대상 설비나 트리거 정책을 좁히는 것이 좋습니다.
+
+>>>>>>> feature/develop_before
 ## Run With Local Java
 
 Ubuntu에 Java 21과 Gradle wrapper가 준비된 경우:
@@ -103,6 +124,70 @@ curl -X POST http://localhost:8080/api/debug/reset-data
 
 삭제 대상은 `alarm_history`, `analysis_result`, `vibration_window`, `data/raw_windows/*`입니다. `equipment`은 유지됩니다. Node-RED flow의 `RESET DB + raw files` 버튼도 같은 API를 호출합니다.
 
+<<<<<<< HEAD
+=======
+## X_DAS OPC UA Buffer Ingestion
+
+backend는 시작 시 X_DAS OPC UA server를 client로 구독하고, 수신한 실시간 설비/센서 값을 DB에 저장하지 않고 인메모리 `SensorBufferRegistry`에 적재합니다.
+
+기본 endpoint:
+
+```text
+opc.tcp://localhost:54880/UA/X_DAS/
+```
+
+Docker profile에서는 `total-das-net`의 X_DAS 컨테이너 alias로 붙습니다.
+
+```text
+opc.tcp://x-das-node-red:54880/UA/X_DAS/
+```
+
+주요 설정:
+
+```yaml
+phm:
+  opcua:
+    x-das:
+      enabled: true
+      endpoint-url: opc.tcp://localhost:54880/UA/X_DAS/
+      publishing-interval-ms: 1000
+      queue-size: 10
+      reconnect-delay-ms: 5000
+      include-line01-alias-buffers: true
+```
+
+X_DAS Node ID는 라인별 버퍼 키로 저장됩니다. LINE01은 기존 표와 API 호환을 위해 라인 없는 alias 버퍼에도 같이 적재됩니다.
+
+```text
+ns=2;s=LINE01.CAST01.Temperature       -> LINE01.CAST01:temperature, CAST01:temperature
+ns=2;s=LINE02.CAST01.Temperature       -> LINE02.CAST01:temperature
+ns=2;s=LINE03.CNC01.SpindleLoad        -> LINE03.CNC01:spindle_load
+ns=2;s=LINE01.CAST01.SensorVibration   -> LINE01.CAST01:sensor_vibration, CAST01:sensor_vibration
+```
+
+Sensor DAS에서 X_DAS로 합쳐진 공통값은 설비별로 아래 suffix에 저장됩니다. `ENV:*`, `vibration_x`, `vibration_y`, `vibration_z` 형태의 별도 환경/축별 key는 현재 명세에서 사용하지 않습니다.
+
+```text
+:sensor_vibration
+:sensor_current
+:sensor_voltage
+:sensor_temperature
+```
+
+`sensor_vibration`은 DAS의 설비별 `vibration_rms` scalar입니다. AI 모델에 들어가는 32,000 sample raw vibration window는 MQTT `das/common/{line}/{equipment}/vibration/window` 경로로 별도 수신되어 FastAPI `/analyze`로 전달됩니다.
+
+조회:
+
+```bash
+curl http://localhost:8080/api/sensors
+curl "http://localhost:8080/api/sensors/LINE01.CAST01:temperature?last=10"
+curl "http://localhost:8080/api/sensors/LINE01.CAST01:sensor_vibration?last=10"
+curl "http://localhost:8080/api/sensors/latest-values?bufferKeys=LINE01.CAST01:sensor_current,LINE01.CAST01:sensor_voltage,LINE01.CAST01:cycle_time"
+```
+
+상세 버퍼 명세는 `docs/das-backend-buffer-spec.md`를 기준으로 관리합니다.
+
+>>>>>>> feature/develop_before
 ## Run With Docker Compose
 
 Docker Compose로 backend와 Mosquitto를 함께 띄울 수도 있습니다.

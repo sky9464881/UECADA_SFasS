@@ -127,7 +127,11 @@ public class AlarmFocusAnalysisService {
                 0,
                 values
         );
+<<<<<<< HEAD
         AnalyzeResponse analysis = aiAnalysisClient.analyze(message);
+=======
+        AnalyzeResponse analysis = aiAnalysisClient.analyze(message, false);
+>>>>>>> feature/develop_before
 
         return new AlarmFocusSelectionResponse(
                 alarm.getId(),

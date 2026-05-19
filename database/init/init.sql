@@ -91,6 +91,11 @@ CREATE TABLE users (
     user_name     VARCHAR(50)  NOT NULL,
     email         VARCHAR(100) DEFAULT NULL,
     role_name     VARCHAR(30)  NOT NULL,
+<<<<<<< HEAD
+=======
+    security_question VARCHAR(255) DEFAULT NULL,
+    security_answer_hash VARCHAR(255) DEFAULT NULL,
+>>>>>>> feature/develop_before
     last_login_at DATETIME     DEFAULT NULL,
     created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at    DATETIME     DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
@@ -174,6 +179,14 @@ CREATE TABLE vibration_window (
     rpm            INT          DEFAULT NULL,
     window_size    INT          NOT NULL,
     window_index   BIGINT       NOT NULL,
+<<<<<<< HEAD
+=======
+    sensor_temperature DOUBLE   DEFAULT NULL,
+    sensor_current     DOUBLE   DEFAULT NULL,
+    sensor_voltage     DOUBLE   DEFAULT NULL,
+    sensor_vibration   DOUBLE   DEFAULT NULL,
+    sensor_snapshot_json LONGTEXT DEFAULT NULL,
+>>>>>>> feature/develop_before
     values_json    LONGTEXT     DEFAULT NULL,
     created_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
@@ -256,6 +269,12 @@ CREATE TABLE chat_room (
     chat_room_id BIGINT       NOT NULL AUTO_INCREMENT,
     line_id      VARCHAR(20)  NOT NULL,
     room_name    VARCHAR(100) NOT NULL,
+<<<<<<< HEAD
+=======
+    room_type    VARCHAR(20)  NOT NULL DEFAULT 'LINE',
+    user_a_id    VARCHAR(20)  DEFAULT NULL,
+    user_b_id    VARCHAR(20)  DEFAULT NULL,
+>>>>>>> feature/develop_before
     created_at   DATETIME     NOT NULL,
     PRIMARY KEY (chat_room_id),
     CONSTRAINT fk_chat_room_line FOREIGN KEY (line_id) REFERENCES `line`(line_id)
@@ -279,6 +298,10 @@ CREATE TABLE board_post (
     post_title     VARCHAR(200) NOT NULL,
     post_content   TEXT         NOT NULL,
     post_type      VARCHAR(30)  DEFAULT NULL,
+<<<<<<< HEAD
+=======
+    target_line_id VARCHAR(20)  DEFAULT NULL,
+>>>>>>> feature/develop_before
     is_notice      TINYINT(1)   NOT NULL DEFAULT 0,
     is_deleted     TINYINT(1)   NOT NULL DEFAULT 0,
     created_at     DATETIME     NOT NULL,

@@ -10,7 +10,11 @@ fastapi==0.115.6
 h11==0.16.0
 httptools==0.7.1
 idna==3.13
+<<<<<<< HEAD
 joblib==1.4.2
+=======
+joblib==1.5.3
+>>>>>>> feature/develop_before
 numpy==2.0.2
 pandas==2.2.3
 pydantic==2.13.3
@@ -20,7 +24,11 @@ python-dateutil==2.9.0.post0
 python-dotenv==1.2.1
 pytz==2026.2
 PyYAML==6.0.3
+<<<<<<< HEAD
 scikit-learn==1.8.0
+=======
+scikit-learn==1.6.1
+>>>>>>> feature/develop_before
 scipy==1.13.1
 six==1.17.0
 starlette==0.41.3

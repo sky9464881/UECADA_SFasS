@@ -41,4 +41,24 @@ public interface AnalysisResultRepository extends JpaRepository<AnalysisResult, 
             @Param("start") LocalDateTime start,
             @Param("end") LocalDateTime end
     );
+<<<<<<< HEAD
+=======
+
+    /**
+     * 설비 코드 목록에 대해 각 설비의 최신 1건씩만 가져온다.
+     * N+1 회피용: 라인/대시보드 집계에서 설비당 1회 findTop 호출하던 패턴을 한 번의 쿼리로 대체.
+     * MySQL window function (ROW_NUMBER) 을 사용.
+     */
+    @Query(value = """
+            SELECT a.*
+            FROM (
+                SELECT a.*,
+                       ROW_NUMBER() OVER (PARTITION BY a.equipment_code ORDER BY a.created_at DESC, a.id DESC) AS rn
+                FROM analysis_result a
+                WHERE a.equipment_code IN (:equipmentCodes)
+            ) a
+            WHERE a.rn = 1
+            """, nativeQuery = true)
+    List<AnalysisResult> findLatestForEquipmentCodes(@Param("equipmentCodes") List<String> equipmentCodes);
+>>>>>>> feature/develop_before
 }

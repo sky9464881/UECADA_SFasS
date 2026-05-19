@@ -1,0 +1,182 @@
+name: ${COMPOSE_PROJECT_NAME:-equip-sim}
+
+# ---------------------------------------------------------------------------
+# 라인 1개 (9 설비 + Node-RED 라인 DAS) compose.
+#
+# 같은 docker-compose.yml 을 .env.line01 / .env.line02 / .env.line03 으로
+# 다른 COMPOSE_PROJECT_NAME 로 띄우면 라인 1/2/3 이 한 호스트에서 동시 실행 가능.
+#   docker compose --env-file .env.line01 up -d --build
+#   docker compose --env-file .env.line02 up -d --build
+#   docker compose --env-file .env.line03 up -d --build
+#
+# 환경변수 (모두 .env.lineN 에 정의):
+#   LINE_ID                LINE-01 / LINE-02 / LINE-03
+#   LINE_DIR               line1   / line2   / line3       (configs 하위)
+#   COMPOSE_PROJECT_NAME   equip-sim-line01 ...           (격리)
+#   PORT_CAST_01           5001 / 5101 / 5201       (MC Protocol)
+#   PORT_WASH_01           5021 / 5121 / 5221       (Modbus TCP)
+#   PORT_ASSY_01 / 02      4841 / 4941 / 5041 + 4842 / ...  (OPC UA)
+#   PORT_TEST_01 / 02      4851 / 4951 / 5051 + 4852 / ...  (OPC UA)
+#   PORT_NODERED_UI        2880 / 3880 / 4880
+#   PORT_DAS_OPCUA         4860 / 4960 / 5060
+#   PORT_CNC_RTU_01/02/03  6101/02/03 (LINE-01) ...        (RTU-over-TCP 디버그용)
+#
+# CNC-01/02/03 통신:
+#   시뮬레이터가 직접 ModbusRtuFramer + TCP listen (Moxa NPort 스타일).
+#   컨테이너 내부 포트 5101/5102/5103 → Node-RED 는
+#   tcpHost=<cnc-XX>:5101 + tcpType=RTU-BUFFERED 로 접속.
+#
+# nodered 컨테이너만 factory-net 외부 네트워크에 추가 attach →
+# 통합-DAS 가 nodered-line01:4860 같은 컨테이너 이름으로 OPC UA 접근 가능.
+# ---------------------------------------------------------------------------
+
+x-sim-common: &sim-common
+  build:
+    context: .
+    dockerfile: Dockerfile
+  image: equip-sim:latest
+  restart: unless-stopped
+
+services:
+  # ---- 주조기 (MC Protocol TCP) -------------------------------------------
+  cast-01:
+    <<: *sim-common
+    container_name: ${LINE_ID}_CAST-01
+    environment:
+      LINE_ID: ${LINE_ID}
+      SIM_CONFIG: /app/configs/${LINE_DIR}/CAST-01.json
+    ports:
+      - "${PORT_CAST_01}:${PORT_CAST_01}"
+
+  # ---- 가공기 (Modbus RTU-over-TCP, Moxa NPort 스타일) --------------------
+  # 시뮬레이터가 컨테이너 안에서 RTU 프레임을 TCP 5101/02/03 으로 직접 서브.
+  # Node-RED 는 cnc-01:5101 같이 컨테이너 이름으로 붙음.
+  # 호스트로의 publish 는 디버그용 (pymodbus 클라이언트 등으로 직접 확인 가능).
+  cnc-01:
+    <<: *sim-common
+    container_name: ${LINE_ID}_CNC-01
+    hostname: cnc-01
+    environment:
+      LINE_ID: ${LINE_ID}
+      SIM_CONFIG: /app/configs/${LINE_DIR}/CNC-01.json
+    ports:
+      - "${PORT_CNC_RTU_01}:5101"
+
+  cnc-02:
+    <<: *sim-common
+    container_name: ${LINE_ID}_CNC-02
+    hostname: cnc-02
+    environment:
+      LINE_ID: ${LINE_ID}
+      SIM_CONFIG: /app/configs/${LINE_DIR}/CNC-02.json
+    ports:
+      - "${PORT_CNC_RTU_02}:5102"
+
+  cnc-03:
+    <<: *sim-common
+    container_name: ${LINE_ID}_CNC-03
+    hostname: cnc-03
+    environment:
+      LINE_ID: ${LINE_ID}
+      SIM_CONFIG: /app/configs/${LINE_DIR}/CNC-03.json
+    ports:
+      - "${PORT_CNC_RTU_03}:5103"
+
+  # ---- 세척기 (Modbus TCP) ------------------------------------------------
+  wash-01:
+    <<: *sim-common
+    container_name: ${LINE_ID}_WASH-01
+    environment:
+      LINE_ID: ${LINE_ID}
+      SIM_CONFIG: /app/configs/${LINE_DIR}/WASH-01.json
+    ports:
+      - "${PORT_WASH_01}:${PORT_WASH_01}"
+
+  # ---- 조립기 (OPC UA) ----------------------------------------------------
+  assy-01:
+    <<: *sim-common
+    container_name: ${LINE_ID}_ASSY-01
+    environment:
+      LINE_ID: ${LINE_ID}
+      SIM_CONFIG: /app/configs/${LINE_DIR}/ASSY-01.json
+    ports:
+      - "${PORT_ASSY_01}:${PORT_ASSY_01}"
+
+  assy-02:
+    <<: *sim-common
+    container_name: ${LINE_ID}_ASSY-02
+    environment:
+      LINE_ID: ${LINE_ID}
+      SIM_CONFIG: /app/configs/${LINE_DIR}/ASSY-02.json
+    ports:
+      - "${PORT_ASSY_02}:${PORT_ASSY_02}"
+
+  # ---- 검사기 (OPC UA) ----------------------------------------------------
+  test-01:
+    <<: *sim-common
+    container_name: ${LINE_ID}_TEST-01
+    environment:
+      LINE_ID: ${LINE_ID}
+      SIM_CONFIG: /app/configs/${LINE_DIR}/TEST-01.json
+    ports:
+      - "${PORT_TEST_01}:${PORT_TEST_01}"
+
+  test-02:
+    <<: *sim-common
+    container_name: ${LINE_ID}_TEST-02
+    environment:
+      LINE_ID: ${LINE_ID}
+      SIM_CONFIG: /app/configs/${LINE_DIR}/TEST-02.json
+    ports:
+      - "${PORT_TEST_02}:${PORT_TEST_02}"
+
+  # ---- 라인 DAS (Node-RED) ------------------------------------------------
+  # 컨테이너 이름을 nodered-line01 / line02 / line03 으로 고정 →
+  # 통합-DAS 가 factory-net 의 컨테이너 이름으로 접근.
+  #
+  # hostname=nodered-line0X 으로 박아두면 OPC UA Server 가 endpoint advertise 할 때
+  # 컨테이너 이름과 일치해서 "Server end point are not known yet" 오류 방지.
+  nodered:
+    build:
+      context: .
+      dockerfile: Dockerfile.nodered
+      args:
+        FLOW_FILE: nodered/flows_das_${LINE_ID}.json
+    image: equip-sim-nodered-${LINE_NUM_SUFFIX}:4.1.10-22
+    container_name: nodered-${LINE_NUM_SUFFIX}
+    hostname: nodered-${LINE_NUM_SUFFIX}
+    restart: unless-stopped
+    environment:
+      LINE_ID: ${LINE_ID}
+      TZ: Asia/Seoul
+    ports:
+      - "${PORT_NODERED_UI}:1880"           # admin UI
+      - "${PORT_DAS_OPCUA}:${PORT_DAS_OPCUA}"  # line DAS OPC UA Server
+    # NOTE: flow JSON 은 이미지에 COPY 되어 /data/flows.json 이 됨.
+    # bind-mount 로 엎어쓰면 Node-RED 가 저장할 때 rename(EBUSY) 가 떠서 안 함.
+    networks:
+      default:
+        aliases:
+          - nodered-${LINE_NUM_SUFFIX}
+      factory-net:
+        aliases:
+          - nodered-${LINE_NUM_SUFFIX}
+    depends_on:
+      - cast-01
+      - cnc-01
+      - cnc-02
+      - cnc-03
+      - wash-01
+      - assy-01
+      - assy-02
+      - test-01
+      - test-02
+
+networks:
+  default:
+    name: ${COMPOSE_PROJECT_NAME:-equip-sim}_net
+  # 외부 네트워크. 통합-DAS 가 이 네트워크 위에서 컨테이너 이름으로 라인 DAS 에 접근.
+  # 사용 전에 한 번 만들어둬야 함:
+  #   docker network create factory-net
+  factory-net:
+    external: true

@@ -1,0 +1,58 @@
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: das-mosquitto
+    restart: unless-stopped
+    networks:
+      - das-internal
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+
+  node-red:
+    build:
+      context: ./node-red
+    container_name: das-node-red
+    restart: unless-stopped
+    depends_on:
+      - mosquitto
+    networks:
+      das-internal:
+      total-das-net:
+        aliases:
+          - das-node-red
+    ports:
+      - "1888:1880"
+      - "53880:53880"
+    environment:
+      - FLOWS=flows.json
+    volumes:
+      - ./node-red/data:/data
+
+  simulator:
+    build:
+      context: .
+    container_name: das-simulator
+    restart: unless-stopped
+    depends_on:
+      - mosquitto
+    networks:
+      - das-internal
+    volumes:
+      - ../../data/raw_mat/BearingType_DeepGrooveBall:/app/BearingType_DeepGrooveBall:ro
+    command:
+      - python
+      - run_simulator.py
+      - --mqtt-host
+      - mosquitto
+      - --mqtt-port
+      - "1883"
+      - --health-state
+      - NORMAL
+
+networks:
+  das-internal:
+  total-das-net:
+    external: true
+    name: total-das-net

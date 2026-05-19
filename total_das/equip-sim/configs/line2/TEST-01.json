@@ -1,0 +1,56 @@
+{
+  "equipment_name": "${LINE_ID:-LINE-00}_TEST-01",
+  "protocol": "opcua",
+  "sampling_ms": 1000,
+  "tags": [
+    {
+      "name": "power",
+      "role": "power",
+      "data_type": "bool",
+      "base_value": true
+    },
+    {
+      "name": "bore_dimension_sp",
+      "role": "setpoint",
+      "data_type": "float",
+      "base_value": 40.0
+    },
+    {
+      "name": "hole_dimension_sp",
+      "role": "setpoint",
+      "data_type": "float",
+      "base_value": 10.2
+    },
+    {
+      "name": "bore_dimension",
+      "role": "sensor",
+      "data_type": "float",
+      "source_sp": "bore_dimension_sp",
+      "stddev": 0.01
+    },
+    {
+      "name": "hole_dimension",
+      "role": "sensor",
+      "data_type": "float",
+      "source_sp": "hole_dimension_sp",
+      "stddev": 0.025
+    },
+    {
+      "name": "result_ok",
+      "role": "sensor",
+      "data_type": "bool",
+      "base_value": true,
+      "stddev": 0.0
+    },
+    {
+      "name": "progress",
+      "role": "sensor",
+      "data_type": "float",
+      "base_value": 0.008333333333333333,
+      "stddev": 0.0008333333333333334
+    }
+  ],
+  "host": "0.0.0.0",
+  "port": 4951,
+  "namespace": "${LINE_ID:-LINE-00}_TEST-01"
+}

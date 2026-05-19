@@ -24,7 +24,11 @@ Spectrogram 64x64
 
 - 파일 위치: `ai-api/app/models/model.pkl`
 - 로더: `ai-api/app/services/predict_service.py`
+<<<<<<< HEAD
 - 모델 버전: `spectrogram-pca-rf-v1`
+=======
+- 모델 버전: `spectrogram-pca-rf-v2`
+>>>>>>> feature/develop_before
 - 입력 타입: `spectrogram`
 - 모델 입력 shape: `(1, 4096)`
 - 의미: `64x64 spectrogram flatten`
@@ -215,8 +219,13 @@ import joblib
 
 artifact = {
     "model": pipeline,
+<<<<<<< HEAD
     "model_version": "spectrogram-pca-rf-v1",
     "input_type": "spectrogram",
+=======
+    "model_version": "spectrogram-pca-rf-v2",
+    "model_input_type": "spectrogram_64x64_flattened",
+>>>>>>> feature/develop_before
     "sampling_rate": 16000,
     "window_seconds": 2.0,
     "window_size": 32000,
@@ -230,9 +239,20 @@ artifact = {
         "scaling": "spectrum",
         "mode": "magnitude",
     },
+<<<<<<< HEAD
     "class_names": list(pipeline.classes_),
     "sklearn_version": "1.8.0",
     "preprocessing_version": "raw-stft-64x64-v1",
+=======
+    "post_spectrogram_preprocess": {
+        "log_transform": False,
+        "per_window_max_normalization": True,
+        "per_window_max_normalization_eps": 1e-8,
+    },
+    "class_names": list(pipeline.classes_),
+    "sklearn_version": "1.6.1",
+    "preprocessing_version": "raw-stft-64x64-maxnorm-v2",
+>>>>>>> feature/develop_before
 }
 
 joblib.dump(artifact, "model.pkl")
@@ -243,9 +263,16 @@ FastAPI는 위 artifact를 읽어서 다음 값을 자동으로 사용합니다.
 ```text
 model
 model_version
+<<<<<<< HEAD
 input_type
 spectrogram_shape / spectrogram_size
 stft_params
+=======
+input_type / model_input_type
+spectrogram_shape / spectrogram_size
+stft_params
+post_spectrogram_preprocess
+>>>>>>> feature/develop_before
 sampling_rate / window_size / window_seconds
 class_names
 ```
@@ -283,11 +310,22 @@ FastAPI는 Spring Boot에 아래 값을 반환합니다.
 {
   "prediction": "bearing",
   "confidence": 0.87,
+<<<<<<< HEAD
   "modelVersion": "spectrogram-pca-rf-v1",
   "modelInputType": "spectrogram",
   "modelInputSize": 32000,
   "modelExpectedInputSize": 4096,
   "modelInputStrategy": "stft_spectrogram_64x64_from_raw",
+=======
+  "rawWindowSaved": true,
+  "vibrationWindowId": 123,
+  "alarmCreated": false,
+  "modelVersion": "spectrogram-pca-rf-v2",
+  "modelInputType": "spectrogram",
+  "modelInputSize": 32000,
+  "modelExpectedInputSize": 4096,
+  "modelInputStrategy": "stft_spectrogram_64x64_maxnorm_from_raw",
+>>>>>>> feature/develop_before
   "modelStatus": "loaded",
   "anomalyScore": 0.76,
   "alarmLevel": "warning"
