@@ -1,6 +1,6 @@
 import { computed, type Component } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
-import { fetchEquipments, fetchEquipmentStatuses } from '@/api/equipmentApi'
+import { fetchEquipments, fetchEquipmentStatuses, fetchEquipmentAvailability } from '@/api/equipmentApi'
 import { fetchSensorLatestValues, type SensorBufferLatest, type SensorFrame } from '@/api/sensorApi'
 import type { Equipment, EquipmentStatusCode, EquipmentStatusItem } from '@/types/equipment'
 import { POLL_INTERVAL_MS, STALE_TIME_MS } from '@/constants/polling'
@@ -123,7 +123,22 @@ function latestTimestamp(map: LatestFrameMap, equipmentCode: string): number | n
   return latest
 }
 
-function realtimeRate(map: LatestFrameMap, equipmentCode: string, fallbackState: EquipmentState): number {
+function realtimeRate(
+  map: LatestFrameMap,
+  equipmentCode: string,
+  fallbackState: EquipmentState,
+  processType: string | null | undefined,
+): number {
+  // 설비 타입 전용 센서(Type Data)가 전부 0.0이면 → 장비 꺼진 것
+  const processMetrics = processRealtimeMetricConfigs(processType)
+  if (processMetrics.length >= 2) {
+    const values = processMetrics.map((c) => latestValue(map, equipmentCode, c.metric))
+    const hasData = values.some((v) => v !== null)
+    const allZero = values.every((v) => v === null || v === 0)
+    if (hasData && allZero) return 0
+  }
+
+  // 데이터 수신 시각 기반 계산
   const ts = latestTimestamp(map, equipmentCode)
   if (ts == null) return fallbackState === '운전' ? 50 : 0
   const age = Date.now() - ts
@@ -192,6 +207,14 @@ export function useEquipmentCatalog() {
     refetchIntervalInBackground: true,
   })
 
+  const availabilityQuery = useQuery({
+    queryKey: ['equipment-availability'],
+    queryFn: () => fetchEquipmentAvailability(10),
+    refetchInterval: POLL_INTERVAL_MS.equipmentRealtime,
+    staleTime: 0,
+    refetchIntervalInBackground: true,
+  })
+
   const statusMap = computed(() => {
     const map = new Map<string, EquipmentStatusCode>()
     for (const item of (statusQuery.data.value ?? []) as EquipmentStatusItem[]) {
@@ -202,6 +225,14 @@ export function useEquipmentCatalog() {
 
   const realtimeMap = computed(() => latestFrameMap(realtimeQuery.data.value ?? []))
 
+  const availabilityMap = computed(() => {
+    const map = new Map<string, number>()
+    for (const item of availabilityQuery.data.value ?? []) {
+      map.set(item.equipmentCode, item.availabilityPct)
+    }
+    return map
+  })
+
   const categories = computed<EquipmentCategory[]>(() => {
     const equipments = (equipmentsQuery.data.value ?? []) as Equipment[]
     const sMap = statusMap.value
@@ -211,9 +242,14 @@ export function useEquipmentCatalog() {
       const inCategory = equipments.filter((e) => e.processType === def.processType)
       const items: EquipmentDetailItem[] = inCategory.map((e) => {
         const code = sMap.get(e.equipmentCode)
-        const state = statusCodeToState(code)
+        let state = statusCodeToState(code)
         const cycleTime = latestValue(rMap, e.equipmentCode, 'cycle_time')
-        const rate = realtimeRate(rMap, e.equipmentCode, state)
+        // 10분 기준 가동률: DB 기록 없으면 sensor 기반 fallback
+        const dbRate = availabilityMap.value.get(e.equipmentCode)
+        const rate = dbRate !== undefined
+          ? dbRate
+          : realtimeRate(rMap, e.equipmentCode, state, e.processType)
+        if (rate === 0 && (state === '운전' || state === '대기')) state = '점검'
         return {
           id: e.equipmentCode,
           name: e.equipmentName,

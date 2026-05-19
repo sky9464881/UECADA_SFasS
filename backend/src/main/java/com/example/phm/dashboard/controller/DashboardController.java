@@ -1,5 +1,8 @@
 package com.example.phm.dashboard.controller;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -7,11 +10,14 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 import com.example.phm.alarm.entity.Alarm;
 import com.example.phm.alarm.entity.AlarmHistory;
 import com.example.phm.alarm.repository.AlarmHistoryRepository;
 import com.example.phm.alarm.repository.AlarmRepository;
+import com.example.phm.kpi.entity.LineKpiLog;
+import com.example.phm.kpi.repository.LineKpiLogRepository;
 import com.example.phm.analysis.entity.AnalysisResult;
 import com.example.phm.analysis.repository.AnalysisResultRepository;
 import com.example.phm.dashboard.dto.DashboardFrontendResponse;
@@ -28,12 +34,15 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class DashboardController {
 
+    private static final DateTimeFormatter HOUR_LABEL = DateTimeFormatter.ofPattern("HH:mm");
+
     private final EquipmentRepository equipmentRepository;
     private final AnalysisResultRepository analysisResultRepository;
     private final AlarmHistoryRepository alarmHistoryRepository;
     private final AlarmRepository alarmRepository;
     private final LineAggregationService lineAggregationService;
     private final VibrationWindowMonitorService vibrationWindowMonitorService;
+    private final LineKpiLogRepository lineKpiLogRepository;
 
     public DashboardController(
             EquipmentRepository equipmentRepository,
@@ -41,7 +50,8 @@ public class DashboardController {
             AlarmHistoryRepository alarmHistoryRepository,
             AlarmRepository alarmRepository,
             LineAggregationService lineAggregationService,
-            VibrationWindowMonitorService vibrationWindowMonitorService
+            VibrationWindowMonitorService vibrationWindowMonitorService,
+            LineKpiLogRepository lineKpiLogRepository
     ) {
         this.equipmentRepository = equipmentRepository;
         this.analysisResultRepository = analysisResultRepository;
@@ -49,6 +59,7 @@ public class DashboardController {
         this.alarmRepository = alarmRepository;
         this.lineAggregationService = lineAggregationService;
         this.vibrationWindowMonitorService = vibrationWindowMonitorService;
+        this.lineKpiLogRepository = lineKpiLogRepository;
     }
 
     @GetMapping("/api/dashboard/summary")
@@ -176,16 +187,38 @@ public class DashboardController {
     }
 
     private DashboardFrontendResponse.OeeHourlySeries hourlySeries(LineResponse line) {
-        List<String> labels = List.of(
-                "00:00", "02:00", "04:00", "06:00", "08:00", "10:00", "12:00",
-                "14:00", "16:00", "18:00", "20:00", "22:00", "24:00"
+        LocalDateTime todayStart = LocalDate.now().atStartOfDay();
+        LocalDateTime now = LocalDateTime.now();
+        int currentHour = now.getHour();
+
+        // 오늘 데이터 전체 조회 후 시(hour) 단위로 평균
+        List<LineKpiLog> logs = lineKpiLogRepository.findByLineIdAndRecordedAtBetween(
+                line.lineId(), todayStart, now.plusSeconds(1)
         );
-        double base = line.latestOee() == null ? 0.0 : line.latestOee();
+        Map<Integer, Double> avgByHour = logs.stream()
+                .collect(Collectors.groupingBy(
+                        log -> log.getRecordedAt().getHour(),
+                        Collectors.averagingDouble(LineKpiLog::getLineOee)
+                ));
+
+        // 시(hour) 단위 평균을 2시간 버킷으로 재집계
+        Map<Integer, List<Double>> byBucket = new java.util.TreeMap<>();
+        avgByHour.forEach((h, oee) -> {
+            int bucket = (h / 2) * 2;
+            byBucket.computeIfAbsent(bucket, k -> new ArrayList<>()).add(oee);
+        });
+
+        // X축: 00:00, 02:00, ..., 22:00 하루 전체 고정, 데이터 없으면 null
         List<DashboardFrontendResponse.OeePoint> points = new ArrayList<>();
-        for (int i = 0; i < labels.size(); i++) {
-            double value = clamp(base - 2.4 + (i * 0.4));
-            points.add(new DashboardFrontendResponse.OeePoint(labels.get(i), round1(value)));
+        for (int b = 0; b <= 22; b += 2) {
+            String label = String.format("%02d:00", b);
+            List<Double> vals = byBucket.get(b);
+            Double oee = (vals != null && !vals.isEmpty())
+                    ? round1(vals.stream().mapToDouble(Double::doubleValue).average().orElse(0))
+                    : null;
+            points.add(new DashboardFrontendResponse.OeePoint(label, oee));
         }
+
         return new DashboardFrontendResponse.OeeHourlySeries(line.lineId(), line.lineName(), points);
     }
 

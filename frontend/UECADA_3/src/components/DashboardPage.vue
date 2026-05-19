@@ -7,7 +7,7 @@ import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import { PieChart } from 'echarts/charts'
 import { GraphicComponent, LegendComponent, TooltipComponent } from 'echarts/components'
-import { computed, defineAsyncComponent, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 
 // ApexCharts 는 1MB+ 라이브러리이므로 대시보드 진입 시점에만 lazy 로드한다.
@@ -28,6 +28,7 @@ import 'vue-echarts/style.css'
 import { useAppNav } from '@/composables/useAppNav'
 import { useLogout } from '@/composables/useLogout'
 import { useDashboard } from '@/composables/useDashboard'
+import { useAuthStore } from '@/stores/auth'
 import type { DashboardStatusDonut } from '@/types/dashboard'
 
 use([CanvasRenderer, PieChart, TooltipComponent, LegendComponent, GraphicComponent])
@@ -38,6 +39,25 @@ const lineMarkIcons = [Factory, Cog, Package]
 const { navItems } = useAppNav()
 const logout = useLogout()
 const { data: dashboardData } = useDashboard()
+const authStore = useAuthStore()
+
+const userDisplayName = computed(() => authStore.user?.userName ?? '사용자')
+const userRoleDisplay = computed(() => {
+  const r = authStore.role
+  if (r === 'admin') return '전체 관리자'
+  if (r === 'manager') return '라인 관리자'
+  return '작업자'
+})
+
+function formatDateTime(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+const now = ref(new Date())
+let clockTimer: ReturnType<typeof setInterval> | null = null
+onMounted(() => { clockTimer = setInterval(() => { now.value = new Date() }, 60_000) })
+onUnmounted(() => { if (clockTimer) clearInterval(clockTimer) })
+const currentTimeDisplay = computed(() => formatDateTime(now.value))
 
 /** YoY 증감: 증가=빨강, 감소=파랑 (비교 구간은 상단 세그먼트로 표시) */
 function yoyClass(delta: number) {
@@ -102,34 +122,24 @@ const comparePeriodButtons: { key: PeriodKey; label: string }[] = [
   { key: 'year', label: '전년' },
 ]
 
-const FALLBACK_HOUR_LABELS = [
-  '00:00', '02:00', '04:00', '06:00', '08:00', '10:00', '12:00',
-  '14:00', '16:00', '18:00', '20:00', '22:00', '24:00',
-]
-
 const oeeHourLabels = computed(() => {
   const first = dashboardData.value?.oeeHourlySeries?.[0]
-  if (!first || !first.data?.length) return FALLBACK_HOUR_LABELS
+  if (!first || !first.data?.length) return []
   return first.data.map((p) => p.time)
 })
 
 const oeeHourlySeries = computed(() => {
   const series = dashboardData.value?.oeeHourlySeries
   if (!series?.length) {
-    const fallback = totalOeeValue.value
-    const data = fallback == null
-      ? []
-      : FALLBACK_HOUR_LABELS.map((_label, idx) => round1(Math.max(0, Math.min(100, fallback - 2.4 + (idx * 0.4)))))
     return [
-      { name: '라인 A', data },
-      { name: '라인 B', data },
-      { name: '라인 C', data },
+      { name: '1라인', data: [] },
+      { name: '2라인', data: [] },
+      { name: '3라인', data: [] },
     ]
   }
-  const fallback = totalOeeValue.value
   return series.map((s) => ({
     name: s.lineName ?? s.lineId,
-    data: (s.data ?? []).map((p) => (p.oee == null ? fallback : Number(p.oee))),
+    data: (s.data ?? []).map((p) => (p.oee == null ? null : Number(p.oee))),
   }))
 })
 
@@ -400,8 +410,8 @@ watch(
       </nav>
 
       <div class="sidebar-status">
-        <span>관리자</span>
-        <strong>김관리</strong>
+        <span>{{ userRoleDisplay }}</span>
+        <strong>{{ userDisplayName }}</strong>
         <p>OEE·설비 상태·최근 알람을 한 화면에서 확인합니다.</p>
       </div>
     </aside>
@@ -428,7 +438,7 @@ watch(
         <div class="header-actions">
           <span class="current-time">
             <CalendarDays :size="16" />
-            2026-05-11 12:40
+            {{ currentTimeDisplay }}
           </span>
           <RouterLink class="ghost-button" :to="{ name: 'alarms' }">
             <Bell :size="16" />

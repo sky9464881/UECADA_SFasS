@@ -18,6 +18,9 @@ import { useAppNav } from '@/composables/useAppNav'
 import { useLogout } from '@/composables/useLogout'
 import { realtimeBufferKey, useFactoryLayout, type FactoryRealtimeMetric } from '@/composables/useFactoryLayout'
 import { useLineDetails, type LineProcessStage } from '@/composables/useLineDetails'
+import { useQuery } from '@tanstack/vue-query'
+import { fetchEquipmentAvailability } from '@/api/equipmentApi'
+import { POLL_INTERVAL_MS } from '@/constants/polling'
 import { processRealtimeMetricConfigs } from '@/utils/realtimeBuffers'
 import type { LineSummary, LineStatusCode } from '@/types/line'
 import type { Equipment, EquipmentStatusItem, EquipmentStatusCode } from '@/types/equipment'
@@ -74,6 +77,21 @@ const STAGE_ORDER: readonly StageDef[] = [
 ] as const
 
 const { lines: linesData, equipments: equipmentsData, statuses: statusesData, realtime: realtimeData } = useFactoryLayout()
+
+const availabilityQuery = useQuery({
+  queryKey: ['equipment-availability'],
+  queryFn: () => fetchEquipmentAvailability(10),
+  refetchInterval: POLL_INTERVAL_MS.equipmentRealtime,
+  staleTime: 0,
+  refetchIntervalInBackground: true,
+})
+const availabilityMap = computed(() => {
+  const map = new Map<string, number>()
+  for (const item of availabilityQuery.data.value ?? []) {
+    map.set(item.equipmentCode, item.availabilityPct)
+  }
+  return map
+})
 
 const PROCESS_TYPE_TO_STAGE_KEY: Record<string, StageKey> = {
   주조: 'cast',
@@ -170,6 +188,21 @@ function realtimeReceiveLabel(e: Equipment): string {
 
 function effectiveEquipmentStatus(e: Equipment, dbStatus: EquipmentStatusCode | undefined): StatusLabel {
   if (dbStatus === 'ALARM') return '경고'
+
+  // DB 기반 10분 가동률 우선
+  const availPct = availabilityMap.value.get(e.equipmentCode)
+  if (availPct !== undefined) {
+    return availPct > 0 ? '정상' : '주의'
+  }
+
+  // fallback: 센서값 기반
+  const processMetrics = processRealtimeMetricConfigs(e.processType)
+  if (processMetrics.length >= 2) {
+    const values = processMetrics.map((c) => realtimeValue(e.equipmentCode, c.metric))
+    const hasData = values.some((v) => v !== null)
+    const allZero = values.every((v) => v === null || v === 0)
+    if (hasData && allZero) return '주의'
+  }
   const timestampMs = latestRealtimeTimestamp(e)
   if (timestampMs == null) return equipmentStatusToLabel(dbStatus)
   return Date.now() - timestampMs <= REALTIME_STALE_MS ? '정상' : '주의'
