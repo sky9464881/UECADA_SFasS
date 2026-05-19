@@ -13,7 +13,7 @@ const activeAlarmSignature = ref('')
 
 const alarmQuery = useQuery({
   queryKey: ['global-alarm-popup'],
-  queryFn: fetchAlarmsRaw,
+  queryFn: () => fetchAlarmsRaw('OPEN'),
   enabled: computed(() => auth.isAuthenticated),
   refetchInterval: POLL_INTERVAL_MS.alarm,
   refetchIntervalInBackground: true,
@@ -33,6 +33,9 @@ const openUniqueAlarms = computed(() => {
   const map = new Map<string, AlarmResponse>()
   for (const alarm of alarmQuery.data.value ?? []) {
     if (alarm.status?.toUpperCase() !== 'OPEN') continue
+    // 위험(DANGER/CRITICAL) 알람만 팝업 표시
+    const sev = alarm.severity?.toUpperCase()
+    if (sev !== 'DANGER' && sev !== 'CRITICAL') continue
     const signature = alarmSignature(alarm)
     if (!map.has(signature)) {
       map.set(signature, alarm)

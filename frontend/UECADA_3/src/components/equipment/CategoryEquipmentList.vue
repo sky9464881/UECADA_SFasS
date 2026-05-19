@@ -13,7 +13,7 @@ defineEmits<{
 
 function stateClass(equipment: EquipmentDetailItem): string {
   if (equipment.state === '정지') return 'stop'
-  if (equipment.state === '대기') return 'warn'
+  if (equipment.state === '대기' || equipment.state === '점검') return 'warn'
   return 'run'
 }
 </script>

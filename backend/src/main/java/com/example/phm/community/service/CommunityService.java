@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 
 import com.example.phm.alarm.entity.Alarm;
 import com.example.phm.alarm.repository.AlarmRepository;
+import org.springframework.data.domain.PageRequest;
 import com.example.phm.auth.entity.User;
 import com.example.phm.auth.repository.UserRepository;
 import com.example.phm.community.dto.ChatMessageCreateRequest;
@@ -410,7 +411,7 @@ public class CommunityService {
     private FactorySnapshot factorySnapshot() {
         List<LineResponse> lines = lineAggregationService.getLines("FACTORY-01");
         List<Equipment> equipments = equipmentRepository.findAll();
-        List<Alarm> openAlarmRows = alarmRepository.findByFilters("OPEN", null, null, null);
+        List<Alarm> openAlarmRows = alarmRepository.findByFilters("OPEN", null, null, null, PageRequest.of(0, 500));
         List<EquipmentEnergyRow> energyRows = equipments.stream()
                 .map(this::equipmentEnergyRow)
                 .toList();

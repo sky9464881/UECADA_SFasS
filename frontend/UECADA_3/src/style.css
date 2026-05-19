@@ -2128,6 +2128,69 @@ select {
   color: #00507f;
 }
 
+.alarm-level.위험 {
+  background: rgba(153, 0, 0, 0.14);
+  color: #7a0000;
+  font-weight: 950;
+}
+
+.alarm-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 10px 0 4px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #475569;
+}
+
+.alarm-pagination button {
+  appearance: none;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  border-radius: 6px;
+  padding: 4px 12px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  color: #475569;
+  line-height: 1.2;
+  transition: background 0.12s;
+}
+
+.alarm-pagination button:hover:not(:disabled) { background: #e2e8f0; }
+.alarm-pagination button:disabled { opacity: 0.35; cursor: default; }
+
+.alarm-filter-seg {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 10px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  flex-shrink: 0;
+}
+
+.alarm-filter-seg button {
+  appearance: none;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  color: #475569;
+  padding: 5px 12px;
+  border-radius: 8px;
+  line-height: 1.2;
+  transition: background 0.15s, color 0.15s;
+}
+
+.alarm-filter-seg button:hover { background: rgba(255,255,255,0.65); color: #0f172a; }
+.alarm-filter-seg button.on { background: #ffffff; color: #0f172a; box-shadow: 0 1px 3px rgba(15,23,42,0.08); }
+
 .equipment-filter-panel {
   margin-bottom: 14px;
 }
@@ -8672,17 +8735,18 @@ select {
 }
 
 .alarm-trend-history-grid .alarm-trend-chart {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   margin-top: 0;
-  height: auto;
-  min-height: 300px;
+  height: 280px;
+  max-height: 280px;
+  overflow: hidden;
 }
 
 .alarm-trend-history-grid .alarm-history-table-wrap {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   margin-top: 0;
-  min-height: 300px;
-  overflow: auto;
+  overflow-x: auto;
+  overflow-y: hidden;
   box-sizing: border-box;
 }
 

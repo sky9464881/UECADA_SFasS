@@ -189,13 +189,7 @@ function realtimeReceiveLabel(e: Equipment): string {
 function effectiveEquipmentStatus(e: Equipment, dbStatus: EquipmentStatusCode | undefined): StatusLabel {
   if (dbStatus === 'ALARM') return '경고'
 
-  // DB 기반 10분 가동률 우선
-  const availPct = availabilityMap.value.get(e.equipmentCode)
-  if (availPct !== undefined) {
-    return availPct > 0 ? '정상' : '주의'
-  }
-
-  // fallback: 센서값 기반
+  // 현재 센서값 기준: Type Data 전부 0 → 지금 꺼진 상태 (이력보다 우선)
   const processMetrics = processRealtimeMetricConfigs(e.processType)
   if (processMetrics.length >= 2) {
     const values = processMetrics.map((c) => realtimeValue(e.equipmentCode, c.metric))
@@ -203,6 +197,14 @@ function effectiveEquipmentStatus(e: Equipment, dbStatus: EquipmentStatusCode | 
     const allZero = values.every((v) => v === null || v === 0)
     if (hasData && allZero) return '주의'
   }
+
+  // 10분 가동률 버퍼 기반
+  const availPct = availabilityMap.value.get(e.equipmentCode)
+  if (availPct !== undefined) {
+    return availPct > 0 ? '정상' : '주의'
+  }
+
+  // fallback: 타임스탬프 기반
   const timestampMs = latestRealtimeTimestamp(e)
   if (timestampMs == null) return equipmentStatusToLabel(dbStatus)
   return Date.now() - timestampMs <= REALTIME_STALE_MS ? '정상' : '주의'
@@ -599,7 +601,7 @@ function processIcon(key: LineProcessStage['key']) {
                       { 'factory-stage-box--selected': isStageSelected(line.id, stage.key) },
                     ]"
                     :aria-pressed="isStageSelected(line.id, stage.key)"
-                    @click="openLineDetailPopup(line.id)"
+                    @click="selectStage(line.id, stage.key)"
                   >
                     <span
                       class="factory-stage-box-icon-wrap"
@@ -649,47 +651,32 @@ function processIcon(key: LineProcessStage['key']) {
           </header>
 
           <div class="factory-equipment-detail-body">
-              <template v-if="primaryEquipment">
-                <div class="factory-detail-primary-card">
-                  <div class="factory-detail-primary-head">
-                    <span class="factory-detail-primary-icon" aria-hidden="true">
-                      <component :is="stageDetailContext.stage.icon" :size="28" stroke-width="2" />
-                    </span>
-                    <div>
-                      <strong class="factory-detail-primary-name">{{ primaryEquipment.name }}</strong>
-                      <span class="factory-detail-primary-id">{{ primaryEquipment.id }}</span>
-                    </div>
+            <template v-if="stageDetailContext?.equipments?.length">
+              <div
+                v-for="eq in stageDetailContext.equipments"
+                :key="eq.id"
+                class="factory-detail-primary-card"
+              >
+                <div class="factory-detail-primary-head">
+                  <span class="factory-detail-primary-icon" aria-hidden="true">
+                    <component :is="stageDetailContext.stage.icon" :size="28" stroke-width="2" />
+                  </span>
+                  <div>
+                    <strong class="factory-detail-primary-name">{{ eq.name }}</strong>
+                    <span class="factory-detail-primary-id">{{ eq.id }}</span>
                   </div>
-                  <dl
-                    v-if="primaryEquipment.metrics?.length"
-                    class="factory-detail-metrics"
-                  >
-                    <template v-for="m in primaryEquipment.metrics" :key="m.label">
-                      <dt>{{ m.label }}</dt>
-                      <dd>{{ m.value }}</dd>
-                    </template>
-                  </dl>
-                  <p v-else class="factory-detail-primary-summary">{{ primaryEquipment.summary }}</p>
                 </div>
-
-                <ul v-if="secondaryEquipments.length" class="factory-stage-equip-list factory-stage-equip-list--compact">
-                  <li
-                    v-for="eq in secondaryEquipments"
-                    :key="eq.id"
-                    class="factory-stage-equip-row"
-                    :class="equipmentStatusClass(eq.status)"
-                  >
-                    <div class="factory-stage-equip-row-main">
-                      <strong>{{ eq.name }}</strong>
-                      <span class="factory-stage-equip-id">{{ eq.id }}</span>
-                    </div>
-                    <span :class="['factory-stage-equip-status', 'line-state', eq.status]">{{ eq.status }}</span>
-                    <p class="factory-stage-equip-summary">{{ eq.summary }}</p>
-                  </li>
-                </ul>
-              </template>
-              <p v-else class="factory-stage-dialog-empty">등록된 설비가 없습니다.</p>
-            </div>
+                <dl v-if="eq.metrics?.length" class="factory-detail-metrics">
+                  <template v-for="m in eq.metrics" :key="m.label">
+                    <dt>{{ m.label }}</dt>
+                    <dd>{{ m.value }}</dd>
+                  </template>
+                </dl>
+                <p v-else class="factory-detail-primary-summary">{{ eq.summary }}</p>
+              </div>
+            </template>
+            <p v-else class="factory-stage-dialog-empty">등록된 설비가 없습니다.</p>
+          </div>
           </aside>
       </div>
 

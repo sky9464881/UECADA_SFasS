@@ -8,18 +8,77 @@ import {
   LogOut,
   Wrench,
 } from 'lucide-vue-next'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useAppNav } from '@/composables/useAppNav'
 import { useLogout } from '@/composables/useLogout'
 import { useAlarms } from '@/composables/useAlarms'
 import { useAlarmInsights } from '@/composables/useAlarmInsights'
 import { useResolveAlarm } from '@/composables/useResolveAlarm'
+import { useAuthStore } from '@/stores/auth'
+import { useQuery } from '@tanstack/vue-query'
+import { fetchAlarmCounts } from '@/api/alarmApi'
+import { POLL_INTERVAL_MS } from '@/constants/polling'
 
 const { navItems } = useAppNav()
 const logout = useLogout()
-const { data, isPending, isError, error, refetch, isFetching } = useAlarms()
+const authStore = useAuthStore()
+
+const statusFilter = ref<string | null>(null) // null = 전체, 'OPEN' = 미처리, 'RESOLVED' = 처리완료
+const statusFilterOptions = [
+  { label: '전체', value: null },
+  { label: '미처리', value: 'OPEN' },
+  { label: '처리완료', value: 'RESOLVED' },
+]
+
+const PAGE_SIZE = 10
+const currentPage = ref(1)
+
+// 필터 변경 시 첫 페이지로
+watch(statusFilter, () => { currentPage.value = 1 })
+
+const { data, isPending, isError, error, refetch } = useAlarms(statusFilter)
 const { trendDays, equipmentFrequency, typeFrequency } = useAlarmInsights()
 const resolveMutation = useResolveAlarm()
+
+const pagedRows = computed(() => {
+  const rows = data.value?.rows ?? []
+  const start = (currentPage.value - 1) * PAGE_SIZE
+  return rows.slice(start, start + PAGE_SIZE)
+})
+const totalPages = computed(() => Math.max(1, Math.ceil((data.value?.rows?.length ?? 0) / PAGE_SIZE)))
+
+// 요약 카드: 필터와 무관하게 전체 DB 기준 카운트
+const { data: counts } = useQuery({
+  queryKey: ['alarms', 'counts'],
+  queryFn: fetchAlarmCounts,
+  refetchInterval: POLL_INTERVAL_MS.alarm,
+  refetchIntervalInBackground: true,
+})
+const summaryCards = computed(() => [
+  { label: '전체 알람 수', value: counts.value?.total ?? 0, detail: '서버 기준 누적', tone: 'info' as const },
+  { label: '긴급 알람', value: counts.value?.critical ?? 0, detail: '즉시 조치 필요', tone: 'critical' as const },
+  { label: '처리 완료', value: counts.value?.resolved ?? 0, detail: '', tone: 'done' as const },
+  { label: '미처리 알람', value: counts.value?.open ?? 0, detail: '담당자 확인 필요', tone: 'pending' as const },
+])
+
+const userDisplayName = computed(() => authStore.user?.userName ?? '사용자')
+const userRoleDisplay = computed(() => {
+  const r = authStore.role
+  if (r === 'admin') return '전체 관리자'
+  if (r === 'manager') return '라인 관리자'
+  return '작업자'
+})
+
+function formatDateTime(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+const now = ref(new Date())
+let clockTimer: ReturnType<typeof setInterval> | null = null
+onMounted(() => { clockTimer = setInterval(() => { now.value = new Date() }, 60_000) })
+onUnmounted(() => { if (clockTimer) clearInterval(clockTimer) })
+const currentTimeDisplay = computed(() => formatDateTime(now.value))
 
 function handleResolve(alarmId: number) {
   if (!alarmId) return
@@ -57,8 +116,8 @@ function handleResolve(alarmId: number) {
       </nav>
 
       <div class="sidebar-status">
-        <span>관리자</span>
-        <strong>김관리</strong>
+        <span>{{ userRoleDisplay }}</span>
+        <strong>{{ userDisplayName }}</strong>
         <p>알림 현황, 발생 이력 및 추이, 조건별 빈도 분석</p>
       </div>
     </aside>
@@ -72,7 +131,7 @@ function handleResolve(alarmId: number) {
         <div class="header-actions">
           <span class="current-time">
             <CalendarDays :size="16" />
-            2026-05-11 12:40
+            {{ currentTimeDisplay }}
           </span>
           <RouterLink class="ghost-button" :to="{ name: 'equipment' }">
             <Wrench :size="16" />
@@ -84,10 +143,6 @@ function handleResolve(alarmId: number) {
           </button>
         </div>
       </header>
-
-      <p v-if="isFetching && !isPending" class="dashboard-kicker" style="margin: 0 0 8px">
-        최신 알람 동기화 중…
-      </p>
 
       <div v-if="isPending" class="dashboard-panel" style="padding: 48px; text-align: center">
         <p class="panel-kicker">Loading</p>
@@ -106,7 +161,7 @@ function handleResolve(alarmId: number) {
 
       <template v-else-if="data">
         <section class="alarm-summary-grid" aria-label="알림 현황요약">
-          <article v-for="item in data.summary" :key="item.label" :class="['alarm-summary-card', item.tone]">
+          <article v-for="item in summaryCards" :key="item.label" :class="['alarm-summary-card', item.tone]">
             <span>{{ item.label }}</span>
             <strong>{{ item.value }}</strong>
             <p>{{ item.detail }}</p>
@@ -141,7 +196,15 @@ function handleResolve(alarmId: number) {
                 <p class="panel-kicker">Alarm History</p>
                 <h2>알람 발생 이력</h2>
               </div>
-              <AlertTriangle :size="22" />
+              <div class="alarm-filter-seg" role="group" aria-label="상태 필터">
+                <button
+                  v-for="opt in statusFilterOptions"
+                  :key="String(opt.value)"
+                  type="button"
+                  :class="{ on: statusFilter === opt.value }"
+                  @click="statusFilter = opt.value"
+                >{{ opt.label }}</button>
+              </div>
             </div>
 
             <div v-if="data.rows.length === 0" class="alarm-history-table-wrap" style="padding: 32px; text-align: center">
@@ -164,7 +227,7 @@ function handleResolve(alarmId: number) {
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="row in data.rows" :key="`${row.alarmId}-${row.time}`">
+                  <tr v-for="row in pagedRows" :key="`${row.alarmId}-${row.time}`">
                     <td>{{ row.time }}</td>
                     <td><strong>{{ row.equipment }}</strong></td>
                     <td><span :class="['alarm-level', row.type]">{{ row.type }}</span></td>
@@ -187,6 +250,11 @@ function handleResolve(alarmId: number) {
                   </tr>
                 </tbody>
               </table>
+              <div class="alarm-pagination">
+                <button type="button" :disabled="currentPage <= 1" @click="currentPage--">‹</button>
+                <span>{{ currentPage }} / {{ totalPages }}</span>
+                <button type="button" :disabled="currentPage >= totalPages" @click="currentPage++">›</button>
+              </div>
             </div>
           </article>
         </section>
