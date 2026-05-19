@@ -1,0 +1,9 @@
+__pycache__
+*.pyc
+.venv
+.git
+# NOTE: We intentionally do NOT ignore the 'nodered/' folder here, because
+# this Dockerfile needs to COPY nodered/flows_das_LINE-XX.json from the
+# build context. The repo-root .dockerignore (used by the main equip-sim
+# python image build) excludes 'nodered/' but BuildKit picks up this
+# per-Dockerfile ignore file when building Dockerfile.nodered.
