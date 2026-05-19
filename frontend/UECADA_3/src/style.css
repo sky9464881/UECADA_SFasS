@@ -1066,8 +1066,6 @@ select {
   min-height: 26px;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  text-align: center;
   padding: 0 9px;
   border-radius: 999px;
   font-size: 12px;
@@ -1456,17 +1454,12 @@ select {
 }
 
 .line-state {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
   padding: 5px 8px;
   border-radius: 999px;
   background: rgba(10, 159, 104, 0.13);
   color: #05764d;
   font-size: 12px;
   font-weight: 900;
-  line-height: 1.2;
 }
 
 .line-state.주의 {
@@ -2581,38 +2574,44 @@ select {
 }
 
 .alarm-trend-chart {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  align-items: end;
+  gap: clamp(6px, 1vw, 12px);
   width: 100%;
+  min-height: 300px;
+  margin-top: 18px;
+  padding: clamp(12px, 2vw, 18px);
   box-sizing: border-box;
-}
-
-.alarm-trend-chart--empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 220px;
   border: 1px solid #dce5ef;
   border-radius: 8px;
-  background: #f8fafc;
+  background:
+    linear-gradient(rgba(0, 44, 95, 0.06) 1px, transparent 1px),
+    #f8fafc;
+  background-size: 100% 52px;
 }
 
-.alarm-trend-chart--echarts {
-  flex: 1 1 auto;
-  min-height: 0;
-  border: 1px solid #dce5ef;
-  border-radius: 8px;
-  background: #f8fafc;
-  overflow: hidden;
-}
-
-.alarm-trend-echart {
-  width: 100%;
+.alarm-trend-column {
   height: 100%;
-  min-height: 220px;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  align-items: end;
+  gap: 10px;
 }
 
-.alarm-trend-empty {
+.alarm-trend-column i {
+  display: block;
+  min-height: 18px;
+  border-radius: 8px 8px 3px 3px;
+  background: linear-gradient(180deg, var(--control-cyan), var(--hyundai-blue-2));
+  box-shadow: 0 10px 18px rgba(0, 87, 164, 0.14);
+}
+
+.alarm-trend-column span {
   color: #64748b;
-  font-size: 13px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 900;
 }
 
 .alarm-trend-footer {
@@ -4379,20 +4378,11 @@ select {
 
 .factory-detail-status-pill {
   flex-direction: column;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
-  text-align: center;
   gap: 2px;
-  min-width: 76px;
   min-height: 44px;
-  padding: 7px 14px;
-}
-
-.factory-detail-status-pill > span {
-  display: block;
-  width: 100%;
-  text-align: center;
-  line-height: 1.2;
+  padding: 7px 11px;
 }
 
 .factory-detail-status-pill-en {
@@ -4400,17 +4390,6 @@ select {
   font-weight: 900;
   letter-spacing: 0.08em;
   opacity: 0.9;
-}
-
-/* 상세 설비 정보 패널 — 설비 행 상태 칩(정상/주의/경고) 가운데 정렬 */
-.factory-equipment-detail-pane .factory-stage-equip-status.line-state {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  min-width: 52px;
-  padding: 5px 12px;
-  line-height: 1.2;
 }
 
 .factory-equipment-detail-body {
@@ -4422,19 +4401,96 @@ select {
   background: var(--surface);
 }
 
-/* 상세 설비 정보 — 설비 카드 좌측 아이콘 (가공 카드 디자인 통일) */
-.factory-stage-equip-icon {
-  grid-row: 1 / -1;
-  align-self: center;
+.factory-detail-primary-card {
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid #dce5ef;
+  background: #f8fafc;
+  margin-bottom: 12px;
+}
+
+.factory-detail-primary-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.factory-detail-primary-icon {
   flex-shrink: 0;
   display: grid;
   place-items: center;
-  width: 44px;
-  height: 44px;
+  width: 48px;
+  height: 48px;
   border-radius: 8px;
   background: var(--surface);
   border: 1px solid var(--line);
   color: var(--hyundai-blue-2);
+}
+
+.factory-detail-primary-name {
+  display: block;
+  font-size: 16px;
+  font-weight: 950;
+  color: #0f1f38;
+}
+
+.factory-detail-primary-id {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #64748b;
+}
+
+.factory-detail-metrics {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 14px;
+  margin: 0;
+  font-size: 13px;
+}
+
+.factory-detail-metrics dt {
+  margin: 0;
+  font-weight: 800;
+  color: #64748b;
+}
+
+.factory-detail-metrics dd {
+  margin: 0;
+  font-weight: 950;
+  color: #0f172a;
+  text-align: right;
+}
+
+.factory-detail-metrics--popup {
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 10px;
+  margin-top: 6px;
+}
+
+.factory-detail-metrics--popup dt,
+.factory-detail-metrics--popup dd {
+  min-width: 0;
+}
+
+.factory-detail-metrics--popup dd {
+  text-align: left;
+}
+
+.factory-detail-primary-summary {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #475569;
+  line-height: 1.45;
+}
+
+.factory-stage-equip-list--compact {
+  margin-top: 4px;
 }
 
 /* 공장 레이아웃 — 라인 3행(A/B/C) + 공정 5단계(주조→…→검사) */
@@ -4483,6 +4539,7 @@ select {
 }
 
 .factory-line-summary-card {
+  appearance: none;
   flex: 0 0 auto;
   width: min(132px, 22vw);
   min-width: 112px;
@@ -4495,47 +4552,24 @@ select {
   border-radius: 8px;
   border: 1px solid #dce5ef;
   background: #f8fafc;
-}
-
-button.factory-line-summary-card--scada {
-  margin: 0;
+  cursor: pointer;
   font: inherit;
   text-align: inherit;
-  cursor: pointer;
   transition:
     border-color 0.15s ease,
     box-shadow 0.15s ease,
-    transform 0.1s ease;
+    transform 0.15s ease;
 }
 
-button.factory-line-summary-card--scada:hover {
-  border-color: var(--hyundai-blue-2, #4a7fc1);
-  box-shadow: 0 4px 14px rgba(15, 31, 56, 0.1);
+.factory-line-summary-card:hover {
+  border-color: rgba(0, 87, 164, 0.42);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+  transform: translateY(-1px);
 }
 
-button.factory-line-summary-card--scada:active {
-  transform: scale(0.98);
-}
-
-button.factory-line-summary-card--scada:focus-visible {
-  outline: 2px solid var(--hyundai-blue-2, #4a7fc1);
+.factory-line-summary-card:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.42);
   outline-offset: 2px;
-}
-
-.factory-webscada-hint {
-  font-size: 11px;
-  font-weight: 700;
-  color: #4a7fc1;
-  white-space: nowrap;
-}
-
-.factory-webscada-hint--off {
-  color: #94a3b8;
-}
-
-button.factory-webscada-open-btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
 }
 
 .factory-line-summary-code {
@@ -4835,7 +4869,7 @@ button.factory-webscada-open-btn:disabled {
 }
 
 .factory-stage-dialog {
-  width: min(560px, 100%);
+  width: min(760px, 100%);
   max-height: min(82vh, 640px);
   display: flex;
   flex-direction: column;
@@ -4932,9 +4966,9 @@ button.factory-webscada-open-btn:disabled {
 
 .factory-stage-equip-row {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 6px 12px;
-  padding: 12px 14px;
+  padding: 12px 12px 12px 14px;
   border-radius: 8px;
   border: 1px solid #dce5ef;
   background: #f8fafc;
@@ -4955,7 +4989,7 @@ button.factory-webscada-open-btn:disabled {
 }
 
 .factory-stage-equip-row-main {
-  grid-column: 2;
+  grid-column: 1 / -1;
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
@@ -4978,13 +5012,11 @@ button.factory-webscada-open-btn:disabled {
 }
 
 .factory-stage-equip-status {
-  grid-column: 3;
-  align-self: center;
-  justify-self: end;
+  align-self: start;
 }
 
 .factory-stage-equip-summary {
-  grid-column: 2 / -1;
+  grid-column: 1 / -1;
   margin: 0;
   font-size: 13px;
   font-weight: 650;
@@ -7522,6 +7554,151 @@ button.factory-webscada-open-btn:disabled {
   margin-bottom: 14px;
 }
 
+.line-selector-panel,
+.line-flow-panel {
+  margin-bottom: 14px;
+}
+
+.line-selector-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.line-selector-tabs button {
+  min-height: 74px;
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: 7px;
+  padding: 14px;
+  border: 1px solid #dce5ef;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #334155;
+  cursor: pointer;
+}
+
+.line-selector-tabs button.active {
+  border-color: var(--hyundai-blue-2);
+  background: rgba(0, 87, 164, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(0, 87, 164, 0.18);
+}
+
+.line-selector-tabs strong {
+  color: #0f1f38;
+  font-size: 16px;
+  font-weight: 950;
+}
+
+.line-selector-tabs span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.line-flow-stage-row {
+  display: grid;
+  grid-template-columns: minmax(130px, 1fr) 24px minmax(150px, 1.35fr) 24px minmax(130px, 1fr) 24px minmax(130px, 1fr) 24px minmax(130px, 1fr);
+  align-items: stretch;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.line-flow-arrow {
+  display: grid;
+  place-items: center;
+  color: var(--hyundai-blue-2);
+  font-size: 24px;
+  font-weight: 950;
+}
+
+.line-flow-stage {
+  min-width: 0;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #dce5ef;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.line-flow-stage h3 {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  color: #0f1f38;
+  font-size: 14px;
+  font-weight: 950;
+}
+
+.line-flow-stage h3 svg,
+.line-flow-equipment svg {
+  color: var(--hyundai-blue-2);
+}
+
+.line-flow-equipment-list {
+  display: grid;
+  gap: 8px;
+}
+
+.line-flow-equipment {
+  min-height: 88px;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 4px;
+  padding: 10px 8px;
+  border: 1px solid #d7e2ed;
+  border-radius: 8px;
+  background: #ffffff;
+  text-align: center;
+}
+
+.line-flow-equipment strong,
+.line-flow-equipment small,
+.line-flow-equipment span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.line-flow-equipment strong {
+  color: #0f1f38;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.line-flow-equipment small {
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.line-flow-equipment span {
+  color: #334155;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.line-flow-equipment--normal {
+  border-color: rgba(10, 159, 104, 0.38);
+}
+
+.line-flow-equipment--warn {
+  border-color: rgba(217, 45, 32, 0.54);
+  background: rgba(217, 45, 32, 0.07);
+}
+
+.line-flow-equipment--standby {
+  border-color: rgba(240, 180, 41, 0.52);
+  background: rgba(240, 180, 41, 0.08);
+}
+
 .line-oee-donut-grid,
 .line-status-donut-grid {
   display: grid;
@@ -8096,7 +8273,7 @@ button.factory-webscada-open-btn:disabled {
 
 .equipment-popup-summary {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 10px;
   margin-top: 16px;
 }
@@ -8236,21 +8413,89 @@ button.factory-webscada-open-btn:disabled {
 
 .equipment-popup-graph-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1.65fr) minmax(300px, 0.85fr);
   gap: 12px;
   margin-top: 14px;
 }
 
 .equipment-popup-chart-card {
-  min-height: 244px;
-  padding: 14px;
+  min-width: 0;
+  min-height: 252px;
+  padding: 12px;
   border: 1px solid #e4ebf4;
   border-radius: 8px;
   background: #f8fafc;
 }
 
+.equipment-popup-chart-card:first-child {
+  min-height: 318px;
+}
+
+.equipment-vibration-raw-card {
+  min-height: 342px;
+}
+
+.equipment-vibration-metric-card {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  overflow: hidden;
+  padding: 0;
+  background: #ffffff;
+}
+
+.equipment-vibration-metric-card article {
+  min-height: 74px;
+  min-width: 0;
+  display: grid;
+  align-content: center;
+  gap: 5px;
+  padding: 11px 12px;
+  border-right: 1px solid #e4ebf4;
+  border-bottom: 1px solid #e4ebf4;
+}
+
+.equipment-vibration-metric-card article:nth-child(2n) {
+  border-right: 0;
+}
+
+.equipment-vibration-metric-card article:nth-last-child(-n + 2) {
+  border-bottom: 0;
+}
+
+.equipment-vibration-metric-card span {
+  overflow: hidden;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 950;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.equipment-vibration-metric-card strong {
+  overflow-wrap: anywhere;
+  color: #0f1f38;
+  font-size: 18px;
+  line-height: 1.12;
+}
+
+.equipment-echart {
+  width: 100%;
+  height: 292px;
+  margin-top: 8px;
+}
+
+.equipment-echart--raw {
+  height: 314px;
+}
+
+.equipment-echart--small {
+  height: 252px;
+}
+
 .equipment-chart-head {
   display: flex;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
   color: #0f1f38;
@@ -8260,6 +8505,17 @@ button.factory-webscada-open-btn:disabled {
 
 .equipment-chart-head span {
   color: var(--hyundai-blue-2);
+}
+
+.equipment-chart-head div {
+  display: grid;
+  gap: 2px;
+}
+
+.equipment-chart-head small {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 900;
 }
 
 .equipment-trend-bars {
@@ -8403,84 +8659,45 @@ button.factory-webscada-open-btn:disabled {
   align-items: stretch;
 }
 
-/* 추이·이력 패널 동일 높이, 하단(본문 영역 밑선) 정렬
- * 주의: 어느 한쪽 콘텐츠가 자라면 grid stretch 로 양쪽이 같이 자라
- *       추이 차트가 거대한 빈 공간 위에 떠 있는 것처럼 보이는 문제가 있다.
- *       두 패널 모두 명시적 높이를 두어 그 안에서 스크롤되게 한다. */
+/* 추이·이력 패널 동일 높이, 하단(본문 영역 밑선) 정렬 */
 .alarm-trend-history-grid > article.dashboard-panel {
   display: flex;
   flex-direction: column;
   gap: 18px;
-  min-height: 380px;
-  max-height: 460px;
-  height: 460px;
-  box-sizing: border-box;
-  overflow: hidden;
+  min-height: 0;
 }
 
 .alarm-trend-history-grid .section-title-row {
   flex-shrink: 0;
 }
 
-.alarm-trend-history-grid .alarm-trend-panel {
-  min-height: 0;
-}
-
 .alarm-trend-history-grid .alarm-trend-chart {
   flex: 1 1 auto;
   margin-top: 0;
-  min-height: 0;
+  height: auto;
+  min-height: 300px;
 }
 
 .alarm-trend-history-grid .alarm-history-table-wrap {
-  flex: 1 1 0;
+  flex: 1 1 auto;
   margin-top: 0;
-  min-height: 0;
-  max-height: 100%;
+  min-height: 300px;
   overflow: auto;
   box-sizing: border-box;
 }
 
-.alarm-history-count-note {
-  margin-left: 8px;
-  color: #64748b;
+.alarm-trend-column b {
+  display: block;
+  color: #0f1f38;
+  text-align: center;
   font-size: 12px;
-  font-weight: 600;
-}
-
-.alarm-history-table tbody tr {
-  transition: background 0.12s ease;
-}
-
-.alarm-history-table tbody tr:hover {
-  background: #f0f6fc;
-}
-
-.alarm-history-row--critical {
-  border-left: 3px solid var(--control-red);
-}
-
-.alarm-history-row--critical td:first-child {
-  padding-left: 7px;
+  font-weight: 950;
 }
 
 .alarm-frequency-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
-}
-
-.frequency-empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 120px;
-  padding: 16px;
-  color: #64748b;
-  font-size: 13px;
-  border: 1px dashed #d8e1ec;
-  border-radius: 8px;
-  background: #f8fafc;
 }
 
 .frequency-bar-list {
@@ -9550,6 +9767,233 @@ button.factory-webscada-open-btn:disabled {
   grid-template-columns: 40px minmax(0, 1fr);
 }
 
+.swmp-test-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(420px, 1.05fr);
+  gap: 14px;
+}
+
+.swmp-launch-panel {
+  min-height: 420px;
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: 22px;
+  background:
+    linear-gradient(135deg, rgba(0, 44, 95, 0.94), rgba(0, 87, 164, 0.78)),
+    #002c5f;
+  color: #ffffff;
+}
+
+.swmp-launch-copy h2 {
+  margin: 0;
+  color: #ffffff;
+  font-size: 34px;
+}
+
+.swmp-launch-copy p:last-child {
+  max-width: 520px;
+  margin: 12px 0 0;
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.web-scada-button {
+  min-height: 62px;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 24px;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--hyundai-blue);
+  cursor: pointer;
+  font-size: 20px;
+  font-weight: 950;
+  box-shadow: 0 18px 38px rgba(0, 0, 0, 0.18);
+}
+
+.web-scada-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 24px 46px rgba(0, 0, 0, 0.22);
+}
+
+.swmp-status-banner {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.84);
+  font-size: 13px;
+}
+
+.swmp-preview-panel {
+  min-height: 420px;
+}
+
+.swmp-preview-box {
+  min-height: 312px;
+  display: grid;
+  place-items: center;
+  margin-top: 16px;
+  border: 1px dashed rgba(0, 87, 164, 0.34);
+  border-radius: 8px;
+  background:
+    linear-gradient(90deg, rgba(0, 87, 164, 0.05) 1px, transparent 1px),
+    linear-gradient(rgba(0, 87, 164, 0.05) 1px, transparent 1px),
+    #f8fafc;
+  background-size: 28px 28px, 28px 28px, auto;
+  text-align: center;
+}
+
+.swmp-preview-box svg {
+  color: var(--hyundai-blue-2);
+}
+
+.swmp-preview-box strong {
+  display: block;
+  margin-top: 12px;
+  color: #0f1f38;
+  font-size: 20px;
+}
+
+.swmp-preview-box p {
+  max-width: 390px;
+  margin: 8px auto 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.swmp-info-panel,
+.swmp-check-panel {
+  min-height: 260px;
+}
+
+.swmp-info-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.swmp-info-cards article {
+  min-height: 128px;
+  display: grid;
+  align-content: space-between;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid #dce5ef;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.swmp-info-cards span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.swmp-info-cards strong {
+  color: #0f1f38;
+  font-size: 20px;
+}
+
+.swmp-info-cards p {
+  margin: 0;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.swmp-check-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.swmp-check-list article {
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 12px;
+  border: 1px solid #dce5ef;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.swmp-check-list svg {
+  flex: 0 0 auto;
+  color: var(--control-green);
+}
+
+.swmp-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  background: rgba(6, 26, 51, 0.54);
+  backdrop-filter: blur(5px);
+}
+
+.swmp-modal {
+  width: min(1280px, 100%);
+  height: min(820px, calc(100vh - 56px));
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid rgba(0, 87, 164, 0.32);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 28px 72px rgba(15, 23, 42, 0.32);
+}
+
+.swmp-modal-head {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.swmp-modal-close {
+  width: 36px;
+  height: 36px;
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border: 1px solid #cbd8e6;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #334155;
+  cursor: pointer;
+}
+
+.swmp-modal-close:hover {
+  border-color: var(--hyundai-blue-2);
+  color: var(--hyundai-blue-2);
+}
+
+.swmp-frame {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #ffffff;
+}
+
 @media (max-width: 1380px) {
   .dashboard-grid {
     grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
@@ -9598,7 +10042,8 @@ button.factory-webscada-open-btn:disabled {
   .community-layout-grid,
   .line-analysis-grid,
   .line-popup-mini-layout,
-  .equipment-popup-data-grid {
+  .equipment-popup-data-grid,
+  .swmp-test-grid {
     grid-template-columns: 1fr;
   }
 
@@ -9713,11 +10158,21 @@ button.factory-webscada-open-btn:disabled {
   .community-summary-grid,
   .swmp-info-cards,
   .home-line-oee-grid,
+  .line-selector-tabs,
   .line-oee-donut-grid,
   .line-status-donut-grid,
   .community-rule-grid,
   .alarm-flow-steps {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .line-flow-stage-row {
+    grid-template-columns: 1fr;
+  }
+
+  .line-flow-arrow {
+    min-height: 22px;
+    transform: rotate(90deg);
   }
 }
 
@@ -9839,6 +10294,7 @@ button.factory-webscada-open-btn:disabled {
   .community-summary-grid,
   .home-oee-content,
   .home-line-oee-grid,
+  .line-selector-tabs,
   .line-oee-donut-grid,
   .line-status-donut-grid,
   .line-balance-chart-grid,
@@ -9847,6 +10303,21 @@ button.factory-webscada-open-btn:disabled {
   .alarm-flow-steps,
   .control-command-row {
     grid-template-columns: 1fr;
+  }
+
+  .equipment-vibration-metric-card {
+    grid-template-columns: 1fr;
+  }
+
+  .equipment-vibration-metric-card article,
+  .equipment-vibration-metric-card article:nth-child(2n),
+  .equipment-vibration-metric-card article:nth-last-child(-n + 2) {
+    border-right: 0;
+    border-bottom: 1px solid #e4ebf4;
+  }
+
+  .equipment-vibration-metric-card article:last-child {
+    border-bottom: 0;
   }
 
   .home-line-oee {
@@ -9913,6 +10384,14 @@ button.factory-webscada-open-btn:disabled {
     padding: 16px;
   }
 
+  .swmp-modal-backdrop {
+    padding: 14px;
+  }
+
+  .swmp-modal {
+    height: calc(100vh - 28px);
+  }
+
   .line-popup-metrics,
   .line-popup-equipment,
   .line-popup-analysis-grid,
@@ -9930,19 +10409,13 @@ button.factory-webscada-open-btn:disabled {
     grid-template-columns: auto auto;
   }
 
-  .alarm-trend-history-grid > article.dashboard-panel {
-    height: auto;
-    max-height: none;
-    min-height: 320px;
-  }
-
-  .alarm-trend-history-grid .alarm-trend-chart--echarts,
-  .alarm-trend-history-grid .alarm-trend-echart {
-    min-height: 200px;
+  .alarm-trend-history-grid .alarm-trend-chart {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    min-height: 260px;
   }
 
   .alarm-trend-history-grid .alarm-history-table-wrap {
-    min-height: 240px;
+    min-height: 260px;
   }
 
   .alarm-frequency-list article {
@@ -9975,4 +10448,3 @@ button.factory-webscada-open-btn:disabled {
     border-bottom: 0;
   }
 }
-
