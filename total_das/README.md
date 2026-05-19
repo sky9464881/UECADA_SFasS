@@ -14,6 +14,25 @@ docker network create total-das-net
 
 It is OK if Docker says the network already exists.
 
+## Network label conflict
+
+If `.\start-all.ps1` or `docker compose up` fails with this message:
+
+```text
+network das_das-internal was found but has incorrect label com.docker.compose.network set to "" (expected: "das-internal")
+```
+
+Docker already has a stale `das_das-internal` network with the same name but without the Compose labels expected by the current `DAS` project. The latest `start-all.ps1` removes that network automatically when it is empty. If containers are attached, clean the old DAS containers and run again:
+
+```powershell
+docker ps -a --filter network=das_das-internal --format "table {{.Names}}\t{{.Status}}"
+docker rm -f das-mosquitto das-node-red das-simulator
+docker network rm das_das-internal
+.\start-all.ps1
+```
+
+Do not remove `total-das-net` or `factory-net` for this specific error unless Docker reports a separate conflict for those external networks.
+
 ## Start order
 
 Open each folder separately and run these commands.

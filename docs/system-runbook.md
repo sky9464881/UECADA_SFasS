@@ -62,6 +62,27 @@ DAS, equip-sim, X_DAS를 먼저 실행한다.
 
 스크립트는 이제 어느 폴더에서 실행해도 자신의 위치를 기준으로 `DAS`, `equip-sim`, `X_DAS`를 찾는다.
 
+### DAS Compose 네트워크 라벨 오류 해결
+
+다른 PC에서 처음 실행하거나 예전 Docker Compose 실행 흔적이 남아 있으면 아래 오류가 날 수 있다.
+
+```text
+network das_das-internal was found but has incorrect label com.docker.compose.network set to "" (expected: "das-internal")
+```
+
+이 오류는 `total_das/DAS/docker-compose.yml`이 내부 네트워크 `das-internal`을 만들려고 하는데, Docker 안에 이미 같은 실제 이름의 네트워크 `das_das-internal`이 남아 있고 그 네트워크가 현재 Compose 프로젝트의 라벨을 갖고 있지 않을 때 발생한다. 보통 수동으로 네트워크를 만들었거나, 이전 프로젝트/이전 Compose 버전이 같은 이름의 네트워크를 남긴 경우다.
+
+최신 `total_das/start-all.ps1`은 비어 있는 오래된 `das_das-internal` 네트워크를 자동으로 삭제한다. 그래도 컨테이너가 붙어 있어서 실패하면 아래 순서로 한 번만 정리한다.
+
+```powershell
+docker ps -a --filter network=das_das-internal --format "table {{.Names}}\t{{.Status}}"
+docker rm -f das-mosquitto das-node-red das-simulator
+docker network rm das_das-internal
+.\total_das\start-all.ps1
+```
+
+만약 첫 번째 명령에서 UECADA가 아닌 다른 컨테이너가 보이면 그 컨테이너는 해당 프로젝트에서 먼저 내린 뒤 네트워크를 삭제한다. 이 정리는 `total-das-net`, `factory-net`, MySQL volume은 지우지 않으므로 DB 데이터에는 영향을 주지 않는다.
+
 다음으로 DB, FastAPI, Spring Boot를 실행한다.
 
 ```powershell
