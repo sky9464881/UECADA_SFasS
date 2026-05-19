@@ -1,8 +1,6 @@
 <script setup lang="ts">
-import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
-import * as echarts from 'echarts'
-import { useQuery } from '@tanstack/vue-query'
-import { RouterLink, useRoute } from 'vue-router'
+import { computed, defineAsyncComponent, ref, watch } from 'vue'
+import { RouterLink } from 'vue-router'
 import {
   Activity,
   AlertTriangle,
@@ -29,7 +27,9 @@ import type { Component } from 'vue'
 import EquipmentCategoryGrid from '@/components/equipment/EquipmentCategoryGrid.vue'
 import CategorySummaryPanel from '@/components/equipment/CategorySummaryPanel.vue'
 import CategoryEquipmentList from '@/components/equipment/CategoryEquipmentList.vue'
-import { fetchRealtimeVibration } from '@/api/vibrationApi'
+import { edPageIdForCategory, isWebScadaConfigured } from '@/composables/useWebScadaLinks'
+
+const WebScadaOverlay = defineAsyncComponent(() => import('@/components/WebScadaOverlay.vue'))
 
 const { navItems } = useAppNav()
 const logout = useLogout()
@@ -57,7 +57,7 @@ const categories = computed<CategoryWithIcon[]>(() =>
 )
 
 const selectedCategoryId = ref('casting')
-const selectedEquipmentId = ref('CAST-02')
+const selectedEquipmentId = ref('LINE-01_CAST-01')
 const isEquipmentPopupOpen = ref(false)
 const rawVibrationChartEl = ref<HTMLDivElement | null>(null)
 const fftChartEl = ref<HTMLDivElement | null>(null)
@@ -185,8 +185,18 @@ const selectCategory = (category: CategoryWithIcon) => {
   isEquipmentPopupOpen.value = false
 }
 
+const webScadaReady = isWebScadaConfigured()
+const webScadaOverlayOpen = ref(false)
+const webScadaOverlayTitle = computed(() => {
+  const eq = selectedEquipment.value
+  if (!eq || eq.id === '-') return '설비 상세 웹스카다'
+  return `${eq.id} · ${eq.name}`
+})
+const webScadaOverlayPageId = computed(() => edPageIdForCategory(selectedCategoryId.value))
+
 const openEquipmentPopup = () => {
-  isEquipmentPopupOpen.value = true
+  if (!webScadaReady) return
+  webScadaOverlayOpen.value = true
 }
 
 const closeEquipmentPopup = () => {
@@ -710,8 +720,8 @@ onUnmounted(disposeEquipmentCharts)
       </div>
     </aside>
 
-    <section class="dashboard-main">
-      <div class="no-print">
+    <section class="dashboard-main equipment-detail-dashboard-main">
+      <div class="no-print equipment-detail-page-body">
         <header class="dashboard-header">
           <div class="dashboard-header-titles">
             <p class="dashboard-kicker">Equipment Monitoring</p>
@@ -769,7 +779,13 @@ onUnmounted(disposeEquipmentCharts)
             <h2>{{ selectedEquipment.id }} · {{ selectedEquipment.name }}</h2>
           </div>
           <div class="equipment-detail-actions">
-            <button class="equipment-detail-open-button" type="button" @click="openEquipmentPopup">
+            <button
+              class="equipment-detail-open-button"
+              type="button"
+              :disabled="!webScadaReady"
+              title="SMWP 설비 화면 (#ED) 팝업"
+              @click="openEquipmentPopup"
+            >
               <Factory :size="16" />
               <span>설비 상세보기</span>
             </button>
@@ -1192,6 +1208,13 @@ onUnmounted(disposeEquipmentCharts)
         </div>
       </Teleport>
     </section>
+    <WebScadaOverlay
+      :open="webScadaOverlayOpen"
+      :page-id="webScadaOverlayPageId"
+      :title="webScadaOverlayTitle"
+      subtitle="Equipment Detail · SMWP"
+      @close="webScadaOverlayOpen = false"
+    />
   </main>
 </template>
 
@@ -1202,6 +1225,27 @@ onUnmounted(disposeEquipmentCharts)
 
 .equipment-print-trigger {
   white-space: nowrap;
+}
+
+.dashboard-main.equipment-detail-dashboard-main {
+  padding-bottom: 72px;
+}
+
+.equipment-detail-page-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding-bottom: 24px;
+}
+
+.equipment-detail-page-body > :last-child {
+  margin-bottom: 24px;
+}
+
+@media (max-width: 1280px) {
+  .dashboard-main.equipment-detail-dashboard-main {
+    padding-bottom: 96px;
+  }
 }
 
 @media print {

@@ -3,6 +3,7 @@ package com.example.phm.auth.service;
 import java.util.List;
 
 import com.example.phm.auth.dto.UserCreateRequest;
+import com.example.phm.auth.dto.UserLockUpdateRequest;
 import com.example.phm.auth.dto.UserResponse;
 import com.example.phm.auth.dto.UserRoleUpdateRequest;
 import com.example.phm.auth.entity.User;
@@ -53,6 +54,16 @@ public class UserService {
         String roleName = normalizeRole(request.roleName());
         user.setRoleName(roleName);
         user.setLineId("ADMIN".equals(roleName) ? null : normalizeLineId(request.lineId()));
+        return UserResponse.from(userRepository.save(user));
+    }
+
+    public UserResponse updateLock(String userId, UserLockUpdateRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found: " + userId));
+        user.setLocked(request.locked());
+        if (!request.locked()) {
+            user.setFailedLoginCount(0);
+        }
         return UserResponse.from(userRepository.save(user));
     }
 

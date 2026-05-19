@@ -1,8 +1,8 @@
 -- ─────────────────────────────────────────────────────────────────────────────
 -- 성능 보강용 추가 인덱스 (idempotent)
 --
--- 기존 init.sql 에 누락된 인덱스만 추가. 스키마는 변경하지 않으며 컬럼 ADD/RENAME
--- 없음. MySQL 8.x 는 CREATE INDEX IF NOT EXISTS 를 지원하지 않으므로
+-- 기존 init.sql 이후 추가된 운영 보강 컬럼/인덱스를 idempotent 하게 적용한다.
+-- MySQL 8.x 는 CREATE INDEX IF NOT EXISTS 를 지원하지 않으므로
 -- information_schema 로 존재 여부를 체크한 뒤 동적 SQL 로 생성한다.
 --
 -- 적용 시점: docker-entrypoint-initdb.d 가 새 DB 초기화 시점에 02_seed 다음으로 실행.
@@ -32,7 +32,32 @@ BEGIN
     END IF;
 END //
 
+DROP PROCEDURE IF EXISTS add_column_if_missing //
+CREATE PROCEDURE add_column_if_missing(
+    IN tbl VARCHAR(64),
+    IN col VARCHAR(64),
+    IN ddl VARCHAR(255)
+)
+BEGIN
+    DECLARE cnt INT DEFAULT 0;
+    SELECT COUNT(*) INTO cnt
+      FROM information_schema.columns
+     WHERE table_schema = DATABASE()
+       AND table_name = tbl
+       AND column_name = col;
+    IF cnt = 0 THEN
+        SET @sql = CONCAT('ALTER TABLE ', tbl, ' ADD COLUMN ', ddl);
+        PREPARE stmt FROM @sql;
+        EXECUTE stmt;
+        DEALLOCATE PREPARE stmt;
+    END IF;
+END //
+
 DELIMITER ;
+
+-- users 테이블: 로그인 실패 누적과 계정 잠금 표시/관리.
+CALL add_column_if_missing('users', 'failed_login_count', 'failed_login_count INT NOT NULL DEFAULT 0');
+CALL add_column_if_missing('users', 'locked', 'locked TINYINT(1) NOT NULL DEFAULT 0');
 
 -- alarm 테이블: 프론트 알람 조회/필터는 (status, occurred_at), (equipment_code, occurred_at) 패턴이 가장 잦음.
 CALL create_index_if_missing('alarm', 'idx_alarm_status_occurred',     'alarm_status, occurred_at');
@@ -50,3 +75,4 @@ CALL create_index_if_missing('analysis_result', 'idx_analysis_created_at', 'crea
 CALL create_index_if_missing('board_post', 'idx_board_post_created_at', 'created_at');
 
 DROP PROCEDURE IF EXISTS create_index_if_missing;
+DROP PROCEDURE IF EXISTS add_column_if_missing;

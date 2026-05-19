@@ -28,7 +28,6 @@ import 'vue-echarts/style.css'
 import { useAppNav } from '@/composables/useAppNav'
 import { useLogout } from '@/composables/useLogout'
 import { useDashboard } from '@/composables/useDashboard'
-import { useAuthStore } from '@/stores/auth'
 import type { DashboardStatusDonut } from '@/types/dashboard'
 
 use([CanvasRenderer, PieChart, TooltipComponent, LegendComponent, GraphicComponent])
@@ -131,15 +130,20 @@ const oeeHourLabels = computed(() => {
 const oeeHourlySeries = computed(() => {
   const series = dashboardData.value?.oeeHourlySeries
   if (!series?.length) {
+    const fallback = totalOeeValue.value
+    const data = fallback == null
+      ? []
+      : FALLBACK_HOUR_LABELS.map((_label, idx) => round1(Math.max(0, Math.min(100, fallback - 2.4 + (idx * 0.4)))))
     return [
-      { name: '1라인', data: [] },
-      { name: '2라인', data: [] },
-      { name: '3라인', data: [] },
+      { name: '라인 A', data },
+      { name: '라인 B', data },
+      { name: '라인 C', data },
     ]
   }
+  const fallback = totalOeeValue.value
   return series.map((s) => ({
     name: s.lineName ?? s.lineId,
-    data: (s.data ?? []).map((p) => (p.oee == null ? null : Number(p.oee))),
+    data: (s.data ?? []).map((p) => (p.oee == null ? fallback : Number(p.oee))),
   }))
 })
 

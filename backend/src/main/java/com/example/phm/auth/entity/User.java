@@ -39,6 +39,12 @@ public class User {
     @Column(name = "security_answer_hash", length = 255)
     private String securityAnswerHash;
 
+    @Column(name = "failed_login_count", nullable = false)
+    private int failedLoginCount;
+
+    @Column(name = "locked", nullable = false)
+    private boolean locked;
+
     @Column(name = "last_login_at")
     private LocalDateTime lastLoginAt;
 
@@ -74,6 +80,12 @@ public class User {
 
     public String getSecurityAnswerHash() { return securityAnswerHash; }
     public void setSecurityAnswerHash(String securityAnswerHash) { this.securityAnswerHash = securityAnswerHash; }
+
+    public int getFailedLoginCount() { return failedLoginCount; }
+    public void setFailedLoginCount(int failedLoginCount) { this.failedLoginCount = failedLoginCount; }
+
+    public boolean isLocked() { return locked; }
+    public void setLocked(boolean locked) { this.locked = locked; }
 
     public LocalDateTime getLastLoginAt() { return lastLoginAt; }
     public void setLastLoginAt(LocalDateTime lastLoginAt) { this.lastLoginAt = lastLoginAt; }

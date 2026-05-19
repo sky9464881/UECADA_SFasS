@@ -11,6 +11,9 @@ public record UserResponse(
         String email,
         String roleName,
         String lineId,
+        LocalDateTime lastLoginAt,
+        int failedLoginCount,
+        boolean locked,
         LocalDateTime createdAt
 ) {
     public static UserResponse from(User user) {
@@ -21,6 +24,9 @@ public record UserResponse(
                 user.getEmail(),
                 user.getRoleName(),
                 user.getLineId(),
+                user.getLastLoginAt(),
+                user.getFailedLoginCount(),
+                user.isLocked(),
                 user.getCreatedAt()
         );
     }

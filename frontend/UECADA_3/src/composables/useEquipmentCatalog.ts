@@ -1,17 +1,21 @@
 import { computed, type Component } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
-import { fetchEquipments, fetchEquipmentStatuses, fetchEquipmentAvailability } from '@/api/equipmentApi'
+import { fetchEquipments, fetchEquipmentStatuses } from '@/api/equipmentApi'
 import { fetchSensorLatestValues, type SensorBufferLatest, type SensorFrame } from '@/api/sensorApi'
 import type { Equipment, EquipmentStatusCode, EquipmentStatusItem } from '@/types/equipment'
 import { POLL_INTERVAL_MS, STALE_TIME_MS } from '@/constants/polling'
 import {
   MONITORING_REALTIME_METRICS,
+  demoRealtimeMetricValue,
   processRealtimeMetricConfigs,
   realtimeBufferKey,
   realtimeKeysForEquipments,
   type RealtimeMetric,
   type RealtimeMetricConfig,
 } from '@/utils/realtimeBuffers'
+
+/** 버퍼 미수신 시 전압 표시용(백엔드 에너지 데모와 동일한 단일값 가정) */
+const DEFAULT_LINE_VOLTAGE_V = 220
 
 export type EquipmentState = '운전' | '정지' | '대기' | '점검'
 
@@ -113,6 +117,10 @@ function latestValue(map: LatestFrameMap, equipmentCode: string, metric: Realtim
   return typeof value === 'number' && Number.isFinite(value) ? value : null
 }
 
+function valueOrFallback(value: number | null, fallback: number | null | undefined): number | null {
+  return value ?? (typeof fallback === 'number' && Number.isFinite(fallback) ? fallback : null)
+}
+
 function latestTimestamp(map: LatestFrameMap, equipmentCode: string): number | null {
   let latest: number | null = null
   for (const metric of MONITORING_REALTIME_METRICS) {
@@ -123,22 +131,7 @@ function latestTimestamp(map: LatestFrameMap, equipmentCode: string): number | n
   return latest
 }
 
-function realtimeRate(
-  map: LatestFrameMap,
-  equipmentCode: string,
-  fallbackState: EquipmentState,
-  processType: string | null | undefined,
-): number {
-  // 설비 타입 전용 센서(Type Data)가 전부 0.0이면 → 장비 꺼진 것
-  const processMetrics = processRealtimeMetricConfigs(processType)
-  if (processMetrics.length >= 2) {
-    const values = processMetrics.map((c) => latestValue(map, equipmentCode, c.metric))
-    const hasData = values.some((v) => v !== null)
-    const allZero = values.every((v) => v === null || v === 0)
-    if (hasData && allZero) return 0
-  }
-
-  // 데이터 수신 시각 기반 계산
+function realtimeRate(map: LatestFrameMap, equipmentCode: string, fallbackState: EquipmentState): number {
   const ts = latestTimestamp(map, equipmentCode)
   if (ts == null) return fallbackState === '운전' ? 50 : 0
   const age = Date.now() - ts
@@ -148,16 +141,29 @@ function realtimeRate(
 }
 
 function buildCommon(equipment: Equipment, realtime: LatestFrameMap): EquipmentCommonMetric[] {
-  const current = latestValue(realtime, equipment.equipmentCode, 'sensor_current')
-  const voltage = latestValue(realtime, equipment.equipmentCode, 'sensor_voltage')
-  const temperature = latestValue(realtime, equipment.equipmentCode, 'sensor_temperature')
-  const vibration = latestValue(realtime, equipment.equipmentCode, 'sensor_vibration')
+  const current = valueOrFallback(
+    latestValue(realtime, equipment.equipmentCode, 'sensor_current'),
+    equipment.currentAmp,
+  )
+  const voltage = valueOrFallback(
+    latestValue(realtime, equipment.equipmentCode, 'sensor_voltage'),
+    DEFAULT_LINE_VOLTAGE_V,
+  )
+  const temperature = valueOrFallback(
+    latestValue(realtime, equipment.equipmentCode, 'sensor_temperature'),
+    equipment.temperatureC,
+  )
+  const vibration = valueOrFallback(
+    latestValue(realtime, equipment.equipmentCode, 'sensor_vibration'),
+    equipment.vibrationMmS,
+  )
 
   return [
     { label: '전류', value: formatMetric(current, 'A', 1) },
     { label: '전압', value: formatMetric(voltage, 'V', 1) },
     { label: '온도', value: formatMetric(temperature, '℃', 1) },
     { label: '진동', value: formatMetric(vibration, '', 3) },
+    { label: '습도', value: formatMetric(equipment.humidityPct, '%', 1) },
   ]
 }
 
@@ -169,11 +175,12 @@ function formatRealtimeMetric(value: number | null | undefined, config: Realtime
 
 function buildSpecific(equipment: Equipment, realtime: LatestFrameMap): EquipmentSpecificMetric[] {
   const items = processRealtimeMetricConfigs(equipment.processType).map((config: RealtimeMetricConfig) => {
-    const value = latestValue(realtime, equipment.equipmentCode, config.metric)
+    const live = latestValue(realtime, equipment.equipmentCode, config.metric)
+    const value = live ?? demoRealtimeMetricValue(equipment.equipmentCode, config)
     return {
       label: config.label,
       value: formatRealtimeMetric(value, config),
-      status: value == null ? '버퍼 수신 대기' : config.status,
+      status: live == null ? '예시값 (실시간 미수신)' : config.status,
     }
   })
   return items.length ? items : [{ label: 'type_data', value: '-', status: '버퍼 수신 대기' }]
@@ -207,14 +214,6 @@ export function useEquipmentCatalog() {
     refetchIntervalInBackground: true,
   })
 
-  const availabilityQuery = useQuery({
-    queryKey: ['equipment-availability'],
-    queryFn: () => fetchEquipmentAvailability(10),
-    refetchInterval: POLL_INTERVAL_MS.equipmentRealtime,
-    staleTime: 0,
-    refetchIntervalInBackground: true,
-  })
-
   const statusMap = computed(() => {
     const map = new Map<string, EquipmentStatusCode>()
     for (const item of (statusQuery.data.value ?? []) as EquipmentStatusItem[]) {
@@ -225,14 +224,6 @@ export function useEquipmentCatalog() {
 
   const realtimeMap = computed(() => latestFrameMap(realtimeQuery.data.value ?? []))
 
-  const availabilityMap = computed(() => {
-    const map = new Map<string, number>()
-    for (const item of availabilityQuery.data.value ?? []) {
-      map.set(item.equipmentCode, item.availabilityPct)
-    }
-    return map
-  })
-
   const categories = computed<EquipmentCategory[]>(() => {
     const equipments = (equipmentsQuery.data.value ?? []) as Equipment[]
     const sMap = statusMap.value
@@ -242,22 +233,20 @@ export function useEquipmentCatalog() {
       const inCategory = equipments.filter((e) => e.processType === def.processType)
       const items: EquipmentDetailItem[] = inCategory.map((e) => {
         const code = sMap.get(e.equipmentCode)
-        let state = statusCodeToState(code)
-        const cycleTime = latestValue(rMap, e.equipmentCode, 'cycle_time')
-        // 10분 기준 가동률: DB 기록 없으면 sensor 기반 fallback
-        const dbRate = availabilityMap.value.get(e.equipmentCode)
-        const rate = dbRate !== undefined
-          ? dbRate
-          : realtimeRate(rMap, e.equipmentCode, state, e.processType)
-        if (rate === 0 && (state === '운전' || state === '대기')) state = '점검'
+        const state = statusCodeToState(code)
+        const cycleTime = valueOrFallback(latestValue(rMap, e.equipmentCode, 'cycle_time'), e.cycleTimeSec)
+        const fallbackRate = typeof e.utilizationRate === 'number' ? Math.round(e.utilizationRate) : null
+        const rate = latestTimestamp(rMap, e.equipmentCode) == null && fallbackRate != null
+          ? fallbackRate
+          : realtimeRate(rMap, e.equipmentCode, state)
         return {
           id: e.equipmentCode,
           name: e.equipmentName,
           line: e.location ?? '-',
           state,
           rate,
-          defects: 0,
-          operator: '-',
+          defects: e.defectCount ?? 0,
+          operator: e.operatorName ?? '-',
           cycle: cycleTime == null ? '-' : `${formatNumber(cycleTime, 1)}s`,
           common: buildCommon(e, rMap),
           specific: buildSpecific(e, rMap),

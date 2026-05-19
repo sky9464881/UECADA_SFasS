@@ -32,6 +32,8 @@ interface DisplayUser {
   lineId: string | null
   department: string
   status: string
+  failedLoginCount: number
+  locked: boolean
   lastLogin: string
 }
 
@@ -39,6 +41,7 @@ const { navItems } = useAppNav()
 const logout = useLogout()
 
 const roleFilter = ref<RoleCode | ''>('') as Ref<RoleCode | ''>
+const statusFilter = ref<'ALL' | 'ACTIVE' | 'LOCKED'>('ALL')
 const searchTerm = ref('')
 const lineOptions = [
   { value: '', label: '전체/관리자' },
@@ -47,7 +50,7 @@ const lineOptions = [
   { value: 'LINE-03', label: 'LINE-03' },
 ]
 
-const { users: backendUsers, isPending, isError, error, refetch, updateRole, create } = useUsers({
+const { users: backendUsers, isPending, isError, error, refetch, updateRole, updateLock, create } = useUsers({
   roleName: roleFilter,
 })
 
@@ -65,15 +68,22 @@ const users = computed(() =>
     roleCode: u.roleName,
     lineId: u.lineId,
     department: u.lineId ?? '전체',
-    status: '활성', // 백엔드에 잠금/접속중 개념 없음 — 기본값
-    lastLogin: formatDateTime(u.createdAt), // 백엔드 lastLoginAt 미노출 → 가입일시 표시
+    status: u.locked ? '잠금' : '활성',
+    failedLoginCount: u.failedLoginCount ?? 0,
+    locked: Boolean(u.locked),
+    lastLogin: formatDateTime(u.lastLoginAt ?? u.createdAt),
   })),
 )
 
 const filteredUsers = computed(() => {
   const q = searchTerm.value.trim().toLowerCase()
-  if (!q) return users.value
-  return users.value.filter(
+  const byStatus = users.value.filter((u) => {
+    if (statusFilter.value === 'LOCKED') return u.locked
+    if (statusFilter.value === 'ACTIVE') return !u.locked
+    return true
+  })
+  if (!q) return byStatus
+  return byStatus.filter(
     (u) =>
       u.name.toLowerCase().includes(q) ||
       u.id.toLowerCase().includes(q) ||
@@ -130,6 +140,13 @@ function handleLineChange(user: DisplayUser, event: Event) {
     userId: user.id,
     roleName: user.roleCode,
     lineId: next || null,
+  })
+}
+
+function handleLockToggle(user: DisplayUser) {
+  updateLock.mutate({
+    userId: user.id,
+    locked: !user.locked,
   })
 }
 
@@ -529,8 +546,10 @@ const userSummaryItems = computed<SummaryItem[]>(() => {
                 </label>
                 <label>
                   <span>계정 상태</span>
-                  <select disabled title="백엔드 미지원">
-                    <option>전체</option>
+                  <select v-model="statusFilter">
+                    <option value="ALL">전체</option>
+                    <option value="ACTIVE">활성</option>
+                    <option value="LOCKED">잠금</option>
                   </select>
                 </label>
                 <label>
@@ -584,7 +603,12 @@ const userSummaryItems = computed<SummaryItem[]>(() => {
                       <td><span :class="['role-badge', user.roleCode]">{{ user.role }}</span></td>
                       <td>{{ user.lineId || '전체' }}</td>
                       <td>{{ user.email || '-' }}</td>
-                      <td><span :class="['account-status-badge', user.status]">{{ user.status }}</span></td>
+                      <td>
+                        <span :class="['account-status-badge', user.status]">{{ user.status }}</span>
+                        <span v-if="user.failedLoginCount" class="failed-login-count">
+                          실패 {{ user.failedLoginCount }}회
+                        </span>
+                      </td>
                       <td>
                         <div class="last-login-cell">
                           <CalendarDays :size="15" />
@@ -596,7 +620,7 @@ const userSummaryItems = computed<SummaryItem[]>(() => {
                           <select
                             class="permission-button"
                             :value="user.roleCode"
-                            :disabled="updateRole.isPending.value"
+                            :disabled="updateRole.isPending.value || updateLock.isPending.value"
                             @change="handleRoleChange(user, $event)"
                           >
                             <option v-for="opt in ROLE_OPTIONS" :key="opt.code" :value="opt.code">
@@ -606,13 +630,21 @@ const userSummaryItems = computed<SummaryItem[]>(() => {
                           <select
                             class="permission-button"
                             :value="user.lineId || ''"
-                            :disabled="updateRole.isPending.value || user.roleCode === 'ADMIN'"
+                            :disabled="updateRole.isPending.value || updateLock.isPending.value || user.roleCode === 'ADMIN'"
                             @change="handleLineChange(user, $event)"
                           >
                             <option v-for="line in lineOptions" :key="line.value" :value="line.value">
                               {{ line.label }}
                             </option>
                           </select>
+                          <button
+                            type="button"
+                            class="permission-button"
+                            :disabled="updateRole.isPending.value || updateLock.isPending.value"
+                            @click="handleLockToggle(user)"
+                          >
+                            {{ user.locked ? '잠금 해제' : '계정 잠금' }}
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -697,12 +729,13 @@ const userSummaryItems = computed<SummaryItem[]>(() => {
 <style scoped>
 .user-assignment-controls {
   display: grid;
-  grid-template-columns: minmax(110px, 1fr) minmax(110px, 1fr);
+  grid-template-columns: minmax(110px, 1fr) minmax(110px, 1fr) minmax(96px, 0.9fr);
   gap: 8px;
-  min-width: 240px;
+  min-width: 340px;
 }
 
-.user-assignment-controls select {
+.user-assignment-controls select,
+.user-assignment-controls button {
   width: 100%;
   min-width: 0;
   padding: 7px 10px;
@@ -710,6 +743,13 @@ const userSummaryItems = computed<SummaryItem[]>(() => {
   border: 1px solid #cbd5e1;
   background: #fff;
   font: inherit;
+}
+
+.failed-login-count {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: #b45309;
 }
 
 .user-create-modal {

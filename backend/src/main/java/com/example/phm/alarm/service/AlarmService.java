@@ -17,6 +17,8 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class AlarmService {
 
+    private static final int MAX_LIMIT = 500;
+
     private final AlarmRepository alarmRepository;
 
     public AlarmService(AlarmRepository alarmRepository) {
@@ -39,10 +41,14 @@ public class AlarmService {
 
     public List<AlarmResponse> findByFilters(
             String status, String equipmentCode,
-            LocalDateTime from, LocalDateTime to
+            LocalDateTime from, LocalDateTime to,
+            Integer limit
     ) {
-        return alarmRepository.findByFilters(status, equipmentCode, from, to)
-                .stream().map(AlarmResponse::from).toList();
+        var stream = alarmRepository.findByFilters(status, equipmentCode, from, to).stream();
+        if (limit != null && limit > 0) {
+            stream = stream.limit(Math.min(limit, MAX_LIMIT));
+        }
+        return stream.map(AlarmResponse::from).toList();
     }
 
     @Transactional

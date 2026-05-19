@@ -24,3 +24,11 @@ export async function updateUserRole(
   )
   return data
 }
+
+export async function updateUserLock(userId: string, locked: boolean): Promise<UserResponse> {
+  const { data } = await api.patch<UserResponse>(
+    `/api/users/${encodeURIComponent(userId)}/lock`,
+    { locked },
+  )
+  return data
+}

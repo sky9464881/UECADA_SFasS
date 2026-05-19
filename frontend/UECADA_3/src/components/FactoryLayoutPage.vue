@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
-import { RouterLink, useRoute } from 'vue-router'
+import { computed, defineAsyncComponent, ref, watch } from 'vue'
+import { RouterLink } from 'vue-router'
 import {
   CalendarDays,
   Cog,
@@ -16,18 +16,20 @@ import {
 import type { Component } from 'vue'
 import { useAppNav } from '@/composables/useAppNav'
 import { useLogout } from '@/composables/useLogout'
-import { realtimeBufferKey, useFactoryLayout, type FactoryRealtimeMetric } from '@/composables/useFactoryLayout'
-import { useLineDetails, type LineProcessStage } from '@/composables/useLineDetails'
-import { useQuery } from '@tanstack/vue-query'
-import { fetchEquipmentAvailability } from '@/api/equipmentApi'
-import { POLL_INTERVAL_MS } from '@/constants/polling'
-import { processRealtimeMetricConfigs } from '@/utils/realtimeBuffers'
+import { useFactoryLayout } from '@/composables/useFactoryLayout'
+import {
+  isWebScadaConfigured,
+  ldvPageIdForLine,
+  type WebScadaStageKey,
+} from '@/composables/useWebScadaLinks'
 import type { LineSummary, LineStatusCode } from '@/types/line'
 import type { Equipment, EquipmentStatusItem, EquipmentStatusCode } from '@/types/equipment'
 
+const WebScadaOverlay = defineAsyncComponent(() => import('@/components/WebScadaOverlay.vue'))
+
 type StatusLabel = '정상' | '주의' | '경고'
 type StatusKind = 'ok' | 'warn' | 'alert'
-type StageKey = 'cast' | 'mach' | 'wash' | 'assy' | 'insp'
+type StageKey = WebScadaStageKey
 type LineTone = 'blue' | 'yellow' | 'neutral' | 'red'
 
 interface EquipmentMetric {
@@ -368,22 +370,25 @@ function equipmentStatusClass(status: StatusLabel): string {
   return 'factory-stage-equip-row--alert'
 }
 
+const webScadaReady = isWebScadaConfigured()
+const webScadaHint = webScadaReady
+  ? '웹스카다 → SMWP 오버레이 (#LDV)'
+  : '웹스카다: .env에 VITE_SWMP_DEFAULT_URL 설정'
+
+const webScadaOverlayOpen = ref(false)
+const webScadaOverlayPageId = ref('LDV')
+const webScadaOverlayTitle = ref('웹스카다')
+
 function selectStage(lineId: string, stageKey: StageKey): void {
   selectedStage.value = { lineId, stageKey }
 }
 
-function defaultStageForLine(lineId: string): StageKey {
-  if (selectedStage.value.lineId === lineId) return selectedStage.value.stageKey
-  return STAGE_ORDER.find((stage) => equipmentsForLineStage(lineId, stage.key).length > 0)?.key ?? 'cast'
-}
-
-function openStagePopup(lineId: string, stageKey = defaultStageForLine(lineId)): void {
-  selectStage(lineId, stageKey)
-  isStagePopupOpen.value = true
-}
-
-function closeStagePopup(): void {
-  isStagePopupOpen.value = false
+function openWebScada(lineId?: string): void {
+  if (!webScadaReady) return
+  const id = lineId ?? factoryLines.value[0]?.id ?? 'LINE-01'
+  webScadaOverlayPageId.value = ldvPageIdForLine(id)
+  webScadaOverlayTitle.value = lineId ? `${id} 웹스카다` : '웹스카다'
+  webScadaOverlayOpen.value = true
 }
 
 function isStageSelected(lineId: string, stageKey: StageKey): boolean {
@@ -525,6 +530,20 @@ function processIcon(key: LineProcessStage['key']) {
             <LayoutDashboard :size="16" />
             <span>대시보드</span>
           </RouterLink>
+          <RouterLink class="ghost-button" :to="{ name: 'lines' }">
+            <BarChart3 :size="16" />
+            <span>라인 상세</span>
+          </RouterLink>
+          <button
+            type="button"
+            class="ghost-button factory-webscada-open-btn"
+            :disabled="!webScadaReady"
+            title="웹스카다 SMWP 오버레이"
+            @click="openWebScada()"
+          >
+            <Factory :size="16" />
+            <span>웹스카다</span>
+          </button>
           <button type="button" class="icon-link" @click="logout">
             <LogOut :size="16" />
             <span>로그아웃</span>
@@ -540,6 +559,9 @@ function processIcon(key: LineProcessStage['key']) {
               <h2>라인별 공정 흐름</h2>
             </div>
             <div class="section-title-trail">
+              <span class="factory-webscada-hint" :class="{ 'factory-webscada-hint--off': !webScadaReady }">
+                {{ webScadaHint }}
+              </span>
               <div class="factory-status-legend" aria-label="설비 상태 범례">
                 <span class="normal">정상</span>
                 <span class="caution">주의</span>
@@ -558,9 +580,10 @@ function processIcon(key: LineProcessStage['key']) {
             >
               <button
                 type="button"
-                class="factory-line-summary-card"
-                :aria-label="`${line.code} 라인 상세보기 팝업 열기`"
-                @click="openLineDetailPopup(line.id)"
+                class="factory-line-summary-card factory-line-summary-card--scada"
+                :aria-label="`${line.code} 요약 — 클릭 시 웹스카다`"
+                :title="webScadaReady ? '웹스카다 열기' : 'VITE_SWMP_DEFAULT_URL 미설정'"
+                @click="openWebScada(line.id)"
               >
                 <strong class="factory-line-summary-code">{{ line.code }}</strong>
                 <div class="factory-line-summary-spark" aria-hidden="true">
@@ -930,5 +953,12 @@ function processIcon(key: LineProcessStage['key']) {
         </div>
       </Teleport>
     </section>
+    <WebScadaOverlay
+      :open="webScadaOverlayOpen"
+      :page-id="webScadaOverlayPageId"
+      :title="webScadaOverlayTitle"
+      subtitle="Factory Layout · SMWP"
+      @close="webScadaOverlayOpen = false"
+    />
   </main>
 </template>

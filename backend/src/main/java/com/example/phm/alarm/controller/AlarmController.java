@@ -42,9 +42,10 @@ public class AlarmController {
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String equipmentCode,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
+            @RequestParam(required = false) Integer limit
     ) {
-        return alarmService.findByFilters(status, equipmentCode, from, to);
+        return alarmService.findByFilters(status, equipmentCode, from, to, limit);
     }
 
     @PatchMapping("/{alarmId}/resolve")

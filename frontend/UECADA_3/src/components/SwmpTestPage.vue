@@ -18,25 +18,26 @@ const { navItems } = useAppNav()
 const logout = useLogout()
 
 type WebScadaLink = {
-  id: 'layout' | 'equipment'
+  id: string
   label: string
   detail: string
   url: string
 }
 
-const webScadaLinks: readonly WebScadaLink[] = [
-  {
-    id: 'layout',
-    label: '레이아웃',
-    detail: 'Layout View',
-    url: 'http://222.108.180.36:11005/?Pro=myseo_260430#LDV',
-  },
-  {
-    id: 'equipment',
-    label: '상세설비',
-    detail: 'Equipment Detail',
-    url: 'http://222.108.180.36:11005/?Pro=myseo_260430#ED',
-  },
+const SWMP_BASE_URL = 'http://192.168.0.100:11005/?Pro=myseo_260430'
+
+const lineScadaLinks: readonly WebScadaLink[] = [
+  { id: 'line-a', label: 'A라인', detail: 'LDV_A', url: `${SWMP_BASE_URL}#LDV_A` },
+  { id: 'line-b', label: 'B라인', detail: 'LDV_B', url: `${SWMP_BASE_URL}#LDV_B` },
+  { id: 'line-c', label: 'C라인', detail: 'LDV_C', url: `${SWMP_BASE_URL}#LDV_C` },
+]
+
+const equipmentDetailLinks: readonly WebScadaLink[] = [
+  { id: 'equipment-cast', label: 'CAST', detail: 'ED_CAST', url: `${SWMP_BASE_URL}#ED_CAST` },
+  { id: 'equipment-cnc', label: 'CNC', detail: 'ED_CNC', url: `${SWMP_BASE_URL}#ED_CNC` },
+  { id: 'equipment-wash', label: 'WASH', detail: 'ED_WASH', url: `${SWMP_BASE_URL}#ED_WASH` },
+  { id: 'equipment-assy', label: 'ASSY', detail: 'ED_ASSY', url: `${SWMP_BASE_URL}#ED_ASSY` },
+  { id: 'equipment-test', label: 'TEST', detail: 'ED_TEST', url: `${SWMP_BASE_URL}#ED_TEST` },
 ]
 
 const connectionMessage = ref('웹스카다 연결 준비 완료')
@@ -59,14 +60,14 @@ const closeSwmpPopup = () => {
 
 const testItems = [
   { label: '접속 방식', value: '팝업 표시', detail: '웹스카다 URL을 iframe 팝업으로 표시' },
-  { label: '레이아웃', value: '#LDV', detail: '공장 레이아웃 화면 연결 완료' },
-  { label: '상세설비', value: '#ED', detail: '상세 설비 화면 연결 완료' },
+  { label: '라인 화면', value: 'A/B/C', detail: '라인별 LDV 화면 연결 완료' },
+  { label: '상세설비', value: '5종', detail: 'CAST/CNC/WASH/ASSY/TEST 연결 완료' },
 ]
 
 const checklist = [
-  '레이아웃 URL 연결 완료',
-  '상세설비 URL 연결 완료',
-  '웹스카다 팝업 버튼 구성',
+  'A/B/C 라인 URL 연결 완료',
+  'CAST/CNC/WASH/ASSY/TEST URL 연결 완료',
+  '라인/설비 팝업 버튼 구성',
   '팝업 화면 표시 확인',
 ]
 </script>
@@ -119,23 +120,38 @@ const checklist = [
           <div class="swmp-launch-copy">
             <p class="panel-kicker">Web SCADA</p>
             <h2>웹스카다 실행 테스트</h2>
-            <p>웹스카다 레이아웃과 상세설비 화면을 팝업으로 실행합니다.</p>
+            <p>라인별 웹스카다와 설비별 상세 화면을 팝업으로 실행합니다.</p>
           </div>
 
           <div class="swmp-action-stack">
             <div class="swmp-action-group">
-              <span class="swmp-action-label">웹스카다</span>
+              <span class="swmp-action-label">라인</span>
               <div class="swmp-launch-actions">
                 <button
-                  v-for="item in webScadaLinks"
+                  v-for="item in lineScadaLinks"
                   :key="item.label"
                   class="web-scada-button"
-                  :class="{ 'equipment-detail-button': item.id === 'equipment' }"
                   type="button"
                   @click="openSwmpPopup(item)"
                 >
-                  <Factory v-if="item.id === 'layout'" :size="24" />
-                  <Wrench v-else :size="22" />
+                  <Factory :size="24" />
+                  <span>{{ item.label }}</span>
+                  <small>{{ item.detail }}</small>
+                </button>
+              </div>
+            </div>
+
+            <div class="swmp-action-group">
+              <span class="swmp-action-label">상세설비</span>
+              <div class="swmp-launch-actions swmp-launch-actions--compact">
+                <button
+                  v-for="item in equipmentDetailLinks"
+                  :key="item.label"
+                  class="web-scada-button equipment-detail-button"
+                  type="button"
+                  @click="openSwmpPopup(item)"
+                >
+                  <Wrench :size="22" />
                   <span>{{ item.label }}</span>
                   <small>{{ item.detail }}</small>
                 </button>
@@ -162,7 +178,7 @@ const checklist = [
             <div>
               <Factory :size="38" />
               <strong>웹스카다 연결 완료</strong>
-              <p>레이아웃은 LDV, 상세설비는 ED 화면으로 팝업을 엽니다.</p>
+              <p>A/B/C 라인과 CAST/CNC/WASH/ASSY/TEST 상세 화면을 팝업으로 엽니다.</p>
             </div>
           </div>
         </article>

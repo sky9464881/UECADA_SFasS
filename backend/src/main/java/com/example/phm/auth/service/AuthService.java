@@ -1,5 +1,7 @@
 package com.example.phm.auth.service;
 
+import java.time.LocalDateTime;
+
 import com.example.phm.auth.dto.FindLoginIdRequest;
 import com.example.phm.auth.dto.FindLoginIdResponse;
 import com.example.phm.auth.dto.LoginRequest;
@@ -13,6 +15,7 @@ import com.example.phm.auth.repository.UserRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
@@ -21,6 +24,7 @@ public class AuthService {
     private static final String LEGACY_DEMO_PASSWORD_HASH =
             "$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW";
     private static final String LEGACY_DEMO_PASSWORD = "secret";
+    private static final int MAX_FAILED_LOGIN_COUNT = 5;
     private static final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     private final UserRepository userRepository;
@@ -29,16 +33,29 @@ public class AuthService {
         this.userRepository = userRepository;
     }
 
+    @Transactional
     public LoginResponse login(LoginRequest request) {
         User user = userRepository.findByLoginId(request.loginId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials"));
 
+        if (user.isLocked()) {
+            throw new ResponseStatusException(HttpStatus.LOCKED, "Account is locked");
+        }
+
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())
                 && !isLegacyDemoPassword(request.password(), user.getPasswordHash())) {
+            int failedCount = user.getFailedLoginCount() + 1;
+            user.setFailedLoginCount(failedCount);
+            if (failedCount >= MAX_FAILED_LOGIN_COUNT) {
+                user.setLocked(true);
+            }
+            userRepository.save(user);
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
         }
 
-        userRepository.updateLastLoginAt(user.getUserId());
+        user.setFailedLoginCount(0);
+        user.setLastLoginAt(LocalDateTime.now());
+        userRepository.save(user);
         return LoginResponse.from(user);
     }
 

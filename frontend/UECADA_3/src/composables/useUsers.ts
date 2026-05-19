@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import {
   createUser,
   fetchUsers,
+  updateUserLock,
   updateUserRole,
 } from '@/api/userApi'
 import type {
@@ -41,6 +42,12 @@ export function useUsers(options: UseUsersOptions = {}) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
   })
 
+  const updateLock = useMutation({
+    mutationFn: ({ userId, locked }: { userId: string; locked: boolean }) =>
+      updateUserLock(userId, locked),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
+  })
+
   const users = computed<UserResponse[]>(() => usersQuery.data.value ?? [])
 
   return {
@@ -50,6 +57,7 @@ export function useUsers(options: UseUsersOptions = {}) {
     error: usersQuery.error,
     refetch: usersQuery.refetch,
     updateRole,
+    updateLock,
     create,
   }
 }

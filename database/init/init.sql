@@ -93,6 +93,8 @@ CREATE TABLE users (
     role_name     VARCHAR(30)  NOT NULL,
     security_question VARCHAR(255) DEFAULT NULL,
     security_answer_hash VARCHAR(255) DEFAULT NULL,
+    failed_login_count INT     NOT NULL DEFAULT 0,
+    locked        TINYINT(1)   NOT NULL DEFAULT 0,
     last_login_at DATETIME     DEFAULT NULL,
     created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at    DATETIME     DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
