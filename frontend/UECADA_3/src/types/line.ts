@@ -12,9 +12,4 @@ export interface LineSummary {
   equipmentMaintenance: number
   openAlarmCount: number
   latestOee: number | null
-  balanceRate?: number | null
-  uph?: number | null
-  upmh?: number | null
-  productivity?: number | null
-  stationUtilization?: number[] | null
 }
