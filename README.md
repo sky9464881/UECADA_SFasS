@@ -1,5 +1,7 @@
 # UECADA
 
+전체 DAS/equip-sim/X_DAS/backend/ai-api/frontend 실행과 정합성 검증 절차는 [docs/system-runbook.md](docs/system-runbook.md)를 기준으로 확인한다.
+
 스마트팩토리 OEE · 알람 · 설비 상태 모니터링 시스템.
 백엔드: Spring Boot 3 + JPA + MySQL · 프론트: Vue 3 + TypeScript + Vite · 인프라: docker-compose.
 

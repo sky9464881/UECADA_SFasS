@@ -14,6 +14,7 @@ class VibrationWindowRequest(BaseModel):
     windowIndex: int = Field(ge=0)
     values: list[float] = Field(min_length=1)
     spectrogram: list[list[float]] | None = None
+    sensorSnapshot: dict[str, float | str | int | None] | None = None
     persist: bool = True
 
     @model_validator(mode="after")

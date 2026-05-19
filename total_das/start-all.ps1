@@ -1,5 +1,7 @@
 $ErrorActionPreference = "Stop"
 
+$ScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+
 cmd /c "docker network inspect total-das-net >NUL 2>NUL"
 if ($LASTEXITCODE -ne 0) {
   cmd /c "docker network create total-das-net >NUL 2>NUL"
@@ -16,7 +18,7 @@ if ($LASTEXITCODE -ne 0) {
   }
 }
 
-Push-Location .\DAS
+Push-Location (Join-Path $ScriptRoot "DAS")
 try {
   docker compose up -d --build
   if ($LASTEXITCODE -ne 0) {
@@ -27,7 +29,7 @@ finally {
   Pop-Location
 }
 
-Push-Location .\equip-sim
+Push-Location (Join-Path $ScriptRoot "equip-sim")
 try {
   .\scripts\up-all.ps1 up
 }
@@ -35,7 +37,7 @@ finally {
   Pop-Location
 }
 
-Push-Location .\X_DAS
+Push-Location (Join-Path $ScriptRoot "X_DAS")
 try {
   docker compose up -d --build
   if ($LASTEXITCODE -ne 0) {

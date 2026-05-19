@@ -15,6 +15,7 @@ import {
   Wrench,
 } from 'lucide-vue-next'
 import { RouterLink } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { useAppNav } from '@/composables/useAppNav'
 import { useLogout } from '@/composables/useLogout'
 import { useLineDetails } from '@/composables/useLineDetails'
@@ -23,6 +24,7 @@ import type { LineProcessStage } from '@/composables/useLineDetails'
 const { navItems } = useAppNav('line')
 const logout = useLogout()
 const { lines } = useLineDetails()
+const route = useRoute()
 const selectedLineId = ref('')
 
 const selectedLine = computed(() =>
@@ -33,11 +35,25 @@ watch(
   lines,
   (list) => {
     if (!list.length) return
+    const queryLineId = typeof route.query.lineId === 'string' ? route.query.lineId : ''
+    if (queryLineId && list.some((line) => line.id === queryLineId)) {
+      selectedLineId.value = queryLineId
+      return
+    }
     if (!list.some((line) => line.id === selectedLineId.value)) {
       selectedLineId.value = list[0].id
     }
   },
   { immediate: true },
+)
+
+watch(
+  () => route.query.lineId,
+  (lineId) => {
+    if (typeof lineId === 'string' && lines.value.some((line) => line.id === lineId)) {
+      selectedLineId.value = lineId
+    }
+  },
 )
 
 function processIcon(key: LineProcessStage['key']) {

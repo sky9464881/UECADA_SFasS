@@ -9,5 +9,7 @@ public interface BoardPostRepository extends JpaRepository<BoardPost, Long> {
 
     List<BoardPost> findByCategoryAndDeletedFalseOrderByCreatedAtDesc(String category);
 
+    List<BoardPost> findByTargetLineIdAndDeletedFalseOrderByCreatedAtDesc(String targetLineId);
+
     List<BoardPost> findByDeletedFalseOrderByCreatedAtDesc();
 }

@@ -66,13 +66,16 @@ INSERT INTO equipment (equipment_code, equipment_name, process_type, model, inst
 -- ※ 로그인 실패 시 → POST /api/users 로 신규 생성하면 자동 BCrypt 해싱됨
 --   (로그인 외 모든 API는 Spring Security 없이 인증 불필요)
 -- ─────────────────────────────────────────
-INSERT INTO users (user_id, login_id, password_hash, user_name, email, role_name) VALUES
-('U001', 'admin',     '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', '관리자',     'admin@uecada.com',    'ADMIN'),
-('U002', 'manager1',  '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', '이라인장',   'mgr1@uecada.com',     'MANAGER'),
-('U003', 'manager2',  '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', '이라인장2',  'mgr2@uecada.com',     'MANAGER'),
-('U004', 'operator1', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', '작업자1',    'op1@uecada.com',      'OPERATOR'),
-('U005', 'operator2', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', '작업자2',    'op2@uecada.com',      'OPERATOR'),
-('U006', 'operator3', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', '작업자3',    'op3@uecada.com',      'OPERATOR');
+INSERT INTO users
+    (user_id, line_id, login_id, password_hash, user_name, email, role_name, security_question, security_answer_hash)
+VALUES
+('U001', NULL,      'admin',           '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', '관리자',       'admin@uecada.com',       'ADMIN',    '초기 보안 답변은?', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW'),
+('U101', 'LINE-01', 'line01_manager',  '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', '1라인 관리자', 'line01.manager@uecada.com', 'MANAGER',  '초기 보안 답변은?', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW'),
+('U102', 'LINE-01', 'line01_operator', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', '1라인 작업자', 'line01.operator@uecada.com','OPERATOR', '초기 보안 답변은?', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW'),
+('U201', 'LINE-02', 'line02_manager',  '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', '2라인 관리자', 'line02.manager@uecada.com', 'MANAGER',  '초기 보안 답변은?', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW'),
+('U202', 'LINE-02', 'line02_operator', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', '2라인 작업자', 'line02.operator@uecada.com','OPERATOR', '초기 보안 답변은?', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW'),
+('U301', 'LINE-03', 'line03_manager',  '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', '3라인 관리자', 'line03.manager@uecada.com', 'MANAGER',  '초기 보안 답변은?', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW'),
+('U302', 'LINE-03', 'line03_operator', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', '3라인 작업자', 'line03.operator@uecada.com','OPERATOR', '초기 보안 답변은?', '$2a$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW');
 
 -- ─────────────────────────────────────────
 -- 설비 상태코드 (RUNNING / STANDBY / ALARM / MAINTENANCE)
@@ -142,13 +145,13 @@ INSERT INTO alarm (equipment_code, alarm_code, alarm_type_name, alarm_category, 
 
 -- RESOLVED 알람에 처리 정보 업데이트
 UPDATE alarm SET
-    resolved_by  = 'U004',
+    resolved_by  = 'U102',
     resolved_at  = '2026-05-13 15:10:00',
     comment      = '리크 씰 교체 후 재검사 통과'
 WHERE alarm_code = 'LEAK-001';
 
 UPDATE alarm SET
-    resolved_by  = 'U005',
+    resolved_by  = 'U202',
     resolved_at  = '2026-05-12 17:30:00',
     comment      = '토크 렌치 교정 완료'
 WHERE alarm_code = 'TRQ-001';
@@ -181,15 +184,15 @@ INSERT INTO board_post (author_user_id, post_title, post_content, post_type, is_
  '안녕하세요.\n2호 라인 CNC-03 정기 점검이 5월 14일 진행됩니다.\n작업 중 해당 설비 접근을 삼가 주시기 바랍니다.',
  'NOTICE', 1, '2026-05-13 09:00:00'),
 
-('U002', '1라인 가공기 2 진동 이상 관련 공유',
+('U101', '1라인 가공기 2 진동 이상 관련 공유',
  '오늘 08:23 발생한 CNC-02 진동 경보 관련하여 현재 원인 파악 중입니다.\n필요 시 생산 일정 조정 예정입니다.',
  'GENERAL', 0, '2026-05-14 09:00:00'),
 
-('U004', '세척기 세척수 교체 요청',
+('U102', '세척기 세척수 교체 요청',
  '1라인 세척기 세척수 농도가 기준치 이하로 떨어졌습니다.\n금일 중 교체 요청드립니다.',
  'GENERAL', 0, '2026-05-14 10:30:00'),
 
-('U003', '2라인 생산 목표 달성 공유',
+('U201', '2라인 생산 목표 달성 공유',
  '2라인 이번 주 생산 목표 105% 달성했습니다. 수고하셨습니다!',
  'GENERAL', 0, '2026-05-13 17:50:00');
 

@@ -28,6 +28,11 @@ class VibrationWindow(Base):
     rpm: Mapped[int | None] = mapped_column(Integer)
     window_size: Mapped[int] = mapped_column(Integer, nullable=False)
     window_index: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    sensor_temperature: Mapped[float | None] = mapped_column(Double)
+    sensor_current: Mapped[float | None] = mapped_column(Double)
+    sensor_voltage: Mapped[float | None] = mapped_column(Double)
+    sensor_vibration: Mapped[float | None] = mapped_column(Double)
+    sensor_snapshot_json: Mapped[str | None] = mapped_column(Text)
     values_json: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 

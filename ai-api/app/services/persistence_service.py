@@ -35,6 +35,7 @@ def save_raw_window_if_due(
     window_size: int,
     window_index: int,
     values: list[float],
+    sensor_snapshot: dict[str, float | int | str | None] | None = None,
     force: bool = False,
 ) -> tuple[VibrationWindow | None, bool]:
     latest_saved_at = (
@@ -54,11 +55,31 @@ def save_raw_window_if_due(
         rpm=rpm,
         window_size=window_size,
         window_index=window_index,
+        sensor_temperature=_numeric_snapshot_value(sensor_snapshot, "sensor_temperature"),
+        sensor_current=_numeric_snapshot_value(sensor_snapshot, "sensor_current"),
+        sensor_voltage=_numeric_snapshot_value(sensor_snapshot, "sensor_voltage"),
+        sensor_vibration=_numeric_snapshot_value(sensor_snapshot, "sensor_vibration"),
+        sensor_snapshot_json=json.dumps(sensor_snapshot or {}, separators=(",", ":")),
         values_json=json.dumps(values, separators=(",", ":")),
     )
     db.add(vibration_window)
     db.flush()
     return vibration_window, True
+
+
+def _numeric_snapshot_value(
+    sensor_snapshot: dict[str, float | int | str | None] | None,
+    key: str,
+) -> float | None:
+    if not sensor_snapshot:
+        return None
+    value = sensor_snapshot.get(key)
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
 
 
 def has_open_alarm(db: Session, *, equipment_code: str) -> bool:

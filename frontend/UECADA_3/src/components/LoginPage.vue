@@ -1,9 +1,15 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { X } from 'lucide-vue-next'
+import {
+  fetchSecurityQuestion,
+  findLoginId,
+  login as loginApi,
+  resetPassword,
+  signup,
+} from '@/api/authApi'
 import { useAuthStore } from '@/stores/auth'
-import type { UserRole } from '@/types/auth'
 
 const router = useRouter()
 const route = useRoute()
@@ -18,25 +24,125 @@ const modalTitle = {
 type ModalId = keyof typeof modalTitle
 
 const activeModal = ref<ModalId | null>(null)
-const selectedRole = ref<UserRole>('operator')
+const loginForm = reactive({ loginId: 'admin', password: 'secret' })
+const signupForm = reactive({
+  userId: '',
+  loginId: '',
+  lineId: '',
+  userName: '',
+  email: '',
+  roleName: 'OPERATOR',
+  password: '',
+  confirmPassword: '',
+  securityQuestion: '초기 보안 답변은?',
+  securityAnswer: '',
+})
+const findIdForm = reactive({ userName: '', email: '', securityAnswer: '' })
+const resetForm = reactive({ loginId: '', securityAnswer: '', newPassword: '', confirmPassword: '' })
+const securityQuestion = ref('')
+const loginError = ref('')
+const modalMessage = ref('')
+const isSubmitting = ref(false)
 
 async function submitLogin() {
-  auth.login(selectedRole.value)
-  const raw = route.query.redirect
-  const redirect = Array.isArray(raw) ? raw[0] : raw
-  if (redirect && typeof redirect === 'string') {
-    await router.push(redirect)
-    return
+  loginError.value = ''
+  isSubmitting.value = true
+  try {
+    const user = await loginApi(loginForm)
+    auth.login(user)
+    const raw = route.query.redirect
+    const redirect = Array.isArray(raw) ? raw[0] : raw
+    if (redirect && typeof redirect === 'string') {
+      await router.push(redirect)
+      return
+    }
+    await router.push({ name: 'dashboard' })
+  } catch (error: unknown) {
+    loginError.value = (error as { response?: { status?: number } })?.response?.status === 401
+      ? '아이디 또는 비밀번호가 올바르지 않습니다.'
+      : '로그인에 실패했습니다. 백엔드 상태를 확인하세요.'
+  } finally {
+    isSubmitting.value = false
   }
-  await router.push({ name: 'dashboard' })
 }
 
 const openModal = (id: ModalId) => {
+  modalMessage.value = ''
+  securityQuestion.value = ''
   activeModal.value = id
 }
 
 const closeModal = () => {
   activeModal.value = null
+  modalMessage.value = ''
+  securityQuestion.value = ''
+}
+
+async function submitFindId() {
+  modalMessage.value = ''
+  try {
+    const result = await findLoginId(findIdForm)
+    modalMessage.value = `등록된 로그인 ID: ${result.loginId}`
+  } catch {
+    modalMessage.value = '일치하는 계정 또는 보안 답변을 찾지 못했습니다.'
+  }
+}
+
+async function loadSecurityQuestion() {
+  modalMessage.value = ''
+  securityQuestion.value = ''
+  if (!resetForm.loginId) {
+    modalMessage.value = '아이디를 먼저 입력하세요.'
+    return
+  }
+  try {
+    const result = await fetchSecurityQuestion(resetForm.loginId)
+    securityQuestion.value = result.securityQuestion || '등록된 보안 질문이 없습니다.'
+  } catch {
+    modalMessage.value = '아이디에 해당하는 계정을 찾지 못했습니다.'
+  }
+}
+
+async function submitResetPassword() {
+  modalMessage.value = ''
+  if (resetForm.newPassword !== resetForm.confirmPassword) {
+    modalMessage.value = '새 비밀번호와 확인값이 다릅니다.'
+    return
+  }
+  try {
+    await resetPassword({
+      loginId: resetForm.loginId,
+      securityAnswer: resetForm.securityAnswer,
+      newPassword: resetForm.newPassword,
+    })
+    modalMessage.value = '비밀번호가 변경되었습니다. 새 비밀번호로 로그인하세요.'
+  } catch {
+    modalMessage.value = '보안 답변 확인 또는 비밀번호 변경에 실패했습니다.'
+  }
+}
+
+async function submitSignup() {
+  modalMessage.value = ''
+  if (signupForm.password !== signupForm.confirmPassword) {
+    modalMessage.value = '비밀번호와 확인값이 다릅니다.'
+    return
+  }
+  try {
+    await signup({
+      userId: signupForm.userId,
+      loginId: signupForm.loginId,
+      lineId: signupForm.lineId || null,
+      userName: signupForm.userName,
+      email: signupForm.email || undefined,
+      roleName: signupForm.roleName,
+      password: signupForm.password,
+      securityQuestion: signupForm.securityQuestion,
+      securityAnswer: signupForm.securityAnswer,
+    })
+    modalMessage.value = '가입이 완료되었습니다. 생성한 계정으로 로그인하세요.'
+  } catch {
+    modalMessage.value = '가입에 실패했습니다. 사용자 ID 또는 로그인 ID 중복을 확인하세요.'
+  }
 }
 
 const onKeydown = (e: KeyboardEvent) => {
@@ -126,21 +232,15 @@ onBeforeUnmount(() => {
         <form class="login-form" @submit.prevent="submitLogin">
           <label>
             <span>아이디</span>
-            <input type="text" placeholder="아이디를 입력하세요" autocomplete="username" />
+            <input v-model="loginForm.loginId" type="text" placeholder="아이디를 입력하세요" autocomplete="username" />
           </label>
 
           <label>
             <span>비밀번호</span>
-            <input type="password" placeholder="비밀번호를 입력하세요" autocomplete="current-password" />
+            <input v-model="loginForm.password" type="password" placeholder="비밀번호를 입력하세요" autocomplete="current-password" />
           </label>
 
-          <label>
-            <span>역할 (데모)</span>
-            <select v-model="selectedRole" class="login-role-select">
-              <option value="operator">운영자</option>
-              <option value="admin">관리자</option>
-            </select>
-          </label>
+          <p v-if="loginError" class="login-auth-note login-auth-note--error">{{ loginError }}</p>
 
           <div class="form-options">
             <label class="check-row">
@@ -150,7 +250,9 @@ onBeforeUnmount(() => {
             <a href="#">보안접속</a>
           </div>
 
-          <button type="submit" class="login-button">로그인</button>
+          <button type="submit" class="login-button" :disabled="isSubmitting">
+            {{ isSubmitting ? '로그인 중…' : '로그인' }}
+          </button>
         </form>
 
         <nav class="account-links" aria-label="계정 메뉴">
@@ -185,62 +287,105 @@ onBeforeUnmount(() => {
 
           <div v-if="activeModal === 'findId'" class="login-auth-body">
             <p class="login-auth-lead">가입 시 등록한 정보로 아이디를 찾습니다.</p>
-            <form class="login-auth-form" @submit.prevent>
+            <form class="login-auth-form" @submit.prevent="submitFindId">
               <label>
                 <span>이름</span>
-                <input type="text" name="find-name" autocomplete="name" placeholder="이름 입력" />
+                <input v-model="findIdForm.userName" type="text" name="find-name" autocomplete="name" placeholder="이름 입력" />
               </label>
               <label>
                 <span>이메일</span>
-                <input type="email" name="find-email" autocomplete="email" placeholder="이메일 입력" />
+                <input v-model="findIdForm.email" type="email" name="find-email" autocomplete="email" placeholder="이메일 입력" />
               </label>
-              <button type="button" class="login-auth-primary">인증 메일 발송</button>
+              <label>
+                <span>보안 답변</span>
+                <input v-model="findIdForm.securityAnswer" type="text" placeholder="가입 시 선택한 질문의 답변" />
+              </label>
+              <button type="submit" class="login-auth-primary">아이디 찾기</button>
             </form>
           </div>
 
           <div v-else-if="activeModal === 'findPw'" class="login-auth-body">
-            <p class="login-auth-lead">아이디 확인 후 비밀번호 재설정 링크를 보냅니다.</p>
-            <form class="login-auth-form" @submit.prevent>
+            <p class="login-auth-lead">아이디 확인 후 보안 질문에 답하면 비밀번호를 재설정합니다.</p>
+            <form class="login-auth-form" @submit.prevent="submitResetPassword">
               <label>
                 <span>아이디</span>
-                <input type="text" name="pw-id" autocomplete="username" placeholder="아이디 입력" />
+                <input v-model="resetForm.loginId" type="text" name="pw-id" autocomplete="username" placeholder="아이디 입력" @blur="loadSecurityQuestion" />
+              </label>
+              <button type="button" class="login-auth-secondary" @click="loadSecurityQuestion">보안 질문 확인</button>
+              <p v-if="securityQuestion" class="login-auth-question">{{ securityQuestion }}</p>
+              <label>
+                <span>보안 답변</span>
+                <input v-model="resetForm.securityAnswer" type="text" placeholder="보안 답변 입력" />
               </label>
               <label>
-                <span>이메일</span>
-                <input type="email" name="pw-email" autocomplete="email" placeholder="가입 이메일 입력" />
+                <span>새 비밀번호</span>
+                <input v-model="resetForm.newPassword" type="password" autocomplete="new-password" placeholder="새 비밀번호" />
               </label>
-              <button type="button" class="login-auth-primary">재설정 링크 발송</button>
+              <label>
+                <span>새 비밀번호 확인</span>
+                <input v-model="resetForm.confirmPassword" type="password" autocomplete="new-password" placeholder="새 비밀번호 재입력" />
+              </label>
+              <button type="submit" class="login-auth-primary">비밀번호 변경</button>
             </form>
           </div>
 
           <div v-else class="login-auth-body">
             <p class="login-auth-lead">UECADA 관제 시스템 이용을 위한 계정을 만듭니다.</p>
-            <form class="login-auth-form" @submit.prevent>
+            <form class="login-auth-form" @submit.prevent="submitSignup">
+              <label>
+                <span>사용자 ID</span>
+                <input v-model="signupForm.userId" type="text" placeholder="예: U401" required />
+              </label>
               <label>
                 <span>아이디</span>
-                <input type="text" name="reg-id" autocomplete="username" placeholder="영문·숫자 조합" />
+                <input v-model="signupForm.loginId" type="text" name="reg-id" autocomplete="username" placeholder="영문·숫자 조합" required />
               </label>
               <label>
                 <span>비밀번호</span>
-                <input type="password" name="reg-pw" autocomplete="new-password" placeholder="8자 이상" />
+                <input v-model="signupForm.password" type="password" name="reg-pw" autocomplete="new-password" placeholder="8자 이상" required />
               </label>
               <label>
                 <span>비밀번호 확인</span>
-                <input type="password" name="reg-pw2" autocomplete="new-password" placeholder="비밀번호 재입력" />
+                <input v-model="signupForm.confirmPassword" type="password" name="reg-pw2" autocomplete="new-password" placeholder="비밀번호 재입력" required />
               </label>
               <label>
                 <span>이름</span>
-                <input type="text" name="reg-name" autocomplete="name" placeholder="이름" />
+                <input v-model="signupForm.userName" type="text" name="reg-name" autocomplete="name" placeholder="이름" required />
               </label>
               <label>
                 <span>이메일</span>
-                <input type="email" name="reg-email" autocomplete="email" placeholder="이메일" />
+                <input v-model="signupForm.email" type="email" name="reg-email" autocomplete="email" placeholder="이메일" />
               </label>
-              <button type="button" class="login-auth-primary">가입 요청</button>
+              <label>
+                <span>역할</span>
+                <select v-model="signupForm.roleName" class="login-role-select">
+                  <option value="OPERATOR">작업자</option>
+                  <option value="MANAGER">라인 관리자</option>
+                  <option value="ADMIN">관리자</option>
+                </select>
+              </label>
+              <label>
+                <span>담당 라인</span>
+                <select v-model="signupForm.lineId" class="login-role-select">
+                  <option value="">전체/관리자</option>
+                  <option value="LINE-01">LINE-01</option>
+                  <option value="LINE-02">LINE-02</option>
+                  <option value="LINE-03">LINE-03</option>
+                </select>
+              </label>
+              <label>
+                <span>보안 질문</span>
+                <input v-model="signupForm.securityQuestion" type="text" required />
+              </label>
+              <label>
+                <span>보안 답변</span>
+                <input v-model="signupForm.securityAnswer" type="text" required />
+              </label>
+              <button type="submit" class="login-auth-primary">가입 요청</button>
             </form>
           </div>
 
-          <p class="login-auth-note">데모 화면입니다. 실제 인증·가입은 연동 후 사용합니다.</p>
+          <p v-if="modalMessage" class="login-auth-note">{{ modalMessage }}</p>
         </article>
       </div>
     </Teleport>
@@ -257,5 +402,27 @@ onBeforeUnmount(() => {
   font: inherit;
   background: #fff;
   box-sizing: border-box;
+}
+.login-auth-secondary {
+  justify-self: start;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #0f172a;
+  font-weight: 800;
+  cursor: pointer;
+}
+.login-auth-question {
+  margin: 0;
+  padding: 9px 10px;
+  border-radius: 8px;
+  background: #eef6ff;
+  color: #0f4c81;
+  font-weight: 800;
+  font-size: 13px;
+}
+.login-auth-note--error {
+  color: #b91c1c;
 }
 </style>

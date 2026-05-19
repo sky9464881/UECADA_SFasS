@@ -2,7 +2,7 @@
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
 import * as echarts from 'echarts'
 import { useQuery } from '@tanstack/vue-query'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
 import {
   Activity,
   AlertTriangle,
@@ -34,6 +34,7 @@ import { fetchRealtimeVibration } from '@/api/vibrationApi'
 const { navItems } = useAppNav()
 const logout = useLogout()
 const { categories: backendCategories } = useEquipmentCatalog()
+const route = useRoute()
 
 const CATEGORY_ICON_MAP: Record<string, Component> = {
   casting: Flame,
@@ -135,6 +136,20 @@ watch(
   categories,
   (list) => {
     if (!list.length) return
+    const queryEquipmentId = typeof route.query.equipmentId === 'string' ? route.query.equipmentId : ''
+    if (queryEquipmentId) {
+      const matchedCategory = list.find((category) =>
+        category.equipment.some((equipment) => equipment.id === queryEquipmentId),
+      )
+      if (matchedCategory) {
+        selectedCategoryId.value = matchedCategory.id
+        selectedEquipmentId.value = queryEquipmentId
+        if (route.query.popup === '1' || route.query.popup === 'true') {
+          isEquipmentPopupOpen.value = true
+        }
+        return
+      }
+    }
     const cat = list.find((c) => c.id === selectedCategoryId.value) ?? list[0]
     if (cat.id !== selectedCategoryId.value) {
       selectedCategoryId.value = cat.id
@@ -144,6 +159,24 @@ watch(
     }
   },
   { immediate: true },
+)
+
+watch(
+  () => route.query.equipmentId,
+  () => {
+    const list = categories.value
+    const queryEquipmentId = typeof route.query.equipmentId === 'string' ? route.query.equipmentId : ''
+    if (!list.length || !queryEquipmentId) return
+    const matchedCategory = list.find((category) =>
+      category.equipment.some((equipment) => equipment.id === queryEquipmentId),
+    )
+    if (!matchedCategory) return
+    selectedCategoryId.value = matchedCategory.id
+    selectedEquipmentId.value = queryEquipmentId
+    if (route.query.popup === '1' || route.query.popup === 'true') {
+      isEquipmentPopupOpen.value = true
+    }
+  },
 )
 
 const selectCategory = (category: CategoryWithIcon) => {

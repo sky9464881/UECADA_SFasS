@@ -1,276 +1,163 @@
 <script setup lang="ts">
-import { computed, nextTick, onUnmounted, reactive, ref, watch } from 'vue'
-import type { CSSProperties } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { RouterLink } from 'vue-router'
 import {
   CalendarDays,
-  ChevronDown,
+  Download,
+  FileText,
   LogOut,
   Megaphone,
   MessageSquare,
-  Paperclip,
-  Pin,
   Send,
   Users,
-  X,
 } from 'lucide-vue-next'
+import {
+  fetchChatMessages,
+  fetchChatRooms,
+  fetchFactoryReport,
+  fetchLineGroups,
+  sendChatMessage,
+} from '@/api/communityApi'
+import { createPost, fetchPosts } from '@/api/postApi'
 import { useAppNav } from '@/composables/useAppNav'
 import { useLogout } from '@/composables/useLogout'
-import { usePosts } from '@/composables/usePosts'
+import { useAuthStore } from '@/stores/auth'
 import { CATEGORY_OPTIONS, categoryLabel } from '@/types/post'
 
 const { navItems } = useAppNav()
 const logout = useLogout()
+const auth = useAuthStore()
+const queryClient = useQueryClient()
 
-const { posts: backendPosts, isPending: postsPending, isError: postsError, error: postsErrorObj, create: createPostMut } = usePosts()
+const currentUser = computed(() => auth.user ?? {
+  userId: 'U001',
+  loginId: 'admin',
+  userName: '관리자',
+  email: 'admin@uecada.com',
+  roleName: 'ADMIN',
+  lineId: null,
+})
+const selectedLineId = ref<string>('ALL')
+const selectedRoomId = ref<number | null>(null)
+const chatDraft = ref('')
+const reportMarkdown = ref('')
 
-function formatPostTime(iso: string | null | undefined): string {
-  if (!iso) return '-'
-  return iso.replace('T', ' ').slice(0, 16)
-}
-
-const notices = computed(() =>
-  backendPosts.value.map((p) => ({
-    id: p.postId,
-    category: categoryLabel(p.category),
-    title: p.title,
-    author: p.authorUserId,
-    target: '전체', // 백엔드에 라인별 대상 개념 없음
-    time: formatPostTime(p.createdAt),
-    pinned: (p.category ?? '').toUpperCase() === 'NOTICE',
-  })),
-)
-
-const showCreatePostModal = ref(false)
-const createPostForm = reactive({
-  authorUserId: 'U001',
+const postForm = reactive({
   title: '',
   content: '',
   category: 'NOTICE',
+  targetLineId: '',
+  notice: true,
 })
-const createPostError = ref('')
 
-function openCreatePostModal() {
-  createPostError.value = ''
-  Object.assign(createPostForm, {
-    authorUserId: 'U001',
-    title: '',
-    content: '',
-    category: 'NOTICE',
-  })
-  showCreatePostModal.value = true
-}
+const lineGroupsQuery = useQuery({
+  queryKey: ['community', 'line-groups'],
+  queryFn: fetchLineGroups,
+  staleTime: 30_000,
+  refetchInterval: 10_000,
+})
 
-function closeCreatePostModal() {
-  showCreatePostModal.value = false
-}
+const postsQuery = useQuery({
+  queryKey: computed(() => ['community', 'posts', selectedLineId.value]),
+  queryFn: () => fetchPosts(undefined, selectedLineId.value === 'ALL' ? undefined : selectedLineId.value),
+  staleTime: 5_000,
+  refetchInterval: 5_000,
+})
 
-async function submitCreatePost() {
-  createPostError.value = ''
-  if (!createPostForm.authorUserId || !createPostForm.title || !createPostForm.content) {
-    createPostError.value = '작성자·제목·내용은 필수입니다.'
-    return
-  }
-  try {
-    await createPostMut.mutateAsync({
-      authorUserId: createPostForm.authorUserId,
-      title: createPostForm.title,
-      content: createPostForm.content,
-      category: createPostForm.category,
-    })
-    closeCreatePostModal()
-  } catch (e: unknown) {
-    const errorObj = e as { response?: { data?: { message?: string } }; message?: string }
-    createPostError.value = errorObj?.response?.data?.message || errorObj?.message || '게시글 작성 실패'
-  }
-}
+const roomsQuery = useQuery({
+  queryKey: computed(() => ['community', 'chat-rooms', currentUser.value.userId]),
+  queryFn: () => fetchChatRooms(currentUser.value.userId),
+  staleTime: 5_000,
+  refetchInterval: 5_000,
+})
 
-/** 라인별 그룹(요약) — 드롭다운 선택 시 상단에 표시 */
-const lineGroups = [
-  {
-    lineKey: 'line-a',
-    name: '라인 A · 주조',
-    manager: '박주조',
-    members: ['OP-1042', 'OP-1038', 'OP-1024', 'OP-1011'],
-    task: 'CAST-02 온도 알람 확인',
-  },
-  {
-    lineKey: 'line-b',
-    name: '라인 B · 가공',
-    manager: '이가공',
-    members: ['OP-1130', 'OP-1125', 'OP-1104', 'MT-014'],
-    task: 'MACH-11 공구 교체 준비',
-  },
-  {
-    lineKey: 'line-c',
-    name: '라인 C · 검사',
-    manager: '한검사',
-    members: ['OP-1187', 'OP-1171', 'QC-022', 'QC-018', 'OP-1008'],
-    task: '치수 편차 샘플 재측정 · 압입하중 편차 확인',
-  },
-]
+const messagesQuery = useQuery({
+  queryKey: computed(() => ['community', 'chat-messages', selectedRoomId.value, currentUser.value.userId]),
+  queryFn: () => selectedRoomId.value
+    ? fetchChatMessages(selectedRoomId.value, currentUser.value.userId)
+    : Promise.resolve([]),
+  enabled: computed(() => selectedRoomId.value != null),
+  staleTime: 1_000,
+  refetchInterval: 2_000,
+})
 
-const lineScopeOptions = [
-  { id: 'all', label: '전체 라인', targetLabel: null },
-  { id: 'line-a', label: '라인 A', targetLabel: '라인 A' },
-  { id: 'line-b', label: '라인 B', targetLabel: '라인 B' },
-  { id: 'line-c', label: '라인 C', targetLabel: '라인 C' },
-]
-
-// 백엔드에 게시글의 target(라인)·pinned 개념이 없어 라인 필터링은 채팅에만 적용.
-
-const chatMessages = [
-  {
-    user: '김관리',
-    role: '관리자',
-    line: '전체',
-    time: '12:35',
-    message: 'CAST-02 알람 조치 상황 공유 부탁드립니다.',
-    mine: false,
+watch(
+  () => roomsQuery.data.value,
+  (rooms) => {
+    if (!rooms?.length) return
+    if (!selectedRoomId.value || !rooms.some((room) => room.chatRoomId === selectedRoomId.value)) {
+      selectedRoomId.value = rooms[0].chatRoomId
+    }
   },
-  {
-    user: '박주조',
-    role: '작업자',
-    line: '라인 A',
-    time: '12:36',
-    message: '용탕온도 확인했고 센서값 재확인 중입니다.',
-    mine: false,
-  },
-  {
-    user: '김관리',
-    role: '관리자',
-    line: '전체',
-    time: '12:38',
-    message: '13시 전까지 금형온도도 같이 확인해서 결과 남겨주세요.',
-    mine: true,
-  },
-  {
-    user: '한검사',
-    role: '작업자',
-    line: '라인 C',
-    time: '12:39',
-    message: '검사 치수 편차 알람은 샘플 10개 추가 측정했습니다.',
-    mine: false,
-  },
-  {
-    user: '이가공',
-    role: '작업자',
-    line: '라인 B',
-    time: '12:05',
-    message: 'MACH-11 공구 교체 준비 완료했습니다.',
-    mine: false,
-  },
-  {
-    user: '이가공',
-    role: '작업자',
-    line: '라인 B',
-    time: '11:42',
-    message: '라인 B 가공 라인 스핀들 진동값 정상 범위입니다.',
-    mine: false,
-  },
-  {
-    user: '박주조',
-    role: '작업자',
-    line: '라인 A',
-    time: '11:20',
-    message: '주조 CT 편차 원인 분석 중입니다.',
-    mine: false,
-  },
-]
-
-const selectedLineScope = ref('all')
-const lineDropdownOpen = ref(false)
-const lineDropdownAnchorRef = ref<HTMLElement | null>(null)
-/** Teleport된 드롭다운 패널 위치 (뷰포트 기준 fixed) */
-const portalDropdownStyle = ref<CSSProperties>({})
-
-const selectedScopeOption = computed(
-  () => lineScopeOptions.find((o) => o.id === selectedLineScope.value) ?? lineScopeOptions[0],
+  { immediate: true },
 )
 
-const activeLineGroup = computed(() =>
-  selectedLineScope.value === 'all'
-    ? null
-    : lineGroups.find((g) => g.lineKey === selectedLineScope.value) ?? null,
+const selectedRoom = computed(() =>
+  roomsQuery.data.value?.find((room) => room.chatRoomId === selectedRoomId.value) ?? null,
 )
 
-const filteredNotices = computed(() => {
-  // 백엔드 게시글에 라인별 대상이 없으므로 전체 게시글을 그대로 노출.
-  return notices.value
+const visibleGroups = computed(() => lineGroupsQuery.data.value ?? [])
+const visiblePosts = computed(() => postsQuery.data.value ?? [])
+const visibleMessages = computed(() => messagesQuery.data.value ?? [])
+
+const createPostMutation = useMutation({
+  mutationFn: () => createPost({
+    authorUserId: currentUser.value.userId,
+    title: postForm.title,
+    content: postForm.content,
+    category: postForm.category,
+    targetLineId: postForm.targetLineId || null,
+    notice: postForm.notice,
+  }),
+  onSuccess: () => {
+    postForm.title = ''
+    postForm.content = ''
+    queryClient.invalidateQueries({ queryKey: ['community', 'posts'] })
+  },
 })
 
-const filteredChatMessages = computed(() => {
-  const opt = selectedScopeOption.value
-  if (!opt.targetLabel) return chatMessages
-  const t = opt.targetLabel
-  return chatMessages.filter((m) => m.line === '전체' || m.line === t)
+const sendMessageMutation = useMutation({
+  mutationFn: () => selectedRoomId.value
+    ? sendChatMessage(selectedRoomId.value, currentUser.value.userId, chatDraft.value)
+    : Promise.reject(new Error('No room selected')),
+  onSuccess: () => {
+    chatDraft.value = ''
+    queryClient.invalidateQueries({ queryKey: ['community', 'chat-messages'] })
+  },
 })
 
-function syncPortalDropdownPosition() {
-  const anchor = lineDropdownAnchorRef.value
-  if (!anchor) return
-  const r = anchor.getBoundingClientRect()
-  const margin = 10
-  const vw = window.innerWidth
-  const vh = window.innerHeight
-  const panelMaxW = 520
-  const width = Math.min(panelMaxW, Math.max(r.width, 300), vw - margin * 2)
-  let left = r.left
-  if (left + width > vw - margin) {
-    left = Math.max(margin, vw - margin - width)
-  }
-  const top = r.bottom + 6
-  const maxHeight = Math.max(220, Math.min(vh * 0.72, vh - top - margin))
-
-  portalDropdownStyle.value = {
-    position: 'fixed',
-    top: `${top}px`,
-    left: `${left}px`,
-    width: `${width}px`,
-    maxHeight: `${maxHeight}px`,
-  }
-}
-
-function toggleLineDropdown(ev: Event) {
-  ev.stopPropagation()
-  lineDropdownOpen.value = !lineDropdownOpen.value
-}
-
-function selectLineScope(id: string) {
-  selectedLineScope.value = id
-}
-
-function closeLineDropdown() {
-  lineDropdownOpen.value = false
-}
-
-function onEscapeKey(ev: KeyboardEvent) {
-  if (ev.key === 'Escape') closeLineDropdown()
-}
-
-function onScrollOrResize() {
-  if (lineDropdownOpen.value) syncPortalDropdownPosition()
-}
-
-watch(lineDropdownOpen, async (open) => {
-  if (open) {
-    await nextTick()
-    syncPortalDropdownPosition()
-    document.addEventListener('keydown', onEscapeKey)
-    window.addEventListener('resize', onScrollOrResize)
-    document.addEventListener('scroll', onScrollOrResize, true)
-  } else {
-    document.removeEventListener('keydown', onEscapeKey)
-    window.removeEventListener('resize', onScrollOrResize)
-    document.removeEventListener('scroll', onScrollOrResize, true)
-  }
+const reportMutation = useMutation({
+  mutationFn: fetchFactoryReport,
+  onSuccess: (report) => {
+    reportMarkdown.value = report.markdown
+  },
 })
 
-onUnmounted(() => {
-  document.removeEventListener('keydown', onEscapeKey)
-  window.removeEventListener('resize', onScrollOrResize)
-  document.removeEventListener('scroll', onScrollOrResize, true)
-})
+function submitPost() {
+  if (!postForm.title.trim() || !postForm.content.trim()) return
+  createPostMutation.mutate()
+}
+
+function submitMessage() {
+  if (!chatDraft.value.trim() || !selectedRoomId.value) return
+  sendMessageMutation.mutate()
+}
+
+function downloadReport() {
+  if (!reportMarkdown.value) return
+  const blob = new Blob([reportMarkdown.value], { type: 'text/markdown;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `uecada-factory-report-${new Date().toISOString().slice(0, 10)}.md`
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
+function formatTime(iso: string | null | undefined) {
+  return iso ? iso.replace('T', ' ').slice(0, 16) : '-'
+}
 </script>
 
 <template>
@@ -292,53 +179,23 @@ onUnmounted(() => {
       </nav>
 
       <div class="sidebar-status">
-        <span>관리자</span>
-        <strong>김관리</strong>
-        <p>라인별 작업자 그룹, 관리자 게시판, 업무지시 채팅 관리</p>
+        <span>{{ currentUser.roleName }}</span>
+        <strong>{{ currentUser.userName }}</strong>
+        <p>라인 그룹, 공지, 채팅, 공장 현황 자동 문서화를 관리합니다.</p>
       </div>
     </aside>
 
     <section class="dashboard-main community-dashboard-main">
       <header class="dashboard-header">
-        <div class="dashboard-header-titles community-header-titles">
-          <div class="community-header-title-block">
-            <p class="dashboard-kicker">Community</p>
-            <div class="community-title-row">
-              <h1>커뮤니티</h1>
-              <div ref="lineDropdownAnchorRef" class="community-line-dropdown">
-                <button
-                  type="button"
-                  class="community-line-dropdown-trigger"
-                  :aria-expanded="lineDropdownOpen"
-                  aria-haspopup="dialog"
-                  aria-controls="community-line-dropdown-portal-panel"
-                  @click="toggleLineDropdown"
-                >
-                  <Users :size="18" />
-                  <span class="community-line-dropdown-label">
-                    <span class="community-line-dropdown-primary">라인별 그룹화</span>
-                    <span class="community-line-dropdown-secondary">{{ selectedScopeOption.label }}</span>
-                  </span>
-                  <ChevronDown
-                    class="community-line-dropdown-chevron"
-                    :class="{ 'community-line-dropdown-chevron--open': lineDropdownOpen }"
-                    :size="18"
-                    :stroke-width="2.4"
-                  />
-                </button>
-              </div>
-            </div>
-          </div>
+        <div class="dashboard-header-titles">
+          <p class="dashboard-kicker">Community</p>
+          <h1>커뮤니티</h1>
         </div>
         <div class="header-actions">
           <span class="current-time">
             <CalendarDays :size="16" />
-            2026-05-11 12:40
+            {{ new Date().toLocaleString('ko-KR') }}
           </span>
-          <button class="primary-action" type="button" @click="openCreatePostModal">
-            <Megaphone :size="17" />
-            <span>알림 작성</span>
-          </button>
           <button type="button" class="icon-link" @click="logout">
             <LogOut :size="16" />
             <span>로그아웃</span>
@@ -346,287 +203,310 @@ onUnmounted(() => {
         </div>
       </header>
 
-      <!-- 드롭다운을 body로 포탈 렌더링 (overflow·z-index 이슈 회피, 트리거 기준 위치) -->
-      <Teleport to="body">
-        <div
-          v-if="lineDropdownOpen"
-          class="community-line-dropdown-portal"
-          role="presentation"
-        >
-          <div
-            class="community-line-dropdown-portal-backdrop"
-            aria-hidden="true"
-            @click="closeLineDropdown"
-          />
-          <div
-            id="community-line-dropdown-portal-panel"
-            class="community-line-overlay-panel community-line-dropdown-portal-panel"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="community-line-overlay-title"
-            :style="portalDropdownStyle"
-            @click.stop
-          >
-            <header class="community-line-overlay-head">
-              <div>
-                <p class="community-line-overlay-kicker">라인 범위</p>
-                <h2 id="community-line-overlay-title">라인별 그룹화</h2>
-                <p class="community-line-overlay-desc">
-                  게시판·채팅에 표시할 라인 범위를 선택합니다.
-                </p>
-              </div>
-              <button
-                type="button"
-                class="community-line-overlay-close"
-                aria-label="닫기"
-                @click="closeLineDropdown"
-              >
-                <X :size="20" :stroke-width="2.2" />
-              </button>
-            </header>
-
-            <section class="community-line-overlay-section" aria-label="표시 범위">
-              <h3 class="community-line-overlay-section-title">표시 범위</h3>
-              <ul
-                id="community-line-scope-list"
-                class="community-line-overlay-scope-list"
-                role="listbox"
-                :aria-label="'현재 선택: ' + selectedScopeOption.label"
-              >
-                <li v-for="opt in lineScopeOptions" :key="opt.id" role="none">
-                  <button
-                    type="button"
-                    role="option"
-                    class="community-line-dropdown-item"
-                    :aria-selected="selectedLineScope === opt.id"
-                    @click="selectLineScope(opt.id)"
-                  >
-                    {{ opt.label }}
-                  </button>
-                </li>
-              </ul>
-            </section>
-
-            <footer class="community-line-overlay-footer">
-              <button type="button" class="primary-action" @click="closeLineDropdown">
-                확인
-              </button>
-            </footer>
-          </div>
-        </div>
-      </Teleport>
-
-      <section class="community-workspace" aria-label="커뮤니티 기능 영역">
-        <div class="community-feature-pane community-feature-pane--full">
-          <div
-            v-if="activeLineGroup"
-            class="community-line-context-bar"
-            :aria-label="`${activeLineGroup.name} 요약`"
-          >
+      <section class="community-grid">
+        <article class="dashboard-panel community-panel community-panel--groups">
+          <div class="section-title-row">
             <div>
-              <strong>{{ activeLineGroup.name }}</strong>
-              <span>담당 {{ activeLineGroup.manager }} · {{ activeLineGroup.members.length }}명</span>
+              <p class="panel-kicker">Line Groups</p>
+              <h2>라인별 그룹화</h2>
             </div>
-            <p>{{ activeLineGroup.task }}</p>
+            <Users :size="22" />
           </div>
 
-          <div class="community-board-chat-split" aria-label="게시판과 채팅">
-            <article class="dashboard-panel board-panel community-feature-panel community-split-half">
-              <div class="section-title-row">
-                <div>
-                  <p class="panel-kicker">Admin Board</p>
-                  <h2>게시판</h2>
-                  <p v-if="selectedScopeOption.targetLabel" class="community-scope-sub">
-                    {{ selectedScopeOption.label }} 관련 글
-                  </p>
-                  <p v-else class="community-scope-sub">전체 라인</p>
-                </div>
-                <span class="section-note">관리자 작성</span>
-              </div>
+          <div class="community-line-tabs">
+            <button type="button" :class="{ active: selectedLineId === 'ALL' }" @click="selectedLineId = 'ALL'">
+              전체
+            </button>
+            <button
+              v-for="group in visibleGroups"
+              :key="group.lineId"
+              type="button"
+              :class="{ active: selectedLineId === group.lineId }"
+              @click="selectedLineId = group.lineId"
+            >
+              {{ group.lineName }}
+            </button>
+          </div>
 
-              <div class="notice-list simple">
-                <p v-if="postsPending" class="community-empty-inline">게시글을 불러오는 중…</p>
-                <p v-else-if="postsError" class="community-empty-inline" style="color: #dc2626">
-                  불러오기 실패: {{ postsErrorObj?.message ?? '알 수 없는 오류' }}
-                </p>
-                <template v-else-if="filteredNotices.length">
-                  <article v-for="notice in filteredNotices" :key="notice.id">
-                    <div class="notice-icon">
-                      <Pin v-if="notice.pinned" :size="17" />
-                      <Megaphone v-else :size="17" />
-                    </div>
-                    <div>
-                      <div class="notice-meta">
-                        <span>{{ notice.category }}</span>
-                        <span>{{ notice.target }}</span>
-                        <time>{{ notice.time }}</time>
-                      </div>
-                      <strong>{{ notice.title }}</strong>
-                      <p>{{ notice.author }} 작성</p>
-                    </div>
-                  </article>
-                </template>
-                <p v-else class="community-empty-inline">표시할 게시글이 없습니다.</p>
-              </div>
-            </article>
-
-            <article class="dashboard-panel chat-panel community-feature-panel community-split-half">
-              <div class="section-title-row">
-                <div>
-                  <p class="panel-kicker">Work Chat</p>
-                  <h2>채팅 <small style="color: #94a3b8; font-weight: 500; font-size: 12px">· 데모 UI (백엔드 미연결)</small></h2>
-                  <p v-if="selectedScopeOption.targetLabel" class="community-scope-sub">
-                    {{ selectedScopeOption.label }} · 전체 공지 포함
-                  </p>
-                  <p v-else class="community-scope-sub">전체 라인</p>
-                </div>
-                <MessageSquare :size="22" />
-              </div>
-
-              <div class="chat-message-list">
-                <template v-if="filteredChatMessages.length">
-                  <article
-                    v-for="message in filteredChatMessages"
-                    :key="`${message.user}-${message.time}-${message.message.slice(0, 12)}`"
-                    :class="{ mine: message.mine }"
-                  >
-                    <div class="chat-avatar">{{ message.user.slice(0, 1) }}</div>
-                    <div class="chat-bubble">
-                      <div class="chat-meta">
-                        <strong>{{ message.user }}</strong>
-                        <span>{{ message.role }} · {{ message.line }} · {{ message.time }}</span>
-                      </div>
-                      <p>{{ message.message }}</p>
-                    </div>
-                  </article>
-                </template>
-                <p v-else class="community-empty-inline community-empty-inline--chat">표시할 메시지가 없습니다.</p>
-              </div>
-
-              <div class="chat-input-row">
-                <button type="button" title="첨부">
-                  <Paperclip :size="17" />
-                </button>
-                <input type="text" value="구체적인 업무지시를 입력하세요" />
-                <button type="button" title="전송">
-                  <Send :size="17" />
-                </button>
-              </div>
+          <div class="community-group-list">
+            <article v-for="group in visibleGroups" :key="group.lineId" class="community-group-row">
+              <strong>{{ group.lineName }}</strong>
+              <p>관리자 {{ group.managers.length }}명 · 작업자 {{ group.operators.length }}명</p>
+              <small>
+                관리자: {{ group.managers.map((user) => user.userName).join(', ') || '-' }}
+              </small>
+              <small>
+                작업자: {{ group.operators.map((user) => user.userName).join(', ') || '-' }}
+              </small>
             </article>
           </div>
-        </div>
+        </article>
+
+        <article class="dashboard-panel community-panel">
+          <div class="section-title-row">
+            <div>
+              <p class="panel-kicker">Board</p>
+              <h2>게시판</h2>
+            </div>
+            <Megaphone :size="22" />
+          </div>
+
+          <form class="community-form" @submit.prevent="submitPost">
+            <div class="community-form-row">
+              <select v-model="postForm.category">
+                <option v-for="opt in CATEGORY_OPTIONS" :key="opt.code" :value="opt.code">
+                  {{ opt.label }}
+                </option>
+              </select>
+              <select v-model="postForm.targetLineId">
+                <option value="">전체 라인</option>
+                <option v-for="group in visibleGroups" :key="group.lineId" :value="group.lineId">
+                  {{ group.lineName }}
+                </option>
+              </select>
+              <label class="community-check">
+                <input v-model="postForm.notice" type="checkbox" />
+                공지
+              </label>
+            </div>
+            <input v-model="postForm.title" type="text" placeholder="제목" />
+            <textarea v-model="postForm.content" rows="3" placeholder="작업자에게 전달할 내용을 입력하세요."></textarea>
+            <button class="primary-action" type="submit" :disabled="createPostMutation.isPending.value">
+              <Megaphone :size="16" />
+              <span>{{ createPostMutation.isPending.value ? '등록 중…' : '공지 등록' }}</span>
+            </button>
+          </form>
+
+          <div class="community-post-list">
+            <article v-for="post in visiblePosts" :key="post.postId" class="community-post">
+              <div>
+                <span>{{ categoryLabel(post.category) }}</span>
+                <span>{{ post.targetLineId || '전체' }}</span>
+                <time>{{ formatTime(post.createdAt) }}</time>
+              </div>
+              <strong>{{ post.title }}</strong>
+              <p>{{ post.content }}</p>
+            </article>
+          </div>
+        </article>
+
+        <article class="dashboard-panel community-panel">
+          <div class="section-title-row">
+            <div>
+              <p class="panel-kicker">Work Chat</p>
+              <h2>채팅</h2>
+            </div>
+            <MessageSquare :size="22" />
+          </div>
+
+          <div class="community-room-tabs">
+            <button
+              v-for="room in roomsQuery.data.value ?? []"
+              :key="room.chatRoomId"
+              type="button"
+              :class="{ active: selectedRoomId === room.chatRoomId }"
+              @click="selectedRoomId = room.chatRoomId"
+            >
+              {{ room.roomName }}
+            </button>
+          </div>
+
+          <div class="community-chat-box">
+            <article
+              v-for="message in visibleMessages"
+              :key="message.messageId"
+              :class="['community-message', { mine: message.senderUserId === currentUser.userId }]"
+            >
+              <strong>{{ message.senderUserId }}</strong>
+              <p>{{ message.messageContent }}</p>
+              <time>{{ formatTime(message.sentAt) }}</time>
+            </article>
+            <p v-if="!visibleMessages.length" class="community-empty">아직 메시지가 없습니다.</p>
+          </div>
+
+          <form class="community-chat-input" @submit.prevent="submitMessage">
+            <input
+              v-model="chatDraft"
+              type="text"
+              :placeholder="selectedRoom ? `${selectedRoom.roomName}에 메시지 입력` : '채팅방 선택'"
+            />
+            <button type="submit" class="primary-action" :disabled="sendMessageMutation.isPending.value">
+              <Send :size="16" />
+            </button>
+          </form>
+        </article>
+
+        <article class="dashboard-panel community-panel">
+          <div class="section-title-row">
+            <div>
+              <p class="panel-kicker">Auto Documentation</p>
+              <h2>자동 문서화</h2>
+            </div>
+            <FileText :size="22" />
+          </div>
+
+          <div class="community-report-actions">
+            <button class="primary-action" type="button" @click="reportMutation.mutate()">
+              <FileText :size="16" />
+              <span>{{ reportMutation.isPending.value ? '작성 중…' : '공장 현황 보고서 생성' }}</span>
+            </button>
+            <button class="ghost-button" type="button" :disabled="!reportMarkdown" @click="downloadReport">
+              <Download :size="16" />
+              <span>저장</span>
+            </button>
+          </div>
+
+          <pre class="community-report-preview">{{ reportMarkdown || '버튼을 누르면 설비 가동상태, OEE, 알람, 이상설비, 라인 현황, 생산률, ESG 대응 데이터가 보고서로 생성됩니다.' }}</pre>
+        </article>
       </section>
     </section>
-
-    <div v-if="showCreatePostModal" class="post-create-modal" @click.self="closeCreatePostModal">
-      <div class="post-create-modal__card">
-        <header class="post-create-modal__head">
-          <h3>알림 작성</h3>
-          <button type="button" class="icon-link" aria-label="닫기" @click="closeCreatePostModal">
-            <X :size="18" />
-          </button>
-        </header>
-        <form class="post-create-modal__body" @submit.prevent="submitCreatePost">
-          <label>
-            <span>작성자 ID *</span>
-            <input v-model="createPostForm.authorUserId" type="text" maxlength="20" required />
-          </label>
-          <label>
-            <span>카테고리</span>
-            <select v-model="createPostForm.category">
-              <option v-for="opt in CATEGORY_OPTIONS" :key="opt.code" :value="opt.code">
-                {{ opt.label }}
-              </option>
-            </select>
-          </label>
-          <label>
-            <span>제목 *</span>
-            <input v-model="createPostForm.title" type="text" maxlength="200" required />
-          </label>
-          <label>
-            <span>내용 *</span>
-            <textarea v-model="createPostForm.content" rows="5" required></textarea>
-          </label>
-
-          <p v-if="createPostError" class="post-create-modal__error">{{ createPostError }}</p>
-
-          <footer class="post-create-modal__foot">
-            <button type="button" class="ghost-button" @click="closeCreatePostModal">취소</button>
-            <button type="submit" class="primary-action" :disabled="createPostMut.isPending.value">
-              {{ createPostMut.isPending.value ? '저장 중…' : '저장' }}
-            </button>
-          </footer>
-        </form>
-      </div>
-    </div>
   </main>
 </template>
 
 <style scoped>
-.post-create-modal {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.55);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1100;
-}
-.post-create-modal__card {
-  width: min(520px, 92vw);
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25);
-  display: flex;
-  flex-direction: column;
-}
-.post-create-modal__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 20px;
-  border-bottom: 1px solid #e2e8f0;
-}
-.post-create-modal__head h3 {
-  margin: 0;
-  font-size: 16px;
-}
-.post-create-modal__body {
-  padding: 18px 20px;
+.community-grid {
   display: grid;
-  gap: 12px;
+  grid-template-columns: minmax(280px, 0.9fr) minmax(420px, 1.1fr);
+  gap: 16px;
+  align-items: start;
 }
-.post-create-modal__body label {
-  display: grid;
-  gap: 4px;
-  font-size: 13px;
-  color: #475569;
+.community-panel {
+  min-height: 360px;
 }
-.post-create-modal__body input,
-.post-create-modal__body select,
-.post-create-modal__body textarea {
-  padding: 8px 10px;
-  border: 1px solid #cbd5f5;
-  border-radius: 8px;
-  font-size: 14px;
-  font-family: inherit;
+.community-panel--groups {
+  min-height: 300px;
 }
-.post-create-modal__body textarea {
-  resize: vertical;
-  min-height: 100px;
-}
-.post-create-modal__error {
-  margin: 0;
-  padding: 8px 10px;
-  background: #fef2f2;
-  color: #b91c1c;
-  border-radius: 8px;
-  font-size: 13px;
-}
-.post-create-modal__foot {
+.community-line-tabs,
+.community-room-tabs,
+.community-form-row,
+.community-report-actions {
   display: flex;
-  justify-content: flex-end;
   gap: 8px;
-  margin-top: 4px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.community-line-tabs button,
+.community-room-tabs button {
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-weight: 800;
+  color: #334155;
+  cursor: pointer;
+}
+.community-line-tabs button.active,
+.community-room-tabs button.active {
+  background: #0f4c81;
+  color: #fff;
+  border-color: #0f4c81;
+}
+.community-group-list,
+.community-post-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+.community-group-row,
+.community-post {
+  border: 1px solid #dbe5f0;
+  border-radius: 8px;
+  padding: 12px;
+  background: #fff;
+}
+.community-group-row p,
+.community-group-row small,
+.community-post p {
+  margin: 4px 0 0;
+  color: #64748b;
+}
+.community-group-row small {
+  display: block;
+}
+.community-form {
+  display: grid;
+  gap: 9px;
+}
+.community-form input,
+.community-form textarea,
+.community-form select,
+.community-chat-input input {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 9px 10px;
+  font: inherit;
+}
+.community-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 800;
+  color: #334155;
+}
+.community-post div {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: #64748b;
+  margin-bottom: 6px;
+}
+.community-chat-box {
+  height: 250px;
+  overflow: auto;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  margin: 12px 0;
+  padding: 10px;
+  border: 1px solid #dbe5f0;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+.community-message {
+  max-width: 78%;
+  padding: 9px 10px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+}
+.community-message.mine {
+  margin-left: auto;
+  background: #eef6ff;
+  border-color: #b9dcff;
+}
+.community-message p {
+  margin: 3px 0;
+}
+.community-message time {
+  font-size: 11px;
+  color: #94a3b8;
+}
+.community-chat-input {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+.community-report-preview {
+  margin: 12px 0 0;
+  min-height: 260px;
+  max-height: 420px;
+  overflow: auto;
+  white-space: pre-wrap;
+  border: 1px solid #dbe5f0;
+  border-radius: 8px;
+  padding: 12px;
+  background: #f8fafc;
+  color: #1e293b;
+  font: 13px/1.55 ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+.community-empty {
+  color: #64748b;
+  text-align: center;
+}
+@media (max-width: 1180px) {
+  .community-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

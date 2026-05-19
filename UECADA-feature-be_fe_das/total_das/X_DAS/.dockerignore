@@ -1,9 +1,0 @@
-.git
-.env
-nodered/data/node_modules
-nodered/data/context
-nodered/data/projects
-nodered/data/.sessions.json
-nodered/data/flows_cred.json
-**/*.log
-

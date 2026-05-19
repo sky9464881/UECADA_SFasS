@@ -2,19 +2,24 @@ export type RoleCode = 'ADMIN' | 'MANAGER' | 'OPERATOR' | string
 
 export interface UserResponse {
   userId: string
+  loginId: string
   userName: string
   email: string | null
   roleName: RoleCode
+  lineId: string | null
   createdAt: string
 }
 
 export interface UserCreatePayload {
   userId: string
   loginId: string
+  lineId?: string | null
   userName: string
   email?: string
   roleName: RoleCode
   password: string
+  securityQuestion?: string
+  securityAnswer?: string
 }
 
 export const ROLE_LABEL: Record<string, string> = {

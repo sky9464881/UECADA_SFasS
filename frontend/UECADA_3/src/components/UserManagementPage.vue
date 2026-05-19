@@ -106,10 +106,13 @@ const showCreateModal = ref(false)
 const createForm = reactive({
   userId: '',
   loginId: '',
+  lineId: '',
   userName: '',
   email: '',
   roleName: 'OPERATOR',
   password: '',
+  securityQuestion: '초기 보안 답변은?',
+  securityAnswer: 'secret',
 })
 const createError = ref('')
 
@@ -118,10 +121,13 @@ function openCreateModal() {
   Object.assign(createForm, {
     userId: '',
     loginId: '',
+    lineId: '',
     userName: '',
     email: '',
     roleName: 'OPERATOR',
     password: '',
+    securityQuestion: '초기 보안 답변은?',
+    securityAnswer: 'secret',
   })
   showCreateModal.value = true
 }
@@ -140,10 +146,13 @@ async function submitCreateUser() {
     await create.mutateAsync({
       userId: createForm.userId,
       loginId: createForm.loginId,
+      lineId: createForm.lineId || null,
       userName: createForm.userName,
       email: createForm.email || undefined,
       roleName: createForm.roleName,
       password: createForm.password,
+      securityQuestion: createForm.securityQuestion,
+      securityAnswer: createForm.securityAnswer,
     })
     closeCreateModal()
   } catch (e: unknown) {
@@ -581,6 +590,15 @@ const userSummaryItems = computed<SummaryItem[]>(() => {
             <input v-model="createForm.loginId" type="text" maxlength="50" required />
           </label>
           <label>
+            <span>라인</span>
+            <select v-model="createForm.lineId">
+              <option value="">전체/관리자</option>
+              <option value="LINE-01">LINE-01</option>
+              <option value="LINE-02">LINE-02</option>
+              <option value="LINE-03">LINE-03</option>
+            </select>
+          </label>
+          <label>
             <span>이름 *</span>
             <input v-model="createForm.userName" type="text" maxlength="50" required />
           </label>
@@ -599,6 +617,14 @@ const userSummaryItems = computed<SummaryItem[]>(() => {
           <label>
             <span>비밀번호 *</span>
             <input v-model="createForm.password" type="password" required />
+          </label>
+          <label>
+            <span>보안 질문 *</span>
+            <input v-model="createForm.securityQuestion" type="text" required />
+          </label>
+          <label>
+            <span>보안 답변 *</span>
+            <input v-model="createForm.securityAnswer" type="text" required />
           </label>
 
           <p v-if="createError" class="user-create-modal__error">{{ createError }}</p>

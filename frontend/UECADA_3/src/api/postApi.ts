@@ -1,9 +1,9 @@
 import { api } from '@/api/client'
 import type { PostCreatePayload, PostResponse } from '@/types/post'
 
-export async function fetchPosts(category?: string): Promise<PostResponse[]> {
+export async function fetchPosts(category?: string, targetLineId?: string): Promise<PostResponse[]> {
   const { data } = await api.get<PostResponse[]>('/api/posts', {
-    params: category ? { category } : undefined,
+    params: { ...(category ? { category } : {}), ...(targetLineId ? { targetLineId } : {}) },
   })
   return data
 }
