@@ -173,6 +173,5 @@ async def _serve(cfg: SimConfig, state: EquipmentState, stop_event: threading.Ev
         log.info("stopping opcua server")
 
 
-def run(cfg: SimConfig, stop_event: threading.Event) -> None:
-    state = EquipmentState(cfg)
+def run(cfg: SimConfig, state: EquipmentState, stop_event: threading.Event) -> None:
     asyncio.run(_serve(cfg, state, stop_event))
