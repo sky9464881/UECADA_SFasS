@@ -85,9 +85,9 @@ def cast_process_tags() -> list[dict]:
 
 
 def cnc_process_tags() -> list[dict]:
-    # spindle_speed 3000~8000 rpm (int), tool_usage 0~80 %, coolant_flow 10~30 L/min
+    # spindle_speed 600 rpm (int), tool_usage 0~80 %, coolant_flow 10~30 L/min
     return [
-        {"name": "spindle_speed_sp", "role": "setpoint", "data_type": "int",   "base_value": 5500},
+        {"name": "spindle_speed_sp", "role": "setpoint", "data_type": "int",   "base_value": 600},
         {"name": "tool_usage_sp",    "role": "setpoint", "data_type": "float", "base_value": 30.0},
         {"name": "coolant_flow_sp",  "role": "setpoint", "data_type": "float", "base_value": 18.0},
         {"name": "spindle_speed", "role": "sensor", "data_type": "int",
