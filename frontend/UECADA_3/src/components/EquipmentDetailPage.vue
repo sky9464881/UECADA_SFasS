@@ -1216,6 +1216,9 @@ onUnmounted(disposeEquipmentCharts)
       :open="webScadaOverlayOpen"
       :page-id="webScadaOverlayPageId"
       :title="webScadaOverlayTitle"
+      size="large"
+      :min-frame-width="1320"
+      :min-frame-height="940"
       subtitle="Equipment Detail · SMWP"
       @close="webScadaOverlayOpen = false"
     />

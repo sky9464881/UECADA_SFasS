@@ -8,12 +8,18 @@ interface Props {
   pageId?: string
   title?: string
   subtitle?: string
+  size?: 'standard' | 'large' | 'fullscreen'
+  minFrameWidth?: number
+  minFrameHeight?: number
 }
 
 const props = withDefaults(defineProps<Props>(), {
   pageId: 'LDV',
   title: '웹스카다',
   subtitle: 'SMWP WebSCADA',
+  size: 'fullscreen',
+  minFrameWidth: 1366,
+  minFrameHeight: 980,
 })
 
 const emit = defineEmits<{ (e: 'close'): void }>()
@@ -24,6 +30,11 @@ const iframeLoaded = ref(false)
 const loadTimedOut = ref(false)
 const iframeReloadKey = ref(0)
 const showLoading = computed(() => props.open && Boolean(iframeUrl.value) && !iframeLoaded.value && !loadTimedOut.value)
+const dialogClasses = computed(() => ['scada-dialog', `scada-dialog--${props.size}`])
+const dialogStyle = computed<Record<string, string>>(() => ({
+  '--scada-frame-min-width': `${props.minFrameWidth}px`,
+  '--scada-frame-min-height': `${props.minFrameHeight}px`,
+}))
 let loadTimer: number | null = null
 let previouslyFocused: HTMLElement | null = null
 
@@ -125,7 +136,8 @@ onBeforeUnmount(() => {
   <Teleport to="body">
     <dialog
       ref="dialogRef"
-      class="scada-dialog"
+      :class="dialogClasses"
+      :style="dialogStyle"
       :aria-label="title"
       @click="onDialogClick"
       @close="onDialogClose"
@@ -171,6 +183,7 @@ onBeforeUnmount(() => {
           :src="iframeUrl"
           title="웹스카다 (SMWP)"
           referrerpolicy="no-referrer"
+          scrolling="yes"
           allow="fullscreen"
           @load="onIframeLoad"
         />
@@ -200,8 +213,10 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .scada-dialog {
-  width: min(1100px, 92vw);
-  height: min(760px, 86vh);
+  width: min(1280px, calc(100vw - 32px));
+  height: min(820px, calc(100vh - 32px));
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 16px);
   padding: 0;
   border: 1px solid rgba(148, 163, 184, 0.22);
   border-radius: 14px;
@@ -210,6 +225,18 @@ onBeforeUnmount(() => {
   color: #e2e8f0;
   overflow: hidden;
 }
+
+.scada-dialog--large {
+  width: min(1400px, calc(100vw - 80px));
+  height: min(900px, calc(100vh - 72px));
+}
+
+.scada-dialog--fullscreen {
+  width: calc(100vw - 16px);
+  height: calc(100vh - 16px);
+  border-radius: 10px;
+}
+
 .scada-dialog[open] { display: flex; flex-direction: column; }
 .scada-dialog::backdrop { background: rgba(7, 14, 30, 0.62); backdrop-filter: blur(6px); }
 .scada-dialog-head {
@@ -217,7 +244,8 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 14px 18px;
+  flex: 0 0 auto;
+  padding: 10px 14px;
   background: #111827;
   border-bottom: 1px solid rgba(148, 163, 184, 0.16);
 }
@@ -226,9 +254,9 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
   background: rgba(56, 189, 248, 0.14);
   color: #38bdf8;
 }
@@ -264,8 +292,22 @@ onBeforeUnmount(() => {
 .scada-dialog-iconbtn:hover:not(:disabled) { background: rgba(56, 189, 248, 0.16); color: #e0f2fe; }
 .scada-dialog-iconbtn:disabled { opacity: 0.5; cursor: not-allowed; }
 .scada-dialog-iconbtn--close:hover:not(:disabled) { background: rgba(239, 68, 68, 0.18); color: #fecaca; }
-.scada-dialog-body { position: relative; flex: 1; min-height: 0; background: #fff; }
-.scada-dialog-iframe { width: 100%; height: 100%; border: 0; background: #fff; }
+.scada-dialog-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  background: #fff;
+  overflow: auto;
+}
+.scada-dialog-iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-width: var(--scada-frame-min-width, 1366px);
+  min-height: var(--scada-frame-min-height, 980px);
+  border: 0;
+  background: #fff;
+}
 .scada-dialog-loading,
 .scada-dialog-fallback {
   position: absolute;
