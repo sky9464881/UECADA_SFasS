@@ -31,7 +31,7 @@ const statusFilterOptions = [
   { label: '처리완료', value: 'RESOLVED' },
 ]
 
-const PAGE_SIZE = 10
+const PAGE_SIZE = 5
 const currentPage = ref(1)
 
 // 필터 변경 시 첫 페이지로
