@@ -8,7 +8,6 @@ const EquipmentDetailPage = () => import('@/components/EquipmentDetailPage.vue')
 const AlarmPage = () => import('@/components/AlarmPage.vue')
 const UserManagementPage = () => import('@/components/UserManagementPage.vue')
 const CommunityPage = () => import('@/components/CommunityPage.vue')
-const SwmpTestPage = () => import('@/components/SwmpTestPage.vue')
 const LineDetailPage = () => import('@/components/LineDetailPage.vue')
 
 export const router = createRouter({
@@ -28,7 +27,6 @@ export const router = createRouter({
       meta: { requiresAuth: true, roles: ['admin'] as const },
     },
     { path: '/community', name: 'community', component: CommunityPage, meta: { requiresAuth: true } },
-    { path: '/swmp-test', name: 'swmp-test', component: SwmpTestPage, meta: { requiresAuth: true } },
     { path: '/lines', name: 'lines', component: LineDetailPage, meta: { requiresAuth: true } },
   ],
 })

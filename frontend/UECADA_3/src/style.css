@@ -4635,6 +4635,41 @@ select {
   outline-offset: 2px;
 }
 
+button.factory-line-summary-card--scada {
+  margin: 0;
+  text-align: inherit;
+}
+
+button.factory-line-summary-card--scada:hover {
+  border-color: var(--hyundai-blue-2, #4a7fc1);
+  box-shadow: 0 4px 14px rgba(15, 31, 56, 0.1);
+}
+
+button.factory-line-summary-card--scada:active {
+  transform: scale(0.98);
+}
+
+button.factory-line-summary-card--scada:focus-visible {
+  outline: 2px solid var(--hyundai-blue-2, #4a7fc1);
+  outline-offset: 2px;
+}
+
+.factory-webscada-hint {
+  font-size: 11px;
+  font-weight: 700;
+  color: #4a7fc1;
+  white-space: nowrap;
+}
+
+.factory-webscada-hint--off {
+  color: #94a3b8;
+}
+
+button.factory-webscada-open-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .factory-line-summary-code {
   font-size: 14px;
   font-weight: 950;
@@ -8218,6 +8253,11 @@ select {
 .equipment-detail-open-button:hover {
   border-color: var(--hyundai-blue-2);
   background: #eef5fb;
+}
+
+.equipment-detail-open-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .selected-equipment-summary {
