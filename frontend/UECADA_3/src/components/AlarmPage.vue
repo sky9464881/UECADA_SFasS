@@ -17,7 +17,7 @@ import { useAlarmInsights } from '@/composables/useAlarmInsights'
 import { useResolveAlarm } from '@/composables/useResolveAlarm'
 import { useAuthStore } from '@/stores/auth'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
-import { fetchAlarmCounts, resolveAlarm } from '@/api/alarmApi'
+import { fetchAlarmCounts, fetchAlarmsRaw, resolveAlarm } from '@/api/alarmApi'
 import { POLL_INTERVAL_MS } from '@/constants/polling'
 
 const { navItems } = useAppNav()
@@ -69,8 +69,16 @@ const summaryCards = computed(() => [
 // 전체 선택 / 일괄 처리
 const selectedIds = ref<Set<number>>(new Set())
 
+// 현재 페이지 미처리
 const pageUnresolvedIds = computed(() =>
   pagedRows.value
+    .filter((row) => row.status !== '처리완료' && row.alarmId)
+    .map((row) => row.alarmId),
+)
+
+// 전체 페이지 미처리 (로드된 데이터 전체)
+const allUnresolvedIds = computed(() =>
+  (data.value?.rows ?? [])
     .filter((row) => row.status !== '처리완료' && row.alarmId)
     .map((row) => row.alarmId),
 )
@@ -78,6 +86,11 @@ const pageUnresolvedIds = computed(() =>
 const isAllPageSelected = computed(() =>
   pageUnresolvedIds.value.length > 0 &&
   pageUnresolvedIds.value.every((id) => selectedIds.value.has(id)),
+)
+
+const isAllPagesSelected = computed(() =>
+  allUnresolvedIds.value.length > 0 &&
+  allUnresolvedIds.value.every((id) => selectedIds.value.has(id)),
 )
 
 function toggleSelectAll() {
@@ -88,6 +101,39 @@ function toggleSelectAll() {
     pageUnresolvedIds.value.forEach((id) => next.add(id))
   }
   selectedIds.value = next
+}
+
+function toggleSelectAllPages() {
+  if (isAllPagesSelected.value) {
+    selectedIds.value = new Set()
+  } else {
+    selectedIds.value = new Set(allUnresolvedIds.value)
+  }
+}
+
+async function handleResolveAllToday() {
+  if (isBulkResolving.value) return
+  if (!confirm(`당일 미처리 알람 ${counts.value?.open ?? '?'}건을 전체 처리하시겠습니까?`)) return
+  isBulkResolving.value = true
+  const now = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const todayFrom = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T00:00:00`
+  const todayTo = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T23:59:59`
+  const resolvedAt = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
+  const payload = { resolvedBy: '관리자', resolvedAt, comment: 'UI 당일 전체 처리' }
+  try {
+    const openAlarms = await fetchAlarmsRaw('OPEN', todayFrom, todayTo)
+    // 20개씩 배치 처리 (서버 과부하 방지)
+    const BATCH = 20
+    for (let i = 0; i < openAlarms.length; i += BATCH) {
+      await Promise.all(openAlarms.slice(i, i + BATCH).map((a) => resolveAlarm(a.alarmId, payload)))
+    }
+    selectedIds.value = new Set()
+    await queryClient.invalidateQueries({ queryKey: ['alarms'] })
+    await queryClient.invalidateQueries({ queryKey: ['alarms', 'counts'] })
+  } finally {
+    isBulkResolving.value = false
+  }
 }
 
 function toggleSelect(id: number) {
@@ -269,12 +315,22 @@ function handleResolve(alarmId: number) {
             </div>
 
             <div v-else class="alarm-history-table-wrap">
-              <div v-if="selectedIds.size > 0" class="alarm-bulk-bar">
-                <span>{{ selectedIds.size }}건 선택됨</span>
+              <div class="alarm-bulk-bar">
                 <button
                   type="button"
                   class="ghost-button"
-                  style="padding: 4px 14px; font-size: 12px; background:#dc2626; color:#fff; border:0"
+                  style="padding: 4px 12px; font-size: 12px;"
+                  :disabled="isBulkResolving || !counts?.open"
+                  @click="handleResolveAllToday"
+                >
+                  {{ isBulkResolving ? '처리중…' : `당일 미처리 전체 처리 (${counts?.open ?? 0}건)` }}
+                </button>
+                <span v-if="selectedIds.size > 0" style="color:#64748b; margin-left:8px">{{ selectedIds.size }}건 선택됨</span>
+                <button
+                  v-if="selectedIds.size > 0"
+                  type="button"
+                  class="ghost-button"
+                  style="padding: 4px 14px; font-size: 12px"
                   :disabled="isBulkResolving"
                   @click="handleBulkResolve"
                 >

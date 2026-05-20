@@ -114,7 +114,7 @@ function toRows(list: AlarmResponse[]): AlarmHistoryRow[] {
 
 export async function fetchAlarmsRaw(status?: string | null, from?: string, to?: string): Promise<AlarmResponse[]> {
   if (useMockAlarms()) return []
-  const params: Record<string, string> = { limit: '1000' }
+  const params: Record<string, string> = { limit: '5000' }
   if (status) params.status = status
   if (from) params.from = from
   if (to) params.to = to

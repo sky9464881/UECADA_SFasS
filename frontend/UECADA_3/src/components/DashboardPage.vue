@@ -441,17 +441,6 @@ watch(
             <p class="dashboard-kicker">통합 설비 제어</p>
             <h1>대시보드</h1>
           </div>
-          <div class="dash-period-seg dash-period-seg--global" role="group" aria-label="대시보드 비교 기준">
-            <button
-              v-for="b in comparePeriodButtons"
-              :key="`global-${b.key}`"
-              type="button"
-              :class="{ on: dashboardPeriod === b.key }"
-              @click="dashboardPeriod = b.key"
-            >
-              {{ b.label }}
-            </button>
-          </div>
         </div>
         <div class="header-actions">
           <span class="current-time">
@@ -485,16 +474,6 @@ watch(
                   <div class="dash-oee-hero-band-left">
                     <strong class="dash-oee-hero-pct" aria-label="전체 OEE">{{ totalOeeDisplay }}%</strong>
                   </div>
-                  <span
-                    class="dash-oee-kpi-pill dash-oee-kpi-pill--trail dash-oee-kpi-pill--hero"
-                    :class="yoyClass(totalOeeDelta)"
-                  >
-                    <span class="dash-oee-kpi-pill-change">
-                      <span class="dash-oee-kpi-pill-ar" aria-hidden="true">{{ yoyArrow(totalOeeDelta) }}</span>
-                      <span class="dash-yoy-num-slot">{{ yoySignedDisplay(totalOeeDelta) }}</span>
-                      <span class="dash-oee-kpi-pill-unit">%p</span>
-                    </span>
-                  </span>
                 </div>
               </article>
 
@@ -523,12 +502,6 @@ watch(
                           <span class="dash-line-detail-name">{{ ln.name }}</span>
                           <strong class="dash-line-detail-pct">{{ ln.pct }}</strong>
                         </div>
-                      </div>
-                      <div class="dash-line-detail-delta" :class="yoyClass(lineDelta(ln))">
-                        <span class="dash-yoy-value dash-line-detail-delta-value">
-                          <span class="dash-yoy-ar" aria-hidden="true">{{ yoyArrow(lineDelta(ln)) }}</span>
-                          <span class="dash-yoy-num-slot">{{ yoyAbs(lineDelta(ln)) }}</span>%p
-                        </span>
                       </div>
                     </div>
                   </article>

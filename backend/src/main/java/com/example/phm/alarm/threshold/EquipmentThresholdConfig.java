@@ -85,8 +85,8 @@ public final class EquipmentThresholdConfig {
                 Map.entry("sensor_voltage",     SensorThreshold.band(100.0, 198.0, 242.0, Double.NaN)), // 220V 기준: WARNING <198 or >242V, DANGER <100V
                 Map.entry("sensor_temperature", SensorThreshold.highOnly(35.0, 40.0)),
                 // 공정 센서 (치수 공차)
-                Map.entry("bore_dimension",     SensorThreshold.band(39.980, 39.983, 40.017, 40.020)), // 40.000±0.020mm, 85% 접근 시 WARNING (±0.017), 이탈 시 DANGER (±0.020)
-                Map.entry("hole_dimension",     SensorThreshold.band(10.150, 10.157, 10.243, 10.250))  // 10.200±0.050mm, 85% 접근 시 WARNING (±0.043), 이탈 시 DANGER (±0.050)
+                Map.entry("bore_dimension",     SensorThreshold.band(39.980, 39.982, 40.018, 40.020)), // 40.000±0.020mm, 90% 접근 시 WARNING (±0.018), 이탈 시 DANGER (±0.020)
+                Map.entry("hole_dimension",     SensorThreshold.band(10.150, 10.155, 10.245, 10.250))  // 10.200±0.050mm, 90% 접근 시 WARNING (±0.045), 이탈 시 DANGER (±0.050)
         );
     }
 

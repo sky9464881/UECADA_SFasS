@@ -61,9 +61,29 @@ watch(pendingAlarms, (list) => {
   }
 })
 
+const EQUIP_TYPE_KO: Record<string, string> = {
+  TEST: '검사기',
+  ASSY: '조립기',
+  CAST: '주조기',
+  CNC:  '가공기',
+  WASH: '세척기',
+}
+
+function toKoreanEquipName(code: string): string {
+  const m = /LINE-(\d+)_([A-Z]+)-(\d+)/i.exec(code)
+  if (!m) return code
+  const lineNum = parseInt(m[1], 10)
+  const typeKo  = EQUIP_TYPE_KO[m[2].toUpperCase()] ?? m[2]
+  const equipNum = parseInt(m[3], 10)
+  return `${lineNum}라인 ${typeKo} ${equipNum}호`
+}
+
 function shortCode(code: string): string {
-  const parts = code.split('_')
-  return parts.length > 1 ? parts.slice(1).join('_') : code
+  const m = /LINE-(\d+)_([A-Z]+)-(\d+)/i.exec(code)
+  if (!m) return code
+  const typeKo   = EQUIP_TYPE_KO[m[2].toUpperCase()] ?? m[2]
+  const equipNum = parseInt(m[3], 10)
+  return `${typeKo} ${equipNum}호`
 }
 
 function dismissCurrent(): void {
@@ -118,36 +138,17 @@ function formatAlarmTime(value: string | null | undefined): string {
             </span>
             <div>
               <p>Real-time Alarm · {{ selectedIndex + 1 }} / {{ pendingAlarms.length }}</p>
-              <h2>실시간 알람 발생</h2>
+              <h2>{{ toKoreanEquipName(activeAlarm.equipmentCode) }}</h2>
             </div>
             <button type="button" class="global-alarm-btn-all" @click="dismissAll">
               전체 확인
             </button>
           </header>
 
-          <dl class="global-alarm-dl">
-            <div>
-              <dt>설비</dt>
-              <dd>{{ activeAlarm.equipmentCode }}</dd>
-            </div>
-            <div>
-              <dt>등급</dt>
-              <dd>{{ mapSeverityToType(activeAlarm.severity) }}</dd>
-            </div>
-            <div>
-              <dt>상태</dt>
-              <dd>{{ mapStatusLabel(activeAlarm.status) }}</dd>
-            </div>
-            <div>
-              <dt>발생 시각</dt>
-              <dd>{{ formatAlarmTime(activeAlarm.occurredAt) }}</dd>
-            </div>
-          </dl>
-
           <section class="global-alarm-msg">
-            <Bell :size="20" />
-            <strong>{{ activeAlarm.alarmType || '알람' }}</strong>
+            <strong class="global-alarm-type">{{ activeAlarm.alarmType || '알람' }}</strong>
             <p>{{ activeAlarm.alarmMessage || '확인이 필요한 알람이 발생했습니다.' }}</p>
+            <span class="global-alarm-time">{{ formatAlarmTime(activeAlarm.occurredAt) }}</span>
           </section>
 
           <footer class="global-alarm-footer">
@@ -181,27 +182,34 @@ function formatAlarmTime(value: string | null | undefined): string {
 
 .global-alarm-tabs {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 4px;
   padding: 0 4px;
-  max-width: 100%;
+  width: 100%;
+  overflow: hidden;
 }
 
 .global-alarm-tab {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 14px;
+  padding: 9px 14px;
   border: 1px solid #fecaca;
   border-bottom: none;
   border-radius: 8px 8px 0 0;
   background: #ffe4e6;
   color: #9f1239;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   cursor: pointer;
   position: relative;
   bottom: -1px;
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 180px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .global-alarm-tab--active {
@@ -286,7 +294,7 @@ function formatAlarmTime(value: string | null | undefined): string {
 
 .global-alarm-dl {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   margin: 0;
   border-bottom: 1px solid #e2e8f0;
 }
@@ -313,19 +321,29 @@ function formatAlarmTime(value: string | null | undefined): string {
 }
 
 .global-alarm-msg {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 8px 10px;
-  align-items: center;
-  padding: 18px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px 22px;
 }
 
-.global-alarm-msg strong { font-size: 18px; }
+.global-alarm-type {
+  font-size: 22px;
+  font-weight: 900;
+  color: #0f172a;
+  line-height: 1.2;
+}
 
 .global-alarm-msg p {
-  grid-column: 2;
   margin: 0;
+  font-size: 14px;
   color: #475569;
+  font-weight: 600;
+}
+
+.global-alarm-time {
+  font-size: 12px;
+  color: #94a3b8;
   font-weight: 700;
 }
 
