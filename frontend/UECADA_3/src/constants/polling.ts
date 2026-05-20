@@ -17,7 +17,7 @@ export const POLL_INTERVAL_MS = {
   factoryLayout: 2_000,
   lineDetail: 2_000,
   posts: 60_000,
-  alarmInsights: 60_000,
+  alarmInsights: 10_000,
 } as const
 
 export const STALE_TIME_MS = {

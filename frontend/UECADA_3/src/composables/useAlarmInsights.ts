@@ -2,7 +2,7 @@ import { computed } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import { extractCategory, fetchAlarmStats, fetchAlarmsRaw } from '@/api/alarmApi'
 import type { AlarmResponse, AlarmStatItem } from '@/api/alarmApi'
-import { POLL_INTERVAL_MS, STALE_TIME_MS } from '@/constants/polling'
+import { POLL_INTERVAL_MS } from '@/constants/polling'
 
 export interface AlarmTrendDay {
   label: string
@@ -25,12 +25,36 @@ function toLocalIso(d: Date): string {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`
 }
 
-function defaultRange(days = 30): { from: string; to: string } {
-  const to = new Date()
-  const from = new Date(to)
-  from.setDate(from.getDate() - days)
-  from.setHours(0, 0, 0, 0)
+/** 당일 00:00:00 ~ 23:59:59 */
+function todayRange(): { from: string; to: string } {
+  const now = new Date()
+  const from = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0)
+  const to   = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59)
   return { from: toLocalIso(from), to: toLocalIso(to) }
+}
+
+/** 이번 주 월요일 00:00 ~ 일요일 23:59:59 */
+function thisWeekRange(): { from: string; to: string; dayLabels: string[] } {
+  const today = new Date()
+  const dow = today.getDay()
+  const mondayOffset = dow === 0 ? -6 : 1 - dow
+
+  const monday = new Date(today)
+  monday.setDate(today.getDate() + mondayOffset)
+  monday.setHours(0, 0, 0, 0)
+
+  const sunday = new Date(monday)
+  sunday.setDate(monday.getDate() + 6)
+  sunday.setHours(23, 59, 59, 999)
+
+  const dayLabels: string[] = []
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday)
+    d.setDate(monday.getDate() + i)
+    dayLabels.push(`${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`)
+  }
+
+  return { from: toLocalIso(monday), to: toLocalIso(sunday), dayLabels }
 }
 
 function withPercent<T extends { count: number }>(items: T[]): (T & { percent: number })[] {
@@ -39,42 +63,42 @@ function withPercent<T extends { count: number }>(items: T[]): (T & { percent: n
 }
 
 export function useAlarmInsights() {
-  const { from, to } = defaultRange(30)
+  const { from: weekFrom, to: weekTo, dayLabels } = thisWeekRange()
+  const { from: todayFrom, to: todayTo } = todayRange()
 
+  // 추이 차트: 이번 주 기준
   const statsQuery = useQuery({
-    queryKey: ['alarm-stats', from, to],
-    queryFn: () => fetchAlarmStats(from, to),
+    queryKey: ['alarm-stats', weekFrom, weekTo],
+    queryFn: () => fetchAlarmStats(weekFrom, weekTo),
     refetchInterval: POLL_INTERVAL_MS.alarmInsights,
-    staleTime: STALE_TIME_MS.medium,
+    refetchIntervalInBackground: true,
+    staleTime: 0,
   })
 
-  const rawQuery = useQuery({
-    queryKey: ['alarms', 'raw'],
-    queryFn: fetchAlarmsRaw,
+  // 설비별·유형별 빈도: 당일 기준
+  const rawTodayQuery = useQuery({
+    queryKey: ['alarms', 'raw-today', todayFrom, todayTo],
+    queryFn: () => fetchAlarmsRaw(null, todayFrom, todayTo),
     refetchInterval: POLL_INTERVAL_MS.alarmInsights,
-    staleTime: STALE_TIME_MS.medium,
+    refetchIntervalInBackground: true,
+    staleTime: 0,
   })
 
-  /** 일별 발생 건수 추이 — 백엔드 stats(GROUP BY date, alarmType) 를 date 기준으로 합산 */
+  /** 이번 주 월~일 7일 고정, 없는 날 0건 */
   const trendDays = computed<AlarmTrendDay[]>(() => {
     const stats = (statsQuery.data.value ?? []) as AlarmStatItem[]
-    if (!stats.length) return []
-    const byDate = new Map<string, number>()
+    const countMap = new Map<string, number>()
     for (const s of stats) {
-      byDate.set(s.date, (byDate.get(s.date) ?? 0) + Number(s.count))
+      const label = s.date.slice(5)
+      countMap.set(label, (countMap.get(label) ?? 0) + Number(s.count))
     }
-    const sorted = [...byDate.entries()].sort(([a], [b]) => a.localeCompare(b))
-    const items = sorted.map(([date, count]) => ({
-      label: date.slice(5),
-      count,
-      percent: 0,
-    }))
+    const items = dayLabels.map((label) => ({ label, count: countMap.get(label) ?? 0, percent: 0 }))
     return withPercent(items)
   })
 
-  /** 설비별 빈도 — 원본 알람 목록에서 equipmentCode 그룹화 */
+  /** 설비별 빈도 — 당일 기준 */
   const equipmentFrequency = computed<AlarmFrequencyItem[]>(() => {
-    const list = (rawQuery.data.value ?? []) as AlarmResponse[]
+    const list = (rawTodayQuery.data.value ?? []) as AlarmResponse[]
     if (!list.length) return []
     const counts = new Map<string, number>()
     for (const a of list) {
@@ -88,14 +112,14 @@ export function useAlarmInsights() {
     return withPercent(items)
   })
 
-  /** 유형별 빈도 — 백엔드 stats 를 alarmType 기준으로 합산 (`'온도 이상'` → `'온도'`) */
+  /** 유형별 빈도 — 당일 기준 */
   const typeFrequency = computed<AlarmFrequencyItem[]>(() => {
-    const stats = (statsQuery.data.value ?? []) as AlarmStatItem[]
-    if (!stats.length) return []
+    const list = (rawTodayQuery.data.value ?? []) as AlarmResponse[]
+    if (!list.length) return []
     const counts = new Map<string, number>()
-    for (const s of stats) {
-      const k = extractCategory(s.alarmType)
-      counts.set(k, (counts.get(k) ?? 0) + Number(s.count))
+    for (const a of list) {
+      const k = extractCategory(a.alarmType ?? '')
+      counts.set(k, (counts.get(k) ?? 0) + 1)
     }
     const items = [...counts.entries()]
       .map(([label, count]) => ({ label, count, percent: 0 }))
@@ -107,9 +131,9 @@ export function useAlarmInsights() {
     trendDays,
     equipmentFrequency,
     typeFrequency,
-    rangeFrom: from,
-    rangeTo: to,
-    isPending: computed(() => statsQuery.isPending.value || rawQuery.isPending.value),
-    isError: computed(() => statsQuery.isError.value || rawQuery.isError.value),
+    rangeFrom: weekFrom,
+    rangeTo: weekTo,
+    isPending: computed(() => statsQuery.isPending.value || rawTodayQuery.isPending.value),
+    isError: computed(() => statsQuery.isError.value || rawTodayQuery.isError.value),
   }
 }

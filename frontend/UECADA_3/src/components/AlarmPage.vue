@@ -16,15 +16,16 @@ import { useAlarms } from '@/composables/useAlarms'
 import { useAlarmInsights } from '@/composables/useAlarmInsights'
 import { useResolveAlarm } from '@/composables/useResolveAlarm'
 import { useAuthStore } from '@/stores/auth'
-import { useQuery } from '@tanstack/vue-query'
-import { fetchAlarmCounts } from '@/api/alarmApi'
+import { useQuery, useQueryClient } from '@tanstack/vue-query'
+import { fetchAlarmCounts, resolveAlarm } from '@/api/alarmApi'
 import { POLL_INTERVAL_MS } from '@/constants/polling'
 
 const { navItems } = useAppNav()
 const logout = useLogout()
 const authStore = useAuthStore()
+const queryClient = useQueryClient()
 
-const statusFilter = ref<string | null>(null) // null = 전체, 'OPEN' = 미처리, 'RESOLVED' = 처리완료
+const statusFilter = ref<string | null>(null)
 const statusFilterOptions = [
   { label: '전체', value: null },
   { label: '미처리', value: 'OPEN' },
@@ -34,8 +35,11 @@ const statusFilterOptions = [
 const PAGE_SIZE = 5
 const currentPage = ref(1)
 
-// 필터 변경 시 첫 페이지로
-watch(statusFilter, () => { currentPage.value = 1 })
+watch(statusFilter, () => {
+  currentPage.value = 1
+  selectedIds.value = new Set()
+})
+watch(currentPage, () => { selectedIds.value = new Set() })
 
 const { data, isPending, isError, error, refetch } = useAlarms(statusFilter)
 const { trendDays, equipmentFrequency, typeFrequency } = useAlarmInsights()
@@ -56,11 +60,62 @@ const { data: counts } = useQuery({
   refetchIntervalInBackground: true,
 })
 const summaryCards = computed(() => [
-  { label: '전체 알람 수', value: counts.value?.total ?? 0, detail: '서버 기준 누적', tone: 'info' as const },
+  { label: '전체 알람 수', value: counts.value?.total ?? 0, detail: '당일 기준', tone: 'info' as const },
   { label: '긴급 알람', value: counts.value?.critical ?? 0, detail: '즉시 조치 필요', tone: 'critical' as const },
-  { label: '처리 완료', value: counts.value?.resolved ?? 0, detail: '', tone: 'done' as const },
+  { label: '처리 완료', value: counts.value?.resolved ?? 0, detail: '당일 기준', tone: 'done' as const },
   { label: '미처리 알람', value: counts.value?.open ?? 0, detail: '담당자 확인 필요', tone: 'pending' as const },
 ])
+
+// 전체 선택 / 일괄 처리
+const selectedIds = ref<Set<number>>(new Set())
+
+const pageUnresolvedIds = computed(() =>
+  pagedRows.value
+    .filter((row) => row.status !== '처리완료' && row.alarmId)
+    .map((row) => row.alarmId),
+)
+
+const isAllPageSelected = computed(() =>
+  pageUnresolvedIds.value.length > 0 &&
+  pageUnresolvedIds.value.every((id) => selectedIds.value.has(id)),
+)
+
+function toggleSelectAll() {
+  const next = new Set(selectedIds.value)
+  if (isAllPageSelected.value) {
+    pageUnresolvedIds.value.forEach((id) => next.delete(id))
+  } else {
+    pageUnresolvedIds.value.forEach((id) => next.add(id))
+  }
+  selectedIds.value = next
+}
+
+function toggleSelect(id: number) {
+  const next = new Set(selectedIds.value)
+  next.has(id) ? next.delete(id) : next.add(id)
+  selectedIds.value = next
+}
+
+const isBulkResolving = ref(false)
+
+async function handleBulkResolve() {
+  if (!selectedIds.value.size || isBulkResolving.value) return
+  isBulkResolving.value = true
+  const now = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const resolvedAt = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
+  try {
+    await Promise.all(
+      [...selectedIds.value].map((id) =>
+        resolveAlarm(id, { resolvedBy: '관리자', resolvedAt, comment: 'UI 일괄 처리' }),
+      ),
+    )
+    selectedIds.value = new Set()
+    await queryClient.invalidateQueries({ queryKey: ['alarms'] })
+  } finally {
+    isBulkResolving.value = false
+  }
+}
 
 const userDisplayName = computed(() => authStore.user?.userName ?? '사용자')
 const userRoleDisplay = computed(() => {
@@ -173,7 +228,7 @@ function handleResolve(alarmId: number) {
             <div class="section-title-row">
               <div>
                 <p class="panel-kicker">Alarm Trend</p>
-                <h2>알람 발생 추이 (최근 30일)</h2>
+                <h2>알람 발생 추이 (이번 주)</h2>
               </div>
               <BarChart3 :size="22" />
             </div>
@@ -181,7 +236,7 @@ function handleResolve(alarmId: number) {
             <div v-if="trendDays.length === 0" class="alarm-trend-chart" style="align-items: center; justify-content: center; min-height: 180px">
               <span style="color: #64748b">표시할 추이 데이터가 없습니다.</span>
             </div>
-            <div v-else class="alarm-trend-chart">
+            <div v-else class="alarm-trend-chart" :style="{ gridTemplateColumns: `repeat(${trendDays.length}, minmax(0, 1fr))` }">
               <div v-for="item in trendDays" :key="item.label" class="alarm-trend-column">
                 <i :style="{ height: `${item.percent}%` }"></i>
                 <b>{{ item.count }}건</b>
@@ -214,9 +269,29 @@ function handleResolve(alarmId: number) {
             </div>
 
             <div v-else class="alarm-history-table-wrap">
+              <div v-if="selectedIds.size > 0" class="alarm-bulk-bar">
+                <span>{{ selectedIds.size }}건 선택됨</span>
+                <button
+                  type="button"
+                  class="ghost-button"
+                  style="padding: 4px 14px; font-size: 12px; background:#dc2626; color:#fff; border:0"
+                  :disabled="isBulkResolving"
+                  @click="handleBulkResolve"
+                >
+                  {{ isBulkResolving ? '처리중…' : '선택 처리' }}
+                </button>
+              </div>
               <table class="alarm-history-table">
                 <thead>
                   <tr>
+                    <th style="width:36px; text-align:center">
+                      <input
+                        type="checkbox"
+                        :checked="isAllPageSelected"
+                        :indeterminate="selectedIds.size > 0 && !isAllPageSelected"
+                        @change="toggleSelectAll"
+                      />
+                    </th>
                     <th>발생 시간</th>
                     <th>설비명</th>
                     <th>알람 유형</th>
@@ -228,6 +303,14 @@ function handleResolve(alarmId: number) {
                 </thead>
                 <tbody>
                   <tr v-for="row in pagedRows" :key="`${row.alarmId}-${row.time}`">
+                    <td style="text-align:center">
+                      <input
+                        v-if="row.status !== '처리완료' && row.alarmId"
+                        type="checkbox"
+                        :checked="selectedIds.has(row.alarmId)"
+                        @change="toggleSelect(row.alarmId)"
+                      />
+                    </td>
                     <td>{{ row.time }}</td>
                     <td><strong>{{ row.equipment }}</strong></td>
                     <td><span :class="['alarm-level', row.type]">{{ row.type }}</span></td>

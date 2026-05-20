@@ -57,10 +57,13 @@ public class AlarmController {
         return alarmService.resolve(alarmId, request);
     }
 
-    /** 필터 없는 전체 카운트 (요약 카드용) */
+    /** from/to 없으면 전체 누적, 있으면 해당 기간 기준 카운트 */
     @GetMapping("/counts")
-    public Map<String, Long> counts() {
-        return alarmService.getCounts();
+    public Map<String, Long> counts(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to
+    ) {
+        return alarmService.getCounts(from, to);
     }
 
     @GetMapping("/stats")
