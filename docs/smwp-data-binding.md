@@ -147,8 +147,9 @@ POST /api/demo/metrics/push      ← 외부에서 1초 데이터 주입 (옵션)
 (function () {
   // ─────────── 1) 설정 ───────────
   // 운영 시에는 SMWP 프로젝트 변수에 박아두고 GetVarValue("UECADA_API_BASE") 로 읽는 게 좋다.
+  // SMWP 외부 프로그램에서 localhost는 SMWP 실행 PC를 뜻하므로 백엔드 PC의 LAN IP를 사용한다.
   var UECADA = {
-    apiBase: 'http://localhost:8080',     // 백엔드 호스트:포트 (실 운영망 IP 로 변경)
+    apiBase: 'http://192.168.0.25:8080',  // 백엔드 호스트:포트 (ipconfig 의 IPv4 로 변경)
     factoryId: 'FACTORY-01',
     pollMs: 1000,                         // 1초 주기 (대시보드 데모와 동일)
     timeoutMs: 4000                       // 단일 fetch 타임아웃
@@ -361,8 +362,8 @@ POST /api/demo/metrics/push      ← 외부에서 1초 데이터 주입 (옵션)
 
 | 항목 | 확인 방법 |
 |---|---|
-| 백엔드 떠 있는지 | `curl http://localhost:8080/health` → `{"status":"ok"}` |
-| `/api/lines` 응답 | `curl http://localhost:8080/api/lines` → JSON 배열 |
+| 백엔드 떠 있는지 | 백엔드 PC: `curl http://localhost:8080/health`, SMWP PC: `curl http://<백엔드PC-IP>:8080/health` |
+| `/api/lines` 응답 | `curl http://<백엔드PC-IP>:8080/api/lines` → JSON 배열 |
 | CORS | 브라우저 DevTools → Network → `OPTIONS` 응답 `Access-Control-Allow-Origin: http://222.108.180.36` 포함 |
 | 자동 로그인 | UECADA "공정 라인" 버튼 → `swmp-launch.html` 팝업 3단계 모두 초록 |
 | 실시간 갱신 | SMWP 페이지의 OEE 라벨이 수집 데이터 갱신 주기에 맞춰 변하는지 확인 |
@@ -372,7 +373,7 @@ POST /api/demo/metrics/push      ← 외부에서 1초 데이터 주입 (옵션)
 ## 9. 자주 막히는 곳 (트러블슈팅)
 
 - **자동 로그인 2단계 빨강**: `swmp-launch` 가 `POST /swmp-proxy/login` 을 호출합니다. 백엔드가 `:8080` 에 떠 있어야 하고, 백엔드 서버에서 `222.108.180.36:11005` 로 나가는 네트워크가 열려 있어야 합니다. Vite 개발 시 `/swmp-proxy/login` 은 `vite.config.ts` 에서 `localhost:8080` 으로 프록시됩니다.
-- **CORS 오류 (페이지 스크립트)**: SMWP 페이지에서 `fetch('http://localhost:8080/api/...')` 시 백엔드 `CorsConfig` 에 SMWP 호스트가 포함되어야 합니다.
+- **CORS 오류 (페이지 스크립트)**: SMWP 페이지에서 `fetch('http://<백엔드PC-IP>:8080/api/...')` 시 백엔드 `CorsConfig` 에 SMWP 호스트가 포함되어야 합니다. 외부 프로그램/WebView가 `Origin: null` 로 요청할 수도 있습니다.
 - **mixed content**: SMWP 가 https 인데 UECADA 백엔드가 http 면 브라우저가 차단. 두 쪽 다 http 또는 두 쪽 다 https 로 맞추거나, 리버스 프록시 경유.
 - **로그인 401**: SMWP 의 실제 로그인 엔드포인트가 `/api/Login/UserLogin` 이 아닐 수 있음. `swmp-launch.html` 의 `LOGIN_PATHS` 배열에 실제 경로 추가.
 - **`SetVarValue` 가 없다는 에러**: KingPortal SDK 이름이 다른 버전. 헬퍼 `UECADA.write` 의 폴백 분기가 `window.__uecadaTags` 에 값을 누적해 두므로, 라벨의 "데이터 연결"을 `window.__uecadaTags.LINE_A_OEE` 같은 표현식으로 잡으면 우회 가능.

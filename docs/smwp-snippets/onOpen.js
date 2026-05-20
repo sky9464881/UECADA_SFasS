@@ -3,8 +3,19 @@
 // 자세한 설명: docs/smwp-data-binding.md 4절.
 
 (function () {
+  function readApiBase() {
+    try {
+      if (typeof GetVarValue === 'function') {
+        var configured = GetVarValue('UECADA_API_BASE');
+        if (configured) return String(configured).replace(/\/+$/, '');
+      }
+    } catch (e) {}
+    // SMWP 외부 프로그램에서 localhost는 SMWP 실행 PC를 뜻하므로 백엔드 PC의 LAN IP를 사용한다.
+    return 'http://192.168.0.25:8080';
+  }
+
   var UECADA = {
-    apiBase: 'http://localhost:8080',
+    apiBase: readApiBase(),
     factoryId: 'FACTORY-01',
     pollMs: 1000,
     timeoutMs: 4000
