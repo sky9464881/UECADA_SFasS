@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import type { Ref } from 'vue'
 import { RouterLink } from 'vue-router'
+import { fetchRolePermissions, updateRolePermission } from '@/api/userApi'
 import {
   Bell,
   CalendarDays,
@@ -21,7 +22,7 @@ import { useAppNav } from '@/composables/useAppNav'
 import { useLogout } from '@/composables/useLogout'
 import { useUsers } from '@/composables/useUsers'
 import { ROLE_OPTIONS, roleLabel } from '@/types/user'
-import type { RoleCode } from '@/types/user'
+import type { RoleCode, RolePermissionResponse } from '@/types/user'
 
 interface DisplayUser {
   id: string
@@ -113,6 +114,20 @@ const roles = [
     ],
   },
 ]
+
+type RolePermissionState = Record<string, Record<string, boolean>>
+
+const ROLE_PERMISSION_STORAGE_KEY = 'uecada_role_permissions'
+const ROLE_CODE_BY_NAME: Record<string, RoleCode> = {
+  관리자: 'ADMIN',
+  '라인 관리자': 'MANAGER',
+  작업자: 'OPERATOR',
+}
+const ROLE_NAME_BY_CODE: Record<string, string> = {
+  ADMIN: '관리자',
+  MANAGER: '라인 관리자',
+  OPERATOR: '작업자',
+}
 
 function handleRoleChange(user: DisplayUser, event: Event) {
   const next = (event.target as HTMLSelectElement | null)?.value as RoleCode | undefined
@@ -218,6 +233,7 @@ function onDocumentPointerDown(e: MouseEvent) {
 }
 
 onMounted(() => {
+  loadRolePermissions()
   document.addEventListener('keydown', onDocumentKeydown)
   document.addEventListener('mousedown', onDocumentPointerDown, true)
 })
@@ -260,21 +276,96 @@ function onSummaryCardKeydown(e: KeyboardEvent, key: Exclude<SummaryKey, null>) 
   }
 }
 
-/** 역할별 권한 기능 on/off (UI 샘플) */
-const rolePermChecked = reactive(
-  Object.fromEntries(
+function makeDefaultRolePermState(): RolePermissionState {
+  return Object.fromEntries(
     roles.map((r) => [
       r.name,
-      Object.fromEntries(
-        r.links.map((l, idx) => [l.id, r.name === '관리자' ? true : idx < 2]),
-      ),
+      Object.fromEntries(r.links.map((l, idx) => [l.id, r.name === '관리자' ? true : idx < 2])),
     ]),
-  ),
-)
+  ) as RolePermissionState
+}
 
-function setRolePerm(roleName: string, permId: string, on: boolean) {
+const rolePermChecked = reactive<RolePermissionState>(makeDefaultRolePermState())
+const rolePermSaving = reactive<Record<string, boolean>>({})
+const rolePermSyncMessage = ref('')
+
+function rolePermKey(roleName: string, permId: string): string {
+  return `${roleName}:${permId}`
+}
+
+function roleCodeFromName(roleName: string): RoleCode {
+  return ROLE_CODE_BY_NAME[roleName] ?? roleName
+}
+
+function readStoredRolePerms(): RolePermissionState | null {
+  try {
+    const raw = localStorage.getItem(ROLE_PERMISSION_STORAGE_KEY)
+    return raw ? JSON.parse(raw) as RolePermissionState : null
+  } catch {
+    return null
+  }
+}
+
+function applyRolePermState(next: RolePermissionState) {
+  Object.entries(next).forEach(([roleName, perms]) => {
+    if (!rolePermChecked[roleName]) rolePermChecked[roleName] = {}
+    Object.entries(perms).forEach(([permId, allowed]) => {
+      rolePermChecked[roleName][permId] = Boolean(allowed)
+    })
+  })
+}
+
+function saveRolePermLocal() {
+  localStorage.setItem(ROLE_PERMISSION_STORAGE_KEY, JSON.stringify(rolePermChecked))
+}
+
+function applyRolePermissionRows(rows: RolePermissionResponse[]) {
+  rows.forEach((row) => {
+    const roleName = ROLE_NAME_BY_CODE[String(row.roleName).toUpperCase()] ?? row.roleName
+    if (!rolePermChecked[roleName]) rolePermChecked[roleName] = {}
+    rolePermChecked[roleName][row.permissionId] = row.allowed
+  })
+}
+
+async function loadRolePermissions() {
+  const stored = readStoredRolePerms()
+  if (stored) applyRolePermState(stored)
+  try {
+    const rows = await fetchRolePermissions()
+    applyRolePermissionRows(rows)
+    saveRolePermLocal()
+    rolePermSyncMessage.value = ''
+  } catch {
+    rolePermSyncMessage.value = '권한 설정은 로컬 저장 상태로 동작 중입니다.'
+  }
+}
+
+function isRolePermSaving(roleName: string, permId: string): boolean {
+  return Boolean(rolePermSaving[rolePermKey(roleName, permId)])
+}
+
+async function setRolePerm(roleName: string, permId: string, on: boolean) {
   if (!rolePermChecked[roleName]) rolePermChecked[roleName] = {}
   rolePermChecked[roleName][permId] = on
+  saveRolePermLocal()
+
+  const key = rolePermKey(roleName, permId)
+  rolePermSaving[key] = true
+  rolePermSyncMessage.value = '권한 설정 저장 중...'
+  try {
+    const saved = await updateRolePermission({
+      roleName: roleCodeFromName(roleName),
+      permissionId: permId,
+      allowed: on,
+    })
+    applyRolePermissionRows([saved])
+    saveRolePermLocal()
+    rolePermSyncMessage.value = '권한 설정 저장 완료'
+  } catch {
+    rolePermSyncMessage.value = '서버 저장 실패: 화면에는 로컬 설정을 유지했습니다.'
+  } finally {
+    rolePermSaving[key] = false
+  }
 }
 
 const userStats = computed(() => {
@@ -440,6 +531,12 @@ const userSummaryItems = computed<SummaryItem[]>(() => {
                       <template v-else-if="item.key === 'total'">등록 사용자 · 빠른 작업</template>
                       <template v-else>잠금 계정 · 목록</template>
                     </p>
+                    <p
+                      v-if="item.key === 'admin' || item.key === 'manager' || item.key === 'operator'"
+                      class="user-perm-drop__sync"
+                    >
+                      {{ rolePermSyncMessage || '체크 즉시 권한 정책에 저장됩니다.' }}
+                    </p>
                   </header>
 
                   <ul
@@ -453,6 +550,7 @@ const userSummaryItems = computed<SummaryItem[]>(() => {
                           type="checkbox"
                           class="user-perm-drop__check"
                           :checked="rolePermChecked[roleNameFromKey(item.key)]?.[link.id]"
+                          :disabled="isRolePermSaving(roleNameFromKey(item.key), link.id)"
                           @change="
                             setRolePerm(
                               roleNameFromKey(item.key),

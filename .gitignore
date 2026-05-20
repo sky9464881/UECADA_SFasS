@@ -21,7 +21,9 @@ backend/.gradle/
 *.class
 
 # Env / secrets
-.env
+# Shared non-secret .env files are committed so a fresh pull runs with the same defaults.
+.env.local
+.env.*.local
 application-secret.yml
 backend/src/main/resources/application-secret.yml
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, nextTick, onUnmounted, ref, watch } from 'vue'
 import * as echarts from 'echarts'
 import { useQuery } from '@tanstack/vue-query'
 import { RouterLink, useRoute } from 'vue-router'
@@ -30,6 +30,9 @@ import EquipmentCategoryGrid from '@/components/equipment/EquipmentCategoryGrid.
 import CategorySummaryPanel from '@/components/equipment/CategorySummaryPanel.vue'
 import CategoryEquipmentList from '@/components/equipment/CategoryEquipmentList.vue'
 import { fetchRealtimeVibration } from '@/api/vibrationApi'
+import { edPageIdForCategory, isWebScadaConfigured } from '@/composables/useWebScadaLinks'
+
+const WebScadaOverlay = defineAsyncComponent(() => import('@/components/WebScadaOverlay.vue'))
 
 const { navItems } = useAppNav()
 const logout = useLogout()
@@ -59,6 +62,14 @@ const categories = computed<CategoryWithIcon[]>(() =>
 const selectedCategoryId = ref('casting')
 const selectedEquipmentId = ref('CAST-02')
 const isEquipmentPopupOpen = ref(false)
+const webScadaReady = isWebScadaConfigured()
+const webScadaOverlayOpen = ref(false)
+const webScadaOverlayTitle = computed(() => {
+  const equipment = selectedEquipment.value
+  if (!equipment || equipment.id === '-') return '설비 상세 웹스카다'
+  return `${equipment.id} · ${equipment.name}`
+})
+const webScadaOverlayPageId = computed(() => edPageIdForCategory(selectedCategoryId.value))
 const rawVibrationChartEl = ref<HTMLDivElement | null>(null)
 const fftChartEl = ref<HTMLDivElement | null>(null)
 const trendChartEl = ref<HTMLDivElement | null>(null)
@@ -145,7 +156,7 @@ watch(
         selectedCategoryId.value = matchedCategory.id
         selectedEquipmentId.value = queryEquipmentId
         if (route.query.popup === '1' || route.query.popup === 'true') {
-          isEquipmentPopupOpen.value = true
+          webScadaOverlayOpen.value = webScadaReady
         }
         return
       }
@@ -174,7 +185,7 @@ watch(
     selectedCategoryId.value = matchedCategory.id
     selectedEquipmentId.value = queryEquipmentId
     if (route.query.popup === '1' || route.query.popup === 'true') {
-      isEquipmentPopupOpen.value = true
+      webScadaOverlayOpen.value = webScadaReady
     }
   },
 )
@@ -183,10 +194,13 @@ const selectCategory = (category: CategoryWithIcon) => {
   selectedCategoryId.value = category.id
   selectedEquipmentId.value = category.equipment[0]?.id ?? ''
   isEquipmentPopupOpen.value = false
+  webScadaOverlayOpen.value = false
 }
 
 const openEquipmentPopup = () => {
-  isEquipmentPopupOpen.value = true
+  if (!webScadaReady) return
+  isEquipmentPopupOpen.value = false
+  webScadaOverlayOpen.value = true
 }
 
 const closeEquipmentPopup = () => {
@@ -769,7 +783,13 @@ onUnmounted(disposeEquipmentCharts)
             <h2>{{ selectedEquipment.id }} · {{ selectedEquipment.name }}</h2>
           </div>
           <div class="equipment-detail-actions">
-            <button class="equipment-detail-open-button" type="button" @click="openEquipmentPopup">
+            <button
+              class="equipment-detail-open-button"
+              type="button"
+              :disabled="!webScadaReady"
+              title="SMWP 설비 화면 (#ED) 팝업"
+              @click="openEquipmentPopup"
+            >
               <Factory :size="16" />
               <span>설비 상세보기</span>
             </button>
@@ -1192,6 +1212,13 @@ onUnmounted(disposeEquipmentCharts)
         </div>
       </Teleport>
     </section>
+    <WebScadaOverlay
+      :open="webScadaOverlayOpen"
+      :page-id="webScadaOverlayPageId"
+      :title="webScadaOverlayTitle"
+      subtitle="Equipment Detail · SMWP"
+      @close="webScadaOverlayOpen = false"
+    />
   </main>
 </template>
 

@@ -22,6 +22,19 @@ export interface UserCreatePayload {
   securityAnswer?: string
 }
 
+export interface RolePermissionResponse {
+  roleName: RoleCode
+  permissionId: string
+  allowed: boolean
+  updatedAt: string
+}
+
+export interface RolePermissionUpdatePayload {
+  roleName: RoleCode
+  permissionId: string
+  allowed: boolean
+}
+
 export const ROLE_LABEL: Record<string, string> = {
   ADMIN: '관리자',
   MANAGER: '라인 관리자',

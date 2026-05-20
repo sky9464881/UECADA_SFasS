@@ -1,5 +1,11 @@
 import { api } from '@/api/client'
-import type { RoleCode, UserCreatePayload, UserResponse } from '@/types/user'
+import type {
+  RoleCode,
+  RolePermissionResponse,
+  RolePermissionUpdatePayload,
+  UserCreatePayload,
+  UserResponse,
+} from '@/types/user'
 
 export async function fetchUsers(roleName?: RoleCode): Promise<UserResponse[]> {
   const { data } = await api.get<UserResponse[]>('/api/users', {
@@ -22,5 +28,19 @@ export async function updateUserRole(
     `/api/users/${encodeURIComponent(userId)}/role`,
     { roleName, lineId },
   )
+  return data
+}
+
+export async function fetchRolePermissions(roleName?: RoleCode): Promise<RolePermissionResponse[]> {
+  const { data } = await api.get<RolePermissionResponse[]>('/api/role-permissions', {
+    params: roleName ? { roleName } : undefined,
+  })
+  return data
+}
+
+export async function updateRolePermission(
+  payload: RolePermissionUpdatePayload,
+): Promise<RolePermissionResponse> {
+  const { data } = await api.patch<RolePermissionResponse>('/api/role-permissions', payload)
   return data
 }

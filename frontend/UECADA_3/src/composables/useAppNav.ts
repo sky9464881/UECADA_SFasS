@@ -17,7 +17,6 @@ export type NavRouteName =
   | 'alarms'
   | 'users'
   | 'community'
-  | 'swmp-test'
 
 export interface AppNavItem {
   label: string
@@ -32,7 +31,6 @@ const DEFAULT_NAV: readonly AppNavItem[] = [
   { label: '알람 및 이력', icon: Bell, to: { name: 'alarms' } },
   { label: '사용자·권한', icon: Users, to: { name: 'users' } },
   { label: '커뮤니티', icon: MessageSquare, to: { name: 'community' } },
-  { label: 'SWMP 테스트', icon: Wrench, to: { name: 'swmp-test' } },
 ] as const
 
 const LINE_NAV: readonly AppNavItem[] = [

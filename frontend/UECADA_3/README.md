@@ -46,7 +46,7 @@
 
 1. **환경 변수 · Axios**
    - `.env.example` 추가: `VITE_API_BASE_URL`, `VITE_USE_MOCK_ALARMS`, `VITE_SWMP_DEFAULT_URL`
-   - 로컬용 `.env`는 `.gitignore`에 포함(저장소에 커밋하지 않음). 개발 시 `.env.example`을 복사해 사용.
+   - 공통 실행용 `.env`는 저장소에 포함한다. 개인 PC 전용 값은 `.env.local`에 두고 커밋하지 않는다.
    - `src/api/client.ts`: `import.meta.env.VITE_API_BASE_URL` 기준 `axios.create`
    - `src/api/interceptors.ts`: 요청에 `Authorization: Bearer …` 부착, **401 시 세션 정리 후 `/login`으로 이동** (처리는 인터셉터에만 집중)
    - `src/api/alarmApi.ts`: API URL이 비어 있거나 `VITE_USE_MOCK_ALARMS=true`이면 지연 목업 응답, 그렇지 않으면 `GET /alarms` 호출
@@ -70,8 +70,8 @@
 5. **대형 컴포넌트 분리**
    - `DashboardPage.vue` 등 초대형 SFC 분할은 **이번 범위에서 미완료**(후속 작업으로 README에만 명시). 대신 사이드바 네비 중복을 줄이기 위해 `useAppNav` 도입.
 
-6. **SWMP 하드코딩 제거**
-   - `SwmpTestPage.vue` 기본 URL을 `import.meta.env.VITE_SWMP_DEFAULT_URL`로 변경(미설정 시 빈 문자열)
+6. **SMWP 하드코딩 제거**
+   - `WebScadaOverlay.vue`가 `import.meta.env.VITE_SWMP_DEFAULT_URL`을 기준으로 외부 WebSCADA 화면을 연다.
 
 ### 공통 리팩터
 
@@ -84,7 +84,6 @@
 
 ```bash
 npm install
-cp .env.example .env   # Windows는 copy 명령 사용 가능
 npm run dev
 ```
 

@@ -4635,6 +4635,41 @@ select {
   outline-offset: 2px;
 }
 
+button.factory-line-summary-card--scada {
+  margin: 0;
+  text-align: inherit;
+}
+
+button.factory-line-summary-card--scada:hover {
+  border-color: var(--hyundai-blue-2, #4a7fc1);
+  box-shadow: 0 4px 14px rgba(15, 31, 56, 0.1);
+}
+
+button.factory-line-summary-card--scada:active {
+  transform: scale(0.98);
+}
+
+button.factory-line-summary-card--scada:focus-visible {
+  outline: 2px solid var(--hyundai-blue-2, #4a7fc1);
+  outline-offset: 2px;
+}
+
+.factory-webscada-hint {
+  font-size: 11px;
+  font-weight: 700;
+  color: #4a7fc1;
+  white-space: nowrap;
+}
+
+.factory-webscada-hint--off {
+  color: #94a3b8;
+}
+
+button.factory-webscada-open-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .factory-line-summary-code {
   font-size: 14px;
   font-weight: 950;
@@ -8220,6 +8255,11 @@ select {
   background: #eef5fb;
 }
 
+.equipment-detail-open-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .selected-equipment-summary {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -8921,7 +8961,7 @@ select {
 .user-perm-summary-grid {
   position: relative;
   z-index: 30;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   align-items: start;
 }
 
@@ -8967,6 +9007,14 @@ select {
   font-weight: 950;
   color: var(--hyundai-blue-2);
   letter-spacing: 0.02em;
+  line-height: 1.35;
+}
+
+.user-perm-drop__sync {
+  margin: 6px 0 0;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 750;
   line-height: 1.35;
 }
 
@@ -9055,6 +9103,11 @@ select {
   margin: 0;
   accent-color: var(--hyundai-blue);
   flex-shrink: 0;
+}
+
+.user-perm-drop__check:disabled {
+  cursor: progress;
+  opacity: 0.6;
 }
 
 .user-perm-drop__ico {
