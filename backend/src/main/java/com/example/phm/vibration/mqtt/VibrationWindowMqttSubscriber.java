@@ -3,6 +3,8 @@ package com.example.phm.vibration.mqtt;
 import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Locale;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.example.phm.analysis.dto.AnalysisFeatures;
 import com.example.phm.analysis.dto.AnalyzeResponse;
@@ -27,10 +29,12 @@ public class VibrationWindowMqttSubscriber {
 
     private static final Logger log = LoggerFactory.getLogger(VibrationWindowMqttSubscriber.class);
     private static final int LOG_PAYLOAD_LIMIT = 500;
+    private static final long NORMAL_ANALYSIS_INTERVAL_MS = 30_000L;
 
     private final ObjectMapper objectMapper;
     private final VibrationWindowMonitorService monitorService;
     private final VibrationIngestionService ingestionService;
+    private final ConcurrentHashMap<String, Long> lastNormalAnalysisAt = new ConcurrentHashMap<>();
 
     public VibrationWindowMqttSubscriber(
             ObjectMapper objectMapper,
@@ -50,16 +54,6 @@ public class VibrationWindowMqttSubscriber {
             VibrationWindowMessage vibrationWindow = parseVibrationWindow(payload);
             monitorService.record(vibrationWindow);
 
-            log.info(
-                    "Received MQTT message: equipmentId={}, windowIndex={}, samplingRate={}, rpm={}, windowSize={}, valuesLength={}",
-                    vibrationWindow.getEquipmentId(),
-                    vibrationWindow.getWindowIndex(),
-                    vibrationWindow.getSamplingRate(),
-                    vibrationWindow.getRpm(),
-                    vibrationWindow.getWindowSize(),
-                    vibrationWindow.valuesLength()
-            );
-
             if (vibrationWindow.getWindowSize() != null && vibrationWindow.valuesLength() != vibrationWindow.getWindowSize()) {
                 log.warn(
                         "Vibration values length mismatch: equipmentId={}, windowIndex={}, windowSize={}, valuesLength={}",
@@ -69,6 +63,28 @@ public class VibrationWindowMqttSubscriber {
                         vibrationWindow.valuesLength()
                 );
             }
+
+            if (!shouldAnalyze(vibrationWindow)) {
+                ingestionService.recordVibrationRms(vibrationWindow);
+                log.debug(
+                        "Skipped normal vibration analysis: equipmentId={}, windowIndex={}, healthState={}",
+                        vibrationWindow.getEquipmentId(),
+                        vibrationWindow.getWindowIndex(),
+                        vibrationWindow.getHealthState()
+                );
+                return;
+            }
+
+            log.info(
+                    "Analyzing MQTT vibration message: equipmentId={}, windowIndex={}, samplingRate={}, rpm={}, windowSize={}, valuesLength={}, healthState={}",
+                    vibrationWindow.getEquipmentId(),
+                    vibrationWindow.getWindowIndex(),
+                    vibrationWindow.getSamplingRate(),
+                    vibrationWindow.getRpm(),
+                    vibrationWindow.getWindowSize(),
+                    vibrationWindow.valuesLength(),
+                    vibrationWindow.getHealthState()
+            );
 
             VibrationIngestionResult ingestionResult = ingestionService.ingest(vibrationWindow);
             AnalyzeResponse analysis = ingestionResult.analysis();
@@ -114,6 +130,24 @@ public class VibrationWindowMqttSubscriber {
         }
     }
 
+    private boolean shouldAnalyze(VibrationWindowMessage message) {
+        String healthState = message.getHealthState();
+        if (healthState != null && !healthState.isBlank()) {
+            String normalized = healthState.trim().toUpperCase(Locale.ROOT);
+            if (!"NORMAL".equals(normalized) && !"RUN".equals(normalized)) {
+                return true;
+            }
+        }
+
+        long now = System.currentTimeMillis();
+        Long previous = lastNormalAnalysisAt.get(message.getEquipmentId());
+        if (previous != null && now - previous < NORMAL_ANALYSIS_INTERVAL_MS) {
+            return false;
+        }
+        lastNormalAnalysisAt.put(message.getEquipmentId(), now);
+        return true;
+    }
+
     private String payloadAsString(Object payload) {
         if (payload instanceof byte[] bytes) {
             return new String(bytes, StandardCharsets.UTF_8);
@@ -153,7 +187,7 @@ public class VibrationWindowMqttSubscriber {
         int windowSize = firstPositiveInt(window.path("window_size"), firstPositiveInt(window.path("sample_count"), values.size()));
         int windowIndex = firstNonNegativeInt(window.path("seq"), firstNonNegativeInt(root.path("sample").path("seq"), 0));
 
-        return new VibrationWindowMessage(
+        VibrationWindowMessage message = new VibrationWindowMessage(
                 lineId + "_" + equipmentId,
                 timestamp,
                 samplingRate,
@@ -162,6 +196,11 @@ public class VibrationWindowMqttSubscriber {
                 windowIndex,
                 values
         );
+        message.setHealthState(firstText(root.path("operation").path("health")));
+        if (root.path("values").path("vibration_rms").isNumber()) {
+            message.setProvidedRms(root.path("values").path("vibration_rms").asDouble());
+        }
+        return message;
     }
 
     private String firstText(JsonNode... candidates) {

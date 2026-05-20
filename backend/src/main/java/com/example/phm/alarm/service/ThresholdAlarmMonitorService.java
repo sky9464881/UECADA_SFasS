@@ -88,8 +88,10 @@ public class ThresholdAlarmMonitorService {
     private final ConcurrentHashMap<String, String> activeSeverities = new ConcurrentHashMap<>();
     /** 마지막 해소 시각 추적 (쿨다운: 30초 내 재발생 알람 억제) */
     private final ConcurrentHashMap<String, Long> lastResolvedAt = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Integer> consecutiveDangerCounts = new ConcurrentHashMap<>();
 
     private static final long COOLDOWN_MS = 30_000L;
+    private static final int REQUIRED_DANGER_CHECKS = 2;
 
     public ThresholdAlarmMonitorService(
             EquipmentRepository equipmentRepository,
@@ -139,22 +141,20 @@ public class ThresholdAlarmMonitorService {
             String level = threshold.evaluate(value);
             String trackingKey = code + ":" + sensorKey;
 
-            if ("DANGER".equals(level) || "WARNING".equals(level)) {
-                String prevSeverity = activeSeverities.get(trackingKey);
+            if ("DANGER".equals(level)) {
+                int dangerCount = consecutiveDangerCounts.merge(trackingKey, 1, Integer::sum);
+                if (dangerCount < REQUIRED_DANGER_CHECKS) continue;
 
+                String prevSeverity = activeSeverities.get(trackingKey);
                 if (prevSeverity == null) {
                     // 쿨다운 중이면 새 알람 생성 스킵
                     Long lastResolved = lastResolvedAt.get(trackingKey);
                     if (lastResolved != null && System.currentTimeMillis() - lastResolved < COOLDOWN_MS) continue;
                     // 새 알람 생성
                     createAlarm(code, sensorKey, level, value);
-                } else if ("WARNING".equals(prevSeverity) && "DANGER".equals(level)) {
-                    // WARNING → DANGER 심각도 상승: 새 DANGER 알람 추가 (기존 WARNING은 담당자가 처리)
-                    createAlarm(code, sensorKey, level, value);
                 }
-                // 동일 심각도 또는 DANGER→WARNING 완화: 이미 활성 알람이 있으므로 아무 작업 없음
-
             } else {
+                consecutiveDangerCounts.remove(trackingKey);
                 // 정상 복귀: 추적 맵에서 제거만 (알람은 담당자가 직접 처리)
                 // 단, 쿨다운을 위해 해소 시각은 기록
                 if (activeAlarmIds.containsKey(trackingKey)) {

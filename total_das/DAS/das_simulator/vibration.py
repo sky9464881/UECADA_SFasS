@@ -14,6 +14,7 @@ class BearingFile(NamedTuple):
     path: Path
     sample_rate_hz: int
     rotating_speed_rpm: int
+    fault_kind: str = "normal"
 
 
 NORMAL_ROTATION_TEMPLATES: tuple[tuple[float, float, float, float], ...] = (
@@ -44,6 +45,7 @@ class BearingWindowSource:
 
     _sampling_re = re.compile(r"SamplingRate_(\d+)")
     _speed_re = re.compile(r"RotatingSpeed_(\d+)")
+    _fault_kinds = {"bearing", "looseness", "misalignment", "unbalance"}
 
     def __init__(
         self,
@@ -59,12 +61,14 @@ class BearingWindowSource:
         self.window_seconds = window_seconds
         self.requested_stride_samples = stride_samples
         self._files = self._discover_files()
+        self._fault_files_by_kind = self._discover_fault_files()
         self.sample_rate_hz = self._files[0].sample_rate_hz if self._files else self.requested_sample_rate_hz
         self.sample_count = max(1, int(round(self.sample_rate_hz * self.window_seconds)))
         self.stride_samples = max(1, int(stride_samples or self.sample_rate_hz))
         self._data_cache: dict[Path, np.ndarray] = {}
         self._cursor_by_equipment: dict[str, int] = {}
         self._file_by_equipment: dict[str, BearingFile] = {}
+        self._fault_file_by_equipment: dict[tuple[str, str], BearingFile] = {}
 
     @staticmethod
     def _resolve_root(root: Path) -> Path:
@@ -80,28 +84,23 @@ class BearingWindowSource:
                 return candidate
         return root
 
-    def _discover_files(self) -> list[BearingFile]:
-        if not self.root.exists():
+    def _metadata_for_path(self, path: Path, fault_kind: str = "normal") -> BearingFile | None:
+        sample_match = self._sampling_re.search(str(path.parent.parent))
+        speed_match = self._speed_re.search(str(path.parent))
+        if not sample_match or not speed_match:
+            return None
+        return BearingFile(
+            path=path,
+            sample_rate_hz=int(sample_match.group(1)),
+            rotating_speed_rpm=int(speed_match.group(1)),
+            fault_kind=fault_kind,
+        )
+
+    def _sort_best_files(self, files: list[BearingFile]) -> list[BearingFile]:
+        if not files:
             return []
 
-        healthy_files: list[BearingFile] = []
-        for path in self.root.rglob("H_H_*.mat"):
-            sample_match = self._sampling_re.search(str(path.parent.parent))
-            speed_match = self._speed_re.search(str(path.parent))
-            if not sample_match or not speed_match:
-                continue
-            healthy_files.append(
-                BearingFile(
-                    path=path,
-                    sample_rate_hz=int(sample_match.group(1)),
-                    rotating_speed_rpm=int(speed_match.group(1)),
-                )
-            )
-
-        if not healthy_files:
-            return []
-
-        healthy_files.sort(
+        files.sort(
             key=lambda item: (
                 abs(item.sample_rate_hz - self.requested_sample_rate_hz),
                 abs(item.rotating_speed_rpm - self.requested_rotating_speed_rpm),
@@ -109,16 +108,63 @@ class BearingWindowSource:
             )
         )
 
-        best_sample_rate = healthy_files[0].sample_rate_hz
+        best_sample_rate = files[0].sample_rate_hz
         best_speed = min(
-            (item.rotating_speed_rpm for item in healthy_files if item.sample_rate_hz == best_sample_rate),
+            (item.rotating_speed_rpm for item in files if item.sample_rate_hz == best_sample_rate),
             key=lambda speed: abs(speed - self.requested_rotating_speed_rpm),
         )
         return [
             item
-            for item in healthy_files
+            for item in files
             if item.sample_rate_hz == best_sample_rate and item.rotating_speed_rpm == best_speed
         ]
+
+    def _discover_files(self) -> list[BearingFile]:
+        if not self.root.exists():
+            return []
+
+        healthy_files: list[BearingFile] = []
+        for path in self.root.rglob("H_H_*.mat"):
+            item = self._metadata_for_path(path)
+            if item is not None:
+                healthy_files.append(item)
+
+        return self._sort_best_files(healthy_files)
+
+    def _discover_fault_files(self) -> dict[str, list[BearingFile]]:
+        if not self.root.exists():
+            return {kind: [] for kind in self._fault_kinds}
+
+        by_kind: dict[str, list[BearingFile]] = {kind: [] for kind in self._fault_kinds}
+        for path in self.root.rglob("*.mat"):
+            kinds = self._fault_kinds_for_path(path)
+            for kind in kinds:
+                item = self._metadata_for_path(path, kind)
+                if item is not None:
+                    by_kind[kind].append(item)
+
+        return {kind: self._sort_best_files(files) for kind, files in by_kind.items()}
+
+    @staticmethod
+    def _fault_kinds_for_path(path: Path) -> set[str]:
+        parts = path.stem.upper().split("_")
+        if len(parts) < 2:
+            return set()
+
+        condition = parts[0]
+        fault = parts[1]
+        kinds: set[str] = set()
+
+        if fault in {"B", "IR", "OR"}:
+            kinds.add("bearing")
+        if condition == "L" and fault == "H":
+            kinds.add("looseness")
+        if condition in {"M1", "M2", "M3"} and fault == "H":
+            kinds.add("misalignment")
+        if condition in {"U1", "U2", "U3"} and fault == "H":
+            kinds.add("unbalance")
+
+        return kinds
 
     def _file_for(self, equipment_id: str) -> BearingFile:
         if not self._files:
@@ -140,8 +186,27 @@ class BearingWindowSource:
             return self._synthetic_window(equipment_id)
 
         bearing_file = self._file_for(equipment_id)
+        return self._next_window_from_file(equipment_id, bearing_file)
+
+    def next_fault_window(self, equipment_id: str, fault_kind: str) -> np.ndarray:
+        normalized_kind = fault_kind.lower()
+        files = self._fault_files_by_kind.get(normalized_kind, [])
+        if not files:
+            return self.next_raw_window(equipment_id)
+
+        cache_key = (equipment_id, normalized_kind)
+        if cache_key not in self._fault_file_by_equipment:
+            index = _stable_index(f"{equipment_id}:{normalized_kind}", len(files))
+            self._fault_file_by_equipment[cache_key] = files[index]
+
+        return self._next_window_from_file(
+            f"{equipment_id}:{normalized_kind}",
+            self._fault_file_by_equipment[cache_key],
+        )
+
+    def _next_window_from_file(self, cursor_key: str, bearing_file: BearingFile) -> np.ndarray:
         data = self._load_data(bearing_file)
-        cursor = self._cursor_by_equipment.get(equipment_id, _stable_index(equipment_id, len(data)))
+        cursor = self._cursor_by_equipment.get(cursor_key, _stable_index(cursor_key, len(data)))
         end = cursor + self.sample_count
         if end <= len(data):
             window = data[cursor:end]
@@ -149,7 +214,7 @@ class BearingWindowSource:
             first = data[cursor:]
             second = data[: end % len(data)]
             window = np.concatenate([first, second])
-        self._cursor_by_equipment[equipment_id] = (cursor + self.stride_samples) % len(data)
+        self._cursor_by_equipment[cursor_key] = (cursor + self.stride_samples) % len(data)
         return np.array(window, copy=True)
 
     def _synthetic_window(self, equipment_id: str) -> np.ndarray:
@@ -185,11 +250,15 @@ class VibrationGenerator:
         operating_state: str,
         health_state: str,
         target_rms_mm_s: float,
+        fault_kind: str | None = None,
     ) -> dict[str, object]:
         if operating_state == "OFF":
             vibration = self._idle_window(target_rms_mm_s)
         elif health_state == "NORMAL":
             vibration = self._normal_rotation_window(equipment_id, target_rms_mm_s)
+        elif fault_kind:
+            raw = self.source.next_fault_window(equipment_id, fault_kind)
+            vibration = self._scaled_bearing_window(raw, target_rms_mm_s, health_state)
         else:
             raw = self.source.next_raw_window(equipment_id)
             vibration = self._scaled_bearing_window(raw, target_rms_mm_s, health_state)
@@ -209,8 +278,9 @@ class VibrationGenerator:
         operating_state: str,
         health_state: str,
         target_rms_mm_s: float,
+        fault_kind: str | None = None,
     ) -> dict[str, object]:
-        window = self.next_window(equipment_id, operating_state, health_state, target_rms_mm_s)
+        window = self.next_window(equipment_id, operating_state, health_state, target_rms_mm_s, fault_kind)
         raw = np.asarray(window["vibration_raw"])
         axes = self._normalize_axes(*self._derived_axes(raw), target_rms_mm_s)
 

@@ -1,5 +1,7 @@
 package com.example.phm.vibration.service;
 
+import java.time.Instant;
+import java.time.format.DateTimeParseException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -29,6 +31,7 @@ public class VibrationIngestionService {
     public VibrationIngestionResult ingest(VibrationWindowMessage message) {
         validate(message);
 
+        recordVibrationRms(message);
         AnalyzeResponse analysis = aiAnalysisClient.analyze(message, true, latestSensorSnapshot(message.getEquipmentId()));
         return new VibrationIngestionResult(
                 analysis.getVibrationWindowId(),
@@ -37,6 +40,44 @@ public class VibrationIngestionService {
                 Boolean.TRUE.equals(analysis.getRawWindowSaved()),
                 analysis
         );
+    }
+
+    public void recordVibrationRms(VibrationWindowMessage message) {
+        Double providedRms = message.getProvidedRms();
+        if (providedRms != null && Double.isFinite(providedRms)) {
+            pushVibrationFrame(message, providedRms);
+            return;
+        }
+
+        double sumSquares = 0.0;
+        int count = 0;
+        for (Double value : message.getValues()) {
+            if (value == null || !Double.isFinite(value)) continue;
+            sumSquares += value * value;
+            count++;
+        }
+        if (count == 0) return;
+
+        pushVibrationFrame(message, Math.sqrt(sumSquares / count));
+    }
+
+    private void pushVibrationFrame(VibrationWindowMessage message, double rms) {
+        SensorFrame frame = new SensorFrame(timestampMs(message), rms);
+        for (String key : SensorBufferKeys.lookupKeys(message.getEquipmentId(), "sensor_vibration")) {
+            sensorBufferRegistry.push(key, frame);
+        }
+    }
+
+    private long timestampMs(VibrationWindowMessage message) {
+        String timestamp = message.getTimestamp();
+        if (timestamp == null || timestamp.isBlank()) {
+            return System.currentTimeMillis();
+        }
+        try {
+            return Instant.parse(timestamp).toEpochMilli();
+        } catch (DateTimeParseException ignored) {
+            return System.currentTimeMillis();
+        }
     }
 
     private Map<String, Object> latestSensorSnapshot(String equipmentId) {
