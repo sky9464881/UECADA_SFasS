@@ -56,11 +56,22 @@ export function useFactoryLayout() {
     refetchIntervalInBackground: true,
   })
 
+  const realtimeUpdatedAt = computed(() => realtimeQuery.dataUpdatedAt.value)
+
+  const isRealtimeStale = computed(() => {
+    const at = realtimeUpdatedAt.value
+    if (!at) return false
+    return Date.now() - at > POLL_INTERVAL_MS.equipmentRealtime * 2
+  })
+
   return {
     lines: linesQuery.data,
     equipments: equipmentsQuery.data,
     statuses: statusesQuery.data,
     realtime: computed(() => latestFrameMap(realtimeQuery.data.value ?? [])),
+    realtimeUpdatedAt,
+    isRealtimeFetching: computed(() => realtimeQuery.isFetching.value),
+    isRealtimeStale,
     isPending: computed(() => linesQuery.isPending.value || equipmentsQuery.isPending.value),
     isError: computed(() => linesQuery.isError.value || equipmentsQuery.isError.value),
     error: computed(() => linesQuery.error.value ?? equipmentsQuery.error.value),

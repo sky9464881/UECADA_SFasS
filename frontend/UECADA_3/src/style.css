@@ -1319,12 +1319,54 @@ select {
 }
 
 .alarm-level {
-  display: inline-grid;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
   min-height: 26px;
+  padding: 0 8px;
   border-radius: 999px;
   font-size: 11px;
   font-weight: 950;
+}
+
+.alarm-history-row {
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.alarm-history-row:hover,
+.alarm-history-row:focus-visible {
+  background: rgba(0, 87, 164, 0.06);
+  outline: none;
+}
+
+.alarm-history-row:focus-visible {
+  box-shadow: inset 0 0 0 2px rgba(0, 87, 164, 0.35);
+}
+
+.comms-stale-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(217, 45, 32, 0.35);
+  background: rgba(217, 45, 32, 0.1);
+  color: #991b1b;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.comms-stale-banner strong {
+  font-weight: 950;
+}
+
+.comms-stale-banner__time {
+  color: #b45309;
+  font-weight: 700;
 }
 
 .alarm-level.긴급 {
@@ -4360,21 +4402,57 @@ select {
   min-width: 0;
 }
 
-.factory-detail-en-caption {
-  margin: 0 0 6px;
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 900;
-  letter-spacing: 0.12em;
-}
-
 .factory-detail-stage-heading {
   margin: 0;
   color: #0f1f38;
-  font-size: 17px;
+  font-size: 18px;
   font-weight: 950;
   line-height: 1.35;
-  letter-spacing: 0;
+  letter-spacing: -0.01em;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35em;
+}
+
+.factory-detail-stage-line {
+  color: var(--hyundai-blue);
+}
+
+.factory-detail-stage-sep {
+  color: #94a3b8;
+  font-weight: 700;
+}
+
+.factory-detail-stage-process {
+  color: #0f1f38;
+}
+
+.factory-detail-stage-sub {
+  margin: 8px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.factory-detail-stage-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: 6px;
+  background: rgba(0, 87, 164, 0.08);
+  color: var(--hyundai-blue-2);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.factory-detail-stage-count {
+  font-size: 12px;
+  font-weight: 700;
+  color: #64748b;
 }
 
 .factory-detail-status-pill {
@@ -4419,7 +4497,269 @@ select {
   max-height: min(calc(100vh - 280px), 720px);
   overflow: auto;
   padding: 14px 18px 18px;
+  background: linear-gradient(180deg, #f8fafc 0%, var(--surface) 48px);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* 설비 상세 — 대표 설비 카드 */
+.factory-equip-hero {
+  margin: 0;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
   background: var(--surface);
+  box-shadow: 0 1px 0 rgba(15, 31, 56, 0.04);
+  border-left-width: 4px;
+  border-left-color: #cbd5e1;
+}
+
+.factory-equip-hero.factory-stage-equip-row--ok {
+  border-left-color: #22c55e;
+}
+
+.factory-equip-hero.factory-stage-equip-row--warn {
+  border-left-color: #eab308;
+}
+
+.factory-equip-hero.factory-stage-equip-row--alert {
+  border-left-color: #ef4444;
+}
+
+.factory-equip-hero__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.factory-equip-hero__icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: linear-gradient(145deg, #f8fafc, #fff);
+  color: var(--hyundai-blue-2);
+}
+
+.factory-equip-hero__status {
+  min-height: 28px;
+  padding: 0 12px;
+  font-size: 12px;
+}
+
+.factory-equip-hero__name {
+  margin: 0 0 6px;
+  font-size: 20px;
+  font-weight: 950;
+  line-height: 1.25;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+}
+
+.factory-equip-hero__code {
+  margin: 0 0 14px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.factory-equip-hero__code-full {
+  display: none;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #64748b;
+}
+
+.factory-equip-hero__code-short {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #475569;
+  text-transform: uppercase;
+}
+
+.factory-equip-meta {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.factory-equip-meta li {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px solid #e8eef5;
+}
+
+.factory-equip-meta__label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #94a3b8;
+  text-transform: uppercase;
+}
+
+.factory-equip-meta__value {
+  font-size: 14px;
+  font-weight: 850;
+  color: #0f172a;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.factory-equip-metrics {
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.factory-equip-metrics__item {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #e8eef5;
+  background: #fff;
+}
+
+.factory-equip-metrics__item dt {
+  margin: 0 0 4px;
+  font-size: 11px;
+  font-weight: 800;
+  color: #94a3b8;
+}
+
+.factory-equip-metrics__item dd {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+/* 설비 상세 — 동일 공정 추가 설비 */
+.factory-equip-more__title {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.factory-equip-more__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.factory-equip-more__row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: var(--surface);
+  border-left-width: 3px;
+  border-left-color: #cbd5e1;
+}
+
+.factory-equip-more__row.factory-stage-equip-row--ok {
+  border-left-color: #22c55e;
+}
+
+.factory-equip-more__row.factory-stage-equip-row--warn {
+  border-left-color: #eab308;
+}
+
+.factory-equip-more__row.factory-stage-equip-row--alert {
+  border-left-color: #ef4444;
+}
+
+.factory-equip-more__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #94a3b8;
+}
+
+.factory-equip-more__row.factory-stage-equip-row--ok .factory-equip-more__dot {
+  background: #22c55e;
+}
+
+.factory-equip-more__row.factory-stage-equip-row--warn .factory-equip-more__dot {
+  background: #eab308;
+}
+
+.factory-equip-more__row.factory-stage-equip-row--alert .factory-equip-more__dot {
+  background: #ef4444;
+}
+
+.factory-equip-more__body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.factory-equip-more__name {
+  font-size: 14px;
+  font-weight: 900;
+  color: #0f172a;
+  line-height: 1.25;
+}
+
+.factory-equip-more__code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #94a3b8;
+  text-transform: uppercase;
+}
+
+.factory-equip-more__status {
+  min-height: 26px;
+  padding: 0 10px;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+@media (min-width: 420px) {
+  .factory-equip-hero__code-full {
+    display: inline;
+  }
+
+  .factory-equip-hero__code-short {
+    display: none;
+  }
 }
 
 /* 상세 설비 정보 — 설비 카드 좌측 아이콘 (가공 카드 디자인 통일) */
@@ -4789,6 +5129,20 @@ button.factory-webscada-open-btn:disabled {
   color: #475569;
   background: #f1f5f9;
   border: 1px solid var(--line);
+}
+
+.factory-stage-box-live {
+  display: block;
+  margin-top: 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--hyundai-blue-2);
+}
+
+.factory-stage-box-live--stale {
+  color: #b45309;
 }
 
 .factory-stage-box-label {
@@ -8640,7 +8994,7 @@ button.factory-webscada-open-btn:disabled {
 .user-perm-summary-grid {
   position: relative;
   z-index: 30;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   align-items: start;
 }
 
@@ -8825,6 +9179,22 @@ button.factory-webscada-open-btn:disabled {
 
 .user-perm-main .alarm-summary-grid.user-perm-summary-grid {
   flex-shrink: 0;
+}
+
+@media (max-width: 1280px) {
+  .user-perm-summary-grid .alarm-summary-card {
+    min-height: 118px;
+    padding: 14px 12px;
+  }
+
+  .user-perm-summary-grid .alarm-summary-card strong {
+    font-size: 28px;
+  }
+
+  .user-perm-summary-grid .alarm-summary-card p,
+  .user-perm-summary-grid .user-perm-summary-card-label {
+    font-size: 12px;
+  }
 }
 
 .user-perm-summary-grid .alarm-summary-card {
@@ -9708,7 +10078,6 @@ button.factory-webscada-open-btn:disabled {
   .equipment-popup-summary,
   .equipment-popup-metric-grid,
   .alarm-summary-grid,
-  .user-perm-summary-grid,
   .user-summary-grid,
   .community-summary-grid,
   .swmp-info-cards,

@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, ref, watch } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
+import { fetchEquipments } from '@/api/equipmentApi'
+import {
+  categoryIdForProcessType,
+  resolveEquipmentCode,
+} from '@/utils/resolveEquipmentCode'
 import {
   Activity,
   AlertTriangle,
@@ -33,6 +38,7 @@ const WebScadaOverlay = defineAsyncComponent(() => import('@/components/WebScada
 
 const { navItems } = useAppNav()
 const logout = useLogout()
+const route = useRoute()
 const { categories: backendCategories } = useEquipmentCatalog()
 
 const CATEGORY_ICON_MAP: Record<string, Component> = {
@@ -138,6 +144,47 @@ const openEquipmentPopup = () => {
   if (!webScadaReady) return
   webScadaOverlayOpen.value = true
 }
+
+async function applyRouteEquipmentQuery(): Promise<void> {
+  const rawId = typeof route.query.equipmentId === 'string' ? route.query.equipmentId : ''
+  if (!rawId) return
+
+  let resolved = rawId
+  const inCatalog = categories.value.some((c) =>
+    c.equipment.some((e) => e.id === rawId),
+  )
+  if (!inCatalog) {
+    try {
+      const list = await fetchEquipments('FACTORY-01')
+      resolved = resolveEquipmentCode(rawId, list) ?? rawId
+      const eq = list.find((e) => e.equipmentCode === resolved)
+      const catId = categoryIdForProcessType(eq?.processType)
+      if (catId) selectedCategoryId.value = catId
+    } catch {
+      resolved = rawId
+    }
+  } else {
+    for (const cat of categories.value) {
+      if (cat.equipment.some((e) => e.id === rawId)) {
+        selectedCategoryId.value = cat.id
+        break
+      }
+    }
+  }
+
+  selectedEquipmentId.value = resolved
+  if (route.query.popup === '1' && webScadaReady) {
+    webScadaOverlayOpen.value = true
+  }
+}
+
+watch(
+  () => [route.query.equipmentId, route.query.popup, categories.value.length] as const,
+  () => {
+    void applyRouteEquipmentQuery()
+  },
+  { immediate: true },
+)
 
 const closeEquipmentPopup = () => {
   isEquipmentPopupOpen.value = false

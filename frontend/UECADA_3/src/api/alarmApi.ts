@@ -121,6 +121,7 @@ function toRows(list: AlarmResponse[]): AlarmHistoryRow[] {
     alarmId: a.alarmId,
     time: formatTime(a.occurredAt),
     equipment: a.equipmentCode ?? '-',
+    equipmentCode: a.equipmentCode ?? '',
     type: mapSeverityToType(a.severity),
     category: extractCategory(a.alarmType),
     message: a.alarmMessage ?? '',

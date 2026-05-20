@@ -12,10 +12,13 @@ import {
   Bell,
   CalendarDays,
   Factory,
+  Info,
   LogOut,
+  Siren,
   Wrench,
 } from 'lucide-vue-next'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
+import type { AlarmHistoryRow } from '@/types/alarm'
 import { useAppNav } from '@/composables/useAppNav'
 import { useLogout } from '@/composables/useLogout'
 import { useAlarms } from '@/composables/useAlarms'
@@ -27,6 +30,7 @@ use([CanvasRenderer, BarChart, GridComponent, TooltipComponent])
 
 const { navItems } = useAppNav()
 const logout = useLogout()
+const router = useRouter()
 const auth = useAuthStore()
 const { data, isPending, isError, error, refetch, isFetching } = useAlarms()
 const { trendDays, trendHasData, equipmentFrequency, typeFrequency, isTrendPending } = useAlarmInsights()
@@ -149,6 +153,32 @@ onBeforeUnmount(() => {
 const pendingIds = ref<Set<number>>(new Set())
 const isResolving = (id: number) => pendingIds.value.has(id)
 const resolverLabel = computed(() => (auth.role === 'admin' ? '관리자' : '작업자'))
+
+function alarmLevelIcon(type: string) {
+  if (type === '긴급') return Siren
+  if (type === '경고') return AlertTriangle
+  return Info
+}
+
+/** 알람 행 → 설비 화면 + SMWP 팝업 (2클릭 이내 원인 파악) */
+function goAlarmContext(row: AlarmHistoryRow): void {
+  if (!row.equipmentCode) return
+  router.push({
+    name: 'equipment',
+    query: {
+      equipmentId: row.equipmentCode,
+      ...(row.alarmId ? { alarmId: String(row.alarmId) } : {}),
+      popup: '1',
+    },
+  })
+}
+
+function onAlarmRowKeydown(event: KeyboardEvent, row: AlarmHistoryRow): void {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    goAlarmContext(row)
+  }
+}
 
 function handleResolve(alarmId: number) {
   if (!alarmId || isResolving(alarmId)) return
@@ -314,11 +344,21 @@ function handleResolve(alarmId: number) {
                   <tr
                     v-for="(row, idx) in data.rows"
                     :key="`${row.alarmId || 'na'}-${row.time}-${idx}`"
+                    class="alarm-history-row"
                     :class="{ 'alarm-history-row--critical': row.type === '긴급' }"
+                    tabindex="0"
+                    :aria-label="`${row.equipment} ${row.type} 알람 — 설비 상세로 이동`"
+                    @click="goAlarmContext(row)"
+                    @keydown="onAlarmRowKeydown($event, row)"
                   >
                     <td>{{ row.time }}</td>
                     <td><strong>{{ row.equipment }}</strong></td>
-                    <td><span :class="['alarm-level', row.type]">{{ row.type }}</span></td>
+                    <td>
+                      <span :class="['alarm-level', row.type]">
+                        <component :is="alarmLevelIcon(row.type)" :size="14" aria-hidden="true" />
+                        {{ row.type }}
+                      </span>
+                    </td>
                     <td>{{ row.category }}</td>
                     <td>{{ row.message }}</td>
                     <td><span :class="['alarm-status-badge', row.status]">{{ row.status }}</span></td>
@@ -330,7 +370,7 @@ function handleResolve(alarmId: number) {
                         style="padding: 4px 10px; font-size: 12px"
                         :disabled="isResolving(row.alarmId)"
                         :aria-busy="isResolving(row.alarmId)"
-                        @click="handleResolve(row.alarmId)"
+                        @click.stop="handleResolve(row.alarmId)"
                       >
                         {{ isResolving(row.alarmId) ? '처리중…' : '처리' }}
                       </button>

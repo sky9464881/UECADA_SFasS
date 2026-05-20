@@ -27,7 +27,10 @@ import VChart from 'vue-echarts'
 import 'vue-echarts/style.css'
 import { useAppNav } from '@/composables/useAppNav'
 import { useLogout } from '@/composables/useLogout'
+import CommsStaleBanner from '@/components/CommsStaleBanner.vue'
 import { useDashboard } from '@/composables/useDashboard'
+import { useRealtimeFreshness } from '@/composables/useRealtimeFreshness'
+import { POLL_INTERVAL_MS } from '@/constants/polling'
 import type { DashboardStatusDonut } from '@/types/dashboard'
 
 use([CanvasRenderer, PieChart, TooltipComponent, LegendComponent, GraphicComponent])
@@ -37,12 +40,17 @@ const lineMarkIcons = [Factory, Cog, Package]
 
 const { navItems } = useAppNav()
 const logout = useLogout()
-const { data: dashboardData } = useDashboard()
+const dashboardQuery = useDashboard()
+const { data: dashboardData } = dashboardQuery
+const dashboardFresh = useRealtimeFreshness(
+  computed(() => dashboardQuery.dataUpdatedAt.value),
+  POLL_INTERVAL_MS.dashboard,
+)
 
-/** YoY 증감: 증가=빨강, 감소=파랑 (비교 구간은 상단 세그먼트로 표시) */
+/** OEE 등 higher-is-better KPI: 개선=녹색, 악화=적색 (ISA-101 상태 색상 정렬) */
 function yoyClass(delta: number) {
-  if (delta > 0) return 'dash-yoy--inc'
-  if (delta < 0) return 'dash-yoy--dec'
+  if (delta > 0) return 'dash-yoy--good'
+  if (delta < 0) return 'dash-yoy--bad'
   return 'dash-yoy--flat'
 }
 
@@ -440,6 +448,13 @@ watch(
           </button>
         </div>
       </header>
+
+      <CommsStaleBanner
+        :show="dashboardFresh.isStale.value"
+        :age-sec="dashboardFresh.ageSec.value"
+        :last-rx-label="dashboardFresh.lastRxLabel.value"
+        label="대시보드 실시간 통신 지연"
+      />
 
       <div class="dash-scada-surface">
         <div class="dash-ref-page">
@@ -979,17 +994,19 @@ section.dashboard-main.dash-dashboard-fill .dash-ref-grid--dashboard {
   letter-spacing: 0;
 }
 
-/* OEE 총괄 증감: 국내 시세(상승 빨강·하락 파랑) — 라인 카드와 동일 톤 */
+/* OEE 총괄 증감: 개선=녹색, 악화=적색 (ISA-101 정렬) */
+.dash-oee-kpi-pill.dash-yoy--good,
 .dash-oee-kpi-pill.dash-yoy--inc {
+  background: rgba(10, 159, 104, 0.12);
+  color: #05764d;
+  border-color: rgba(10, 159, 104, 0.28);
+}
+
+.dash-oee-kpi-pill.dash-yoy--bad,
+.dash-oee-kpi-pill.dash-yoy--dec {
   background: rgba(217, 45, 32, 0.1);
   color: #b91c1c;
   border-color: rgba(217, 45, 32, 0.28);
-}
-
-.dash-oee-kpi-pill.dash-yoy--dec {
-  background: rgba(0, 87, 164, 0.1);
-  color: #0057a4;
-  border-color: rgba(0, 87, 164, 0.28);
 }
 
 .dash-oee-kpi-pill.dash-yoy--flat {
@@ -1023,14 +1040,18 @@ section.dashboard-main.dash-dashboard-fill .dash-ref-grid--dashboard {
   line-height: 1;
 }
 
+.dash-oee-kpi-pill.dash-yoy--good .dash-oee-kpi-pill-ar,
+.dash-oee-kpi-pill.dash-yoy--good .dash-yoy-num-slot,
 .dash-oee-kpi-pill.dash-yoy--inc .dash-oee-kpi-pill-ar,
 .dash-oee-kpi-pill.dash-yoy--inc .dash-yoy-num-slot {
-  color: #d92d20;
+  color: #0a9f68;
 }
 
+.dash-oee-kpi-pill.dash-yoy--bad .dash-oee-kpi-pill-ar,
+.dash-oee-kpi-pill.dash-yoy--bad .dash-yoy-num-slot,
 .dash-oee-kpi-pill.dash-yoy--dec .dash-oee-kpi-pill-ar,
 .dash-oee-kpi-pill.dash-yoy--dec .dash-yoy-num-slot {
-  color: #0057a4;
+  color: #d92d20;
 }
 
 .dash-oee-kpi-pill.dash-yoy--flat .dash-oee-kpi-pill-ar,
@@ -1244,16 +1265,22 @@ section.dashboard-main.dash-dashboard-fill .dash-ref-grid--dashboard {
   font-size: 13px;
 }
 
+.dash-oee-yoy-row.dash-yoy--good .dash-yoy-value,
+.dash-line-yoy-row.dash-yoy--good .dash-yoy-value,
+.dash-line-detail-delta.dash-yoy--good .dash-yoy-value,
 .dash-oee-yoy-row.dash-yoy--inc .dash-yoy-value,
 .dash-line-yoy-row.dash-yoy--inc .dash-yoy-value,
 .dash-line-detail-delta.dash-yoy--inc .dash-yoy-value {
-  color: #d92d20;
+  color: #0a9f68;
 }
 
+.dash-oee-yoy-row.dash-yoy--bad .dash-yoy-value,
+.dash-line-yoy-row.dash-yoy--bad .dash-yoy-value,
+.dash-line-detail-delta.dash-yoy--bad .dash-yoy-value,
 .dash-oee-yoy-row.dash-yoy--dec .dash-yoy-value,
 .dash-line-yoy-row.dash-yoy--dec .dash-yoy-value,
 .dash-line-detail-delta.dash-yoy--dec .dash-yoy-value {
-  color: #0057a4;
+  color: #d92d20;
 }
 
 .dash-oee-yoy-row.dash-yoy--flat .dash-yoy-value,

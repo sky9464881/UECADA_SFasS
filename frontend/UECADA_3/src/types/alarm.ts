@@ -10,7 +10,10 @@ export interface AlarmSummaryItem {
 export interface AlarmHistoryRow {
   alarmId: number
   time: string
+  /** 화면 표시용 설비명/코드 */
   equipment: string
+  /** 드릴다운용 원본 설비 코드 */
+  equipmentCode: string
   type: string
   category: string
   message: string

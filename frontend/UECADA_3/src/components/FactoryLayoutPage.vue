@@ -16,7 +16,10 @@ import {
 import type { Component } from 'vue'
 import { useAppNav } from '@/composables/useAppNav'
 import { useLogout } from '@/composables/useLogout'
-import { useFactoryLayout } from '@/composables/useFactoryLayout'
+import CommsStaleBanner from '@/components/CommsStaleBanner.vue'
+import { useFactoryLayout, realtimeBufferKey } from '@/composables/useFactoryLayout'
+import { useRealtimeFreshness } from '@/composables/useRealtimeFreshness'
+import { POLL_INTERVAL_MS } from '@/constants/polling'
 import {
   isWebScadaConfigured,
   ldvPageIdForLine,
@@ -37,11 +40,18 @@ interface EquipmentMetric {
   value: string
 }
 
+interface EquipMetaItem {
+  key: string
+  label: string
+  value: string
+}
+
 interface EquipmentItem {
   id: string
   name: string
   status: StatusLabel
-  summary: string
+  model: string | null
+  installDate: string | null
   metrics?: readonly EquipmentMetric[]
 }
 
@@ -76,7 +86,15 @@ const STAGE_ORDER: readonly StageDef[] = [
   { key: 'insp', label: '검사', badge: 'INSPECT', icon: Search },
 ] as const
 
-const { lines: linesData, equipments: equipmentsData, statuses: statusesData } = useFactoryLayout()
+const {
+  lines: linesData,
+  equipments: equipmentsData,
+  statuses: statusesData,
+  realtime,
+  realtimeUpdatedAt,
+} = useFactoryLayout()
+
+const realtimeFresh = useRealtimeFreshness(realtimeUpdatedAt, POLL_INTERVAL_MS.equipmentRealtime)
 
 const PROCESS_TYPE_TO_STAGE_KEY: Record<string, StageKey> = {
   주조: 'cast',
@@ -120,12 +138,28 @@ function statusMapFromList(list: readonly EquipmentStatusItem[]): Map<string, Eq
   return map
 }
 
-function equipmentSummary(e: Equipment): string {
-  const parts: string[] = []
-  if (e.model) parts.push(e.model)
-  if (e.installDate) parts.push(`설치 ${e.installDate}`)
-  if (!parts.length) parts.push('상세 정보 없음')
-  return parts.join(' · ')
+function formatInstallDate(raw: string): string {
+  const m = raw.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (m) return `${m[1]}.${m[2]}.${m[3]}`
+  return raw
+}
+
+function equipMetaItems(e: EquipmentItem): EquipMetaItem[] {
+  const items: EquipMetaItem[] = []
+  if (e.model) items.push({ key: 'model', label: '모델', value: e.model })
+  if (e.installDate) items.push({ key: 'install', label: '설치', value: formatInstallDate(e.installDate) })
+  return items
+}
+
+function statusPillClass(status: StatusLabel): 'run' | 'warn' | 'stop' {
+  if (status === '경고') return 'stop'
+  if (status === '주의') return 'warn'
+  return 'run'
+}
+
+function shortEquipCode(code: string): string {
+  const match = code.match(/^LINE-\d+_(.+)$/i)
+  return match?.[1] ?? code
 }
 
 const factoryLines = computed<FactoryLine[]>(() => {
@@ -166,7 +200,8 @@ const equipmentMatrix = computed<EquipmentMatrix>(() => {
       id: eq.equipmentCode,
       name: eq.equipmentName,
       status,
-      summary: equipmentSummary(eq),
+      model: eq.model,
+      installDate: eq.installDate,
     })
   }
 
@@ -218,8 +253,20 @@ const secondaryEquipments = computed(() => {
   return list.slice(1)
 })
 
+const stageEquipmentCount = computed(() => stageDetailContext.value?.equipments.length ?? 0)
+
 function equipmentsForLineStage(lineId: string, stageKey: StageKey): EquipmentItem[] {
   return equipmentMatrix.value[lineId]?.[stageKey] ?? []
+}
+
+function stageCycleLive(lineId: string, stageKey: StageKey): string | null {
+  const primary = equipmentsForLineStage(lineId, stageKey)[0]
+  if (!primary) return null
+  const key = realtimeBufferKey(primary.id, 'cycle_time')
+  if (!key) return null
+  const frame = realtime.value.get(key)
+  if (frame == null) return null
+  return `${Number(frame.value).toFixed(1)}s`
 }
 
 function worstStatusKind(list: readonly EquipmentItem[]): StatusKind {
@@ -369,6 +416,13 @@ function stageIconToneClass(kind: StatusKind): string {
         </div>
       </header>
 
+      <CommsStaleBanner
+        :show="realtimeFresh.isStale.value"
+        :age-sec="realtimeFresh.ageSec.value"
+        :last-rx-label="realtimeFresh.lastRxLabel.value"
+        label="공장 레이아웃 실시간 통신 지연"
+      />
+
       <div class="factory-layout-workspace factory-layout-workspace--process">
         <section class="dashboard-panel factory-flow-panel">
           <div class="section-title-row">
@@ -452,6 +506,13 @@ function stageIconToneClass(kind: StatusKind): string {
                     </span>
                     <span class="factory-stage-box-label">{{ stage.label }}</span>
                     <span class="factory-stage-box-badge">{{ stage.badge }}</span>
+                    <span
+                      v-if="stageCycleLive(line.id, stage.key)"
+                      class="factory-stage-box-live"
+                      :class="{ 'factory-stage-box-live--stale': realtimeFresh.isStale.value }"
+                    >
+                      {{ stageCycleLive(line.id, stage.key) }}
+                    </span>
                   </button>
                   <span
                     v-if="si < STAGE_ORDER.length - 1"
@@ -475,12 +536,15 @@ function stageIconToneClass(kind: StatusKind): string {
             <div class="section-title-row factory-equipment-detail-title-row">
               <div>
                 <p class="panel-kicker">상세 설비 정보</p>
-                <p class="factory-detail-en-caption">EQUIPMENT DETAILS</p>
                 <h2 class="factory-detail-stage-heading">
-                  {{ stageDetailContext.line.code }} — {{ stageDetailContext.stage.label }} ({{
-                    stageDetailContext.stage.badge
-                  }})
+                  <span class="factory-detail-stage-line">{{ stageDetailContext.line.name }}</span>
+                  <span class="factory-detail-stage-sep" aria-hidden="true">·</span>
+                  <span class="factory-detail-stage-process">{{ stageDetailContext.stage.label }}</span>
                 </h2>
+                <p class="factory-detail-stage-sub">
+                  <span class="factory-detail-stage-badge">{{ stageDetailContext.stage.badge }}</span>
+                  <span v-if="stageEquipmentCount" class="factory-detail-stage-count">설비 {{ stageEquipmentCount }}대</span>
+                </p>
               </div>
               <span class="pill factory-detail-status-pill" :class="aggregatePillTone(stageAggregateKind)">
                 <span>{{ worstStatusLabel(stageDetailContext.equipments) }}</span>
@@ -491,43 +555,65 @@ function stageIconToneClass(kind: StatusKind): string {
 
           <div class="factory-equipment-detail-body">
               <template v-if="primaryEquipment">
-                <div class="factory-detail-primary-card">
-                  <div class="factory-detail-primary-head">
-                    <span class="factory-detail-primary-icon" aria-hidden="true">
-                      <component :is="stageDetailContext.stage.icon" :size="28" stroke-width="2" />
+                <article
+                  class="factory-equip-hero"
+                  :class="equipmentStatusClass(primaryEquipment.status)"
+                >
+                  <div class="factory-equip-hero__top">
+                    <span class="factory-equip-hero__icon" aria-hidden="true">
+                      <component :is="stageDetailContext.stage.icon" :size="22" stroke-width="2" />
                     </span>
-                    <div>
-                      <strong class="factory-detail-primary-name">{{ primaryEquipment.name }}</strong>
-                      <span class="factory-detail-primary-id">{{ primaryEquipment.id }}</span>
-                    </div>
+                    <span class="pill factory-equip-hero__status" :class="statusPillClass(primaryEquipment.status)">
+                      {{ primaryEquipment.status }}
+                    </span>
                   </div>
+                  <h3 class="factory-equip-hero__name">{{ primaryEquipment.name }}</h3>
+                  <p class="factory-equip-hero__code">
+                    <span class="factory-equip-hero__code-full">{{ primaryEquipment.id }}</span>
+                    <span
+                      class="factory-equip-hero__code-short"
+                      :title="primaryEquipment.id"
+                    >{{ shortEquipCode(primaryEquipment.id) }}</span>
+                  </p>
+                  <ul v-if="equipMetaItems(primaryEquipment).length" class="factory-equip-meta">
+                    <li v-for="item in equipMetaItems(primaryEquipment)" :key="item.key">
+                      <span class="factory-equip-meta__label">{{ item.label }}</span>
+                      <span class="factory-equip-meta__value">{{ item.value }}</span>
+                    </li>
+                  </ul>
                   <dl
                     v-if="primaryEquipment.metrics?.length"
-                    class="factory-detail-metrics"
+                    class="factory-equip-metrics"
                   >
                     <template v-for="m in primaryEquipment.metrics" :key="m.label">
-                      <dt>{{ m.label }}</dt>
-                      <dd>{{ m.value }}</dd>
+                      <div class="factory-equip-metrics__item">
+                        <dt>{{ m.label }}</dt>
+                        <dd>{{ m.value }}</dd>
+                      </div>
                     </template>
                   </dl>
-                  <p v-else class="factory-detail-primary-summary">{{ primaryEquipment.summary }}</p>
-                </div>
+                </article>
 
-                <ul v-if="secondaryEquipments.length" class="factory-stage-equip-list factory-stage-equip-list--compact">
-                  <li
-                    v-for="eq in secondaryEquipments"
-                    :key="eq.id"
-                    class="factory-stage-equip-row"
-                    :class="equipmentStatusClass(eq.status)"
-                  >
-                    <div class="factory-stage-equip-row-main">
-                      <strong>{{ eq.name }}</strong>
-                      <span class="factory-stage-equip-id">{{ eq.id }}</span>
-                    </div>
-                    <span :class="['factory-stage-equip-status', 'line-state', eq.status]">{{ eq.status }}</span>
-                    <p class="factory-stage-equip-summary">{{ eq.summary }}</p>
-                  </li>
-                </ul>
+                <section v-if="secondaryEquipments.length" class="factory-equip-more">
+                  <h4 class="factory-equip-more__title">동일 공정 설비</h4>
+                  <ul class="factory-equip-more__list">
+                    <li
+                      v-for="eq in secondaryEquipments"
+                      :key="eq.id"
+                      class="factory-equip-more__row"
+                      :class="equipmentStatusClass(eq.status)"
+                    >
+                      <span class="factory-equip-more__dot" aria-hidden="true" />
+                      <div class="factory-equip-more__body">
+                        <strong class="factory-equip-more__name">{{ eq.name }}</strong>
+                        <span class="factory-equip-more__code">{{ shortEquipCode(eq.id) }}</span>
+                      </div>
+                      <span class="pill factory-equip-more__status" :class="statusPillClass(eq.status)">
+                        {{ eq.status }}
+                      </span>
+                    </li>
+                  </ul>
+                </section>
               </template>
               <p v-else class="factory-stage-dialog-empty">등록된 설비가 없습니다.</p>
             </div>
