@@ -43,7 +43,7 @@ public class AlarmService {
             String status, String equipmentCode,
             LocalDateTime from, LocalDateTime to, int limit
     ) {
-        int safeLimit = Math.min(Math.max(limit, 1), 1000);
+        int safeLimit = Math.min(Math.max(limit, 1), 10_000);
         return alarmRepository.findByFilters(status, equipmentCode, from, to, PageRequest.of(0, safeLimit))
                 .stream().map(AlarmResponse::from).toList();
     }

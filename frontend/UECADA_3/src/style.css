@@ -2767,14 +2767,14 @@ select {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 12px;
-  background: #fff7ed;
-  border: 1px solid #fed7aa;
+  padding: 7px 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
   border-radius: 6px;
   margin-bottom: 8px;
   font-size: 13px;
   font-weight: 700;
-  color: #9a3412;
+  color: #475569;
 }
 
 .alarm-history-table-wrap {
@@ -9159,6 +9159,7 @@ button.factory-webscada-open-btn:disabled {
 
 .user-perm-main .alarm-summary-grid.user-perm-summary-grid {
   flex-shrink: 0;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 .user-perm-summary-grid .alarm-summary-card {

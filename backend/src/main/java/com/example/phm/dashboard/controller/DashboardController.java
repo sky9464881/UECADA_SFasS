@@ -174,12 +174,13 @@ public class DashboardController {
     }
 
     private DashboardFrontendResponse.AlarmSummary realtimeAlarmSummary() {
-        // alarm 테이블 기반으로 통일 (대시보드와 알람 탭 카운트 일치)
-        List<Alarm> recent = alarmRepository.findByFilters(null, null, null, null, PageRequest.of(0, 1000));
-        long total = recent.size();
-        long critical = recent.stream().filter(a -> isSeverity(a, "CRITICAL", "DANGER")).count();
-        long resolved = recent.stream().filter(a -> "RESOLVED".equals(a.getStatus())).count();
-        long open = recent.stream().filter(a -> "OPEN".equals(a.getStatus())).count();
+        // 알람 페이지와 동일하게 당일 기준으로 통일
+        LocalDateTime from = LocalDate.now().atStartOfDay();
+        LocalDateTime to   = LocalDate.now().atTime(23, 59, 59);
+        long total    = alarmRepository.countByDateRange(from, to);
+        long critical = alarmRepository.countBySeverityInAndDateRange(List.of("CRITICAL", "DANGER"), from, to);
+        long resolved = alarmRepository.countByStatusAndDateRange("RESOLVED", from, to);
+        long open     = alarmRepository.countByStatusAndDateRange("OPEN", from, to);
         return new DashboardFrontendResponse.AlarmSummary(total, critical, 0, resolved, open);
     }
 
