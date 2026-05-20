@@ -59,11 +59,20 @@ public class AlarmService {
         return AlarmResponse.from(alarmRepository.save(alarm));
     }
 
-    public Map<String, Long> getCounts() {
-        long total = alarmRepository.count();
-        long open = alarmRepository.countByStatus("OPEN");
-        long resolved = alarmRepository.countByStatus("RESOLVED");
-        long critical = alarmRepository.countBySeverityIn(List.of("CRITICAL", "DANGER"));
+    /** from/to 가 null 이면 전체 누적, 아니면 해당 기간 기준 카운트 */
+    public Map<String, Long> getCounts(LocalDateTime from, LocalDateTime to) {
+        long total, open, resolved, critical;
+        if (from != null && to != null) {
+            total    = alarmRepository.countByDateRange(from, to);
+            open     = alarmRepository.countByStatusAndDateRange("OPEN", from, to);
+            resolved = alarmRepository.countByStatusAndDateRange("RESOLVED", from, to);
+            critical = alarmRepository.countBySeverityInAndDateRange(List.of("CRITICAL", "DANGER"), from, to);
+        } else {
+            total    = alarmRepository.count();
+            open     = alarmRepository.countByStatus("OPEN");
+            resolved = alarmRepository.countByStatus("RESOLVED");
+            critical = alarmRepository.countBySeverityIn(List.of("CRITICAL", "DANGER"));
+        }
         return Map.of("total", total, "open", open, "resolved", resolved, "critical", critical);
     }
 

@@ -112,10 +112,12 @@ function toRows(list: AlarmResponse[]): AlarmHistoryRow[] {
   }))
 }
 
-export async function fetchAlarmsRaw(status?: string | null): Promise<AlarmResponse[]> {
+export async function fetchAlarmsRaw(status?: string | null, from?: string, to?: string): Promise<AlarmResponse[]> {
   if (useMockAlarms()) return []
-  const params: Record<string, string> = { limit: '200' }
+  const params: Record<string, string> = { limit: '1000' }
   if (status) params.status = status
+  if (from) params.from = from
+  if (to) params.to = to
   const { data } = await api.get<AlarmResponse[]>('/api/alarms', { params })
   return data
 }
@@ -142,7 +144,13 @@ export interface AlarmCounts {
 
 export async function fetchAlarmCounts(): Promise<AlarmCounts> {
   if (useMockAlarms()) return { total: 0, open: 0, resolved: 0, critical: 0 }
-  const { data } = await api.get<AlarmCounts>('/api/alarms/counts')
+  const now = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const toIso = (d: Date) =>
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+  const from = toIso(new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0))
+  const to = toIso(new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59))
+  const { data } = await api.get<AlarmCounts>('/api/alarms/counts', { params: { from, to } })
   return data
 }
 

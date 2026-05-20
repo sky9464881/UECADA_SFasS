@@ -31,6 +31,34 @@ public interface AlarmRepository extends JpaRepository<Alarm, Long> {
 
     long countBySeverityIn(java.util.List<String> severities);
 
+    @Query("""
+            SELECT COUNT(a) FROM Alarm a
+            WHERE a.occurredAt >= :from AND a.occurredAt <= :to
+            """)
+    long countByDateRange(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
+    @Query("""
+            SELECT COUNT(a) FROM Alarm a
+            WHERE a.status = :status
+              AND a.occurredAt >= :from AND a.occurredAt <= :to
+            """)
+    long countByStatusAndDateRange(
+            @Param("status") String status,
+            @Param("from") LocalDateTime from,
+            @Param("to") LocalDateTime to
+    );
+
+    @Query("""
+            SELECT COUNT(a) FROM Alarm a
+            WHERE a.severity IN :severities
+              AND a.occurredAt >= :from AND a.occurredAt <= :to
+            """)
+    long countBySeverityInAndDateRange(
+            @Param("severities") List<String> severities,
+            @Param("from") LocalDateTime from,
+            @Param("to") LocalDateTime to
+    );
+
     @Query(value = """
             SELECT DATE(occurred_at) AS stat_date,
                    COALESCE(alarm_type_name, 'UNKNOWN') AS alarm_type,
