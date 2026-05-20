@@ -3863,5 +3863,78 @@
     "willMsg": {},
     "userProps": "",
     "sessionExpiry": ""
+  },
+  {
+    "id": "das_fault_inject_10s",
+    "type": "inject",
+    "z": "das_tab_router",
+    "name": "Inject configured vibration fault",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 160,
+    "y": 160,
+    "wires": [
+      [
+        "das_fault_command_10s"
+      ]
+    ]
+  },
+  {
+    "id": "das_fault_command_10s",
+    "type": "function",
+    "z": "das_tab_router",
+    "name": "build configured fault command",
+    "func": "// Edit these values in Node-RED to choose the target equipment and fault window.\nconst TARGET_EQUIPMENT = 'LINE-01-CAST-01';\nconst FAULT_KIND = 'bearing'; // bearing | looseness | misalignment | unbalance\nconst DURATION_SEC = 10;\n\nconst command = {\n    command: 'inject_fault',\n    duration_sec: DURATION_SEC,\n    fault_kind: FAULT_KIND,\n    equipment_id: TARGET_EQUIPMENT,\n    requested_at: new Date().toISOString()\n};\n\nmsg.topic = 'das/simulator/control/fault';\nmsg.payload = JSON.stringify(command);\nnode.status({\n    fill: 'red',\n    shape: 'dot',\n    text: command.equipment_id + ' ' + command.fault_kind + ' ' + command.duration_sec + 's'\n});\nreturn msg;",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 420,
+    "y": 160,
+    "wires": [
+      [
+        "das_fault_mqtt_out_10s"
+      ]
+    ]
+  },
+  {
+    "id": "das_fault_mqtt_out_10s",
+    "type": "mqtt out",
+    "z": "das_tab_router",
+    "name": "send fault command to simulator",
+    "topic": "das/simulator/control/fault",
+    "qos": "0",
+    "retain": "false",
+    "respTopic": "",
+    "contentType": "",
+    "userProps": "",
+    "correl": "",
+    "expiry": "",
+    "broker": "das_mqtt_broker",
+    "x": 720,
+    "y": 160,
+    "wires": []
+  },
+  {
+    "id": "das_fault_inject_note",
+    "type": "comment",
+    "z": "das_tab_router",
+    "name": "Simulator fault button: configured 10s then auto-normal",
+    "info": "Edit TARGET_EQUIPMENT and FAULT_KIND in the function node, then click the inject button to send that configured 10 second vibration fault window to the simulator.",
+    "x": 250,
+    "y": 120,
+    "wires": []
   }
 ]

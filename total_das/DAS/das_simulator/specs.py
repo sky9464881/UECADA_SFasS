@@ -30,7 +30,7 @@ SENSOR_CATALOG: dict[str, dict[str, str]] = {
         "connection": "Analog/ADC",
     },
     "TEMP-01": {
-        "name": "equipment surface temperature sensor",
+        "name": "ambient temperature sensor",
         "model": "PT100 + MAX31865",
         "connection": "SPI",
     },

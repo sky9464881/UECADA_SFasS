@@ -1,8 +1,10 @@
 package com.example.phm.vibration.service;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -17,10 +19,13 @@ import org.springframework.stereotype.Service;
 @Service
 public class VibrationWindowMonitorService {
 
+    private static final Duration RECENT_ABNORMAL_HOLD = Duration.ofSeconds(90);
+
     private final AtomicReference<VibrationWindowMessage> latestMessage = new AtomicReference<>();
     private final AtomicReference<Instant> lastReceivedAt = new AtomicReference<>();
     private final AtomicLong receivedCount = new AtomicLong();
     private final ConcurrentHashMap<String, Snapshot> snapshots = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Snapshot> recentAbnormalSnapshots = new ConcurrentHashMap<>();
 
     public void record(VibrationWindowMessage message) {
         Instant now = Instant.now();
@@ -37,6 +42,9 @@ public class VibrationWindowMonitorService {
         snapshots.compute(message.getEquipmentId(), (equipmentId, existing) ->
                 new Snapshot(existing == null ? message : existing.message(), analysis, now)
         );
+        if (isAbnormal(analysis)) {
+            recentAbnormalSnapshots.put(message.getEquipmentId(), new Snapshot(message, analysis, now));
+        }
     }
 
     public VibrationWindowLatestResponse latest() {
@@ -69,14 +77,54 @@ public class VibrationWindowMonitorService {
     }
 
     private VibrationRealtimeResponse toRealtimeResponse(String equipmentId, Snapshot snapshot, boolean includeValues) {
+        Snapshot responseSnapshot = heldAbnormalSnapshot(equipmentId, snapshot);
         return new VibrationRealtimeResponse(
                 true,
                 equipmentId,
-                snapshot.receivedAt(),
-                VibrationWindowSummaryResponse.from(snapshot.message()),
-                includeValues ? snapshot.message().getValues() : List.of(),
-                snapshot.analysis()
+                responseSnapshot.receivedAt(),
+                VibrationWindowSummaryResponse.from(responseSnapshot.message()),
+                includeValues ? responseSnapshot.message().getValues() : List.of(),
+                responseSnapshot.analysis()
         );
+    }
+
+    private Snapshot heldAbnormalSnapshot(String equipmentId, Snapshot current) {
+        if (isAbnormal(current.analysis())) {
+            return current;
+        }
+
+        Snapshot abnormal = recentAbnormalSnapshots.get(equipmentId);
+        if (abnormal == null) {
+            return current;
+        }
+
+        if (Duration.between(abnormal.receivedAt(), Instant.now()).compareTo(RECENT_ABNORMAL_HOLD) > 0) {
+            recentAbnormalSnapshots.remove(equipmentId, abnormal);
+            return current;
+        }
+
+        return abnormal;
+    }
+
+    private boolean isAbnormal(AnalyzeResponse analysis) {
+        if (analysis == null) {
+            return false;
+        }
+
+        String alarmLevel = normalize(analysis.getAlarmLevel());
+        if ("warning".equals(alarmLevel) || "danger".equals(alarmLevel)) {
+            return true;
+        }
+
+        String prediction = normalize(analysis.getPrediction());
+        return !prediction.isBlank()
+                && !"normal".equals(prediction)
+                && !"not_trained".equals(prediction)
+                && !"prediction_error".equals(prediction);
+    }
+
+    private String normalize(String value) {
+        return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
     }
 
     private record Snapshot(

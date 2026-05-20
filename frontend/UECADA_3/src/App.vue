@@ -2,32 +2,55 @@
 import { computed, ref, watch } from 'vue'
 import { RouterView } from 'vue-router'
 import { useQuery } from '@tanstack/vue-query'
-import { AlertTriangle, Bell, X } from 'lucide-vue-next'
-import { fetchAlarmsRaw, mapSeverityToType, mapStatusLabel, type AlarmResponse } from '@/api/alarmApi'
+import { AlertTriangle } from 'lucide-vue-next'
+import {
+  fetchAlarmHistoriesRaw,
+  fetchAlarmsRaw,
+  type AlarmHistoryResponse,
+  type AlarmResponse,
+} from '@/api/alarmApi'
+import { fetchEquipments, fetchEquipmentStatuses } from '@/api/equipmentApi'
 import { POLL_INTERVAL_MS } from '@/constants/polling'
 import { useAuthStore } from '@/stores/auth'
+import type { EquipmentStatusItem } from '@/types/equipment'
 
 const auth = useAuthStore()
 
 const SESSION_KEY = 'alarm-ack-ids'
+const SENSOR_ALARM_RECENT_MS = 5 * 60 * 1000
+const AI_ALARM_RECENT_MS = 5 * 60 * 1000
 
-function loadAcknowledgedIds(): Set<number> {
+interface GlobalAlarmPopup {
+  key: string
+  source: 'sensor' | 'ai' | 'equipment'
+  id: number
+  equipmentCode: string
+  alarmType: string
+  severity: string
+  status: string
+  alarmMessage: string
+  occurredAt: string
+}
+
+function loadAcknowledgedIds(): Set<string> {
   try {
     const raw = sessionStorage.getItem(SESSION_KEY)
-    return raw ? new Set(JSON.parse(raw) as number[]) : new Set()
+    return raw ? new Set((JSON.parse(raw) as Array<number | string>).map(String)) : new Set()
   } catch {
     return new Set()
   }
 }
 
-function persistAcknowledgedIds(set: Set<number>): void {
+function persistAcknowledgedIds(set: Set<string>): void {
   try {
     sessionStorage.setItem(SESSION_KEY, JSON.stringify([...set]))
   } catch {}
 }
 
-const acknowledgedAlarmIds = ref<Set<number>>(loadAcknowledgedIds())
+const acknowledgedAlarmIds = ref<Set<string>>(loadAcknowledgedIds())
 const selectedIndex = ref(0)
+const equipmentOffEvents = ref<GlobalAlarmPopup[]>([])
+const previousEquipmentStatuses = ref<Map<string, string>>(new Map())
 
 const alarmQuery = useQuery({
   queryKey: ['global-alarm-popup'],
@@ -38,19 +61,56 @@ const alarmQuery = useQuery({
   staleTime: 0,
 })
 
-const openUniqueAlarms = computed(() => {
-  const map = new Map<number, AlarmResponse>()
+const alarmHistoryQuery = useQuery({
+  queryKey: ['global-ai-alarm-popup'],
+  queryFn: () => fetchAlarmHistoriesRaw(50),
+  enabled: computed(() => auth.isAuthenticated),
+  refetchInterval: POLL_INTERVAL_MS.alarm,
+  refetchIntervalInBackground: true,
+  staleTime: 0,
+})
+
+const equipmentsQuery = useQuery({
+  queryKey: ['global-popup-equipments', 'FACTORY-01'],
+  queryFn: () => fetchEquipments('FACTORY-01'),
+  enabled: computed(() => auth.isAuthenticated),
+  staleTime: 60_000,
+})
+
+const equipmentIds = computed(() => (equipmentsQuery.data.value ?? []).map((equipment) => equipment.equipmentCode))
+
+const equipmentStatusQuery = useQuery({
+  queryKey: computed(() => ['global-popup-equipment-status', equipmentIds.value]),
+  queryFn: () => fetchEquipmentStatuses(equipmentIds.value),
+  enabled: computed(() => auth.isAuthenticated && equipmentIds.value.length > 0),
+  refetchInterval: POLL_INTERVAL_MS.equipmentRealtime,
+  refetchIntervalInBackground: true,
+  staleTime: 0,
+})
+
+const openUniqueAlarms = computed<GlobalAlarmPopup[]>(() => {
+  const map = new Map<string, GlobalAlarmPopup>()
+  for (const alarm of equipmentOffEvents.value) {
+    if (!isRecentTimestamp(alarm.occurredAt, SENSOR_ALARM_RECENT_MS)) continue
+    if (!map.has(alarm.key)) map.set(alarm.key, alarm)
+  }
   for (const alarm of alarmQuery.data.value ?? []) {
-    if (alarm.status?.toUpperCase() !== 'OPEN') continue
-    const sev = alarm.severity?.toUpperCase()
-    if (sev !== 'DANGER' && sev !== 'CRITICAL') continue
-    if (!map.has(alarm.alarmId)) map.set(alarm.alarmId, alarm)
+    if (!shouldShowSensorAlarm(alarm)) continue
+    const popup = sensorAlarmToPopup(alarm)
+    if (!map.has(popup.key)) map.set(popup.key, popup)
+  }
+  for (const alarm of alarmHistoryQuery.data.value ?? []) {
+    if (!shouldShowAiAlarm(alarm)) continue
+    const popup = aiAlarmToPopup(alarm)
+    if (!map.has(popup.key)) map.set(popup.key, popup)
   }
   return [...map.values()]
 })
 
 const pendingAlarms = computed(() =>
-  openUniqueAlarms.value.filter((a) => !acknowledgedAlarmIds.value.has(a.alarmId)),
+  openUniqueAlarms.value.filter(
+    (a) => !acknowledgedAlarmIds.value.has(a.key) && !acknowledgedAlarmIds.value.has(String(a.id)),
+  ),
 )
 
 const activeAlarm = computed(() => pendingAlarms.value[selectedIndex.value] ?? null)
@@ -60,6 +120,32 @@ watch(pendingAlarms, (list) => {
     selectedIndex.value = Math.max(0, list.length - 1)
   }
 })
+
+watch(
+  () => equipmentStatusQuery.data.value,
+  (statuses) => {
+    if (!statuses?.length) return
+
+    const previous = previousEquipmentStatuses.value
+    const initialized = previous.size > 0
+    const next = new Map<string, string>()
+
+    for (const status of statuses as EquipmentStatusItem[]) {
+      const code = status.statusCode?.toUpperCase() || 'UNKNOWN'
+      next.set(status.equipId, code)
+
+      if (initialized && code === 'MAINTENANCE' && previous.get(status.equipId) !== 'MAINTENANCE') {
+        equipmentOffEvents.value = [
+          equipmentOffToPopup(status.equipId),
+          ...equipmentOffEvents.value.filter((event) => isRecentTimestamp(event.occurredAt, SENSOR_ALARM_RECENT_MS)),
+        ].slice(0, 20)
+      }
+    }
+
+    previousEquipmentStatuses.value = next
+  },
+  { immediate: true },
+)
 
 const EQUIP_TYPE_KO: Record<string, string> = {
   TEST: '검사기',
@@ -88,7 +174,7 @@ function shortCode(code: string): string {
 
 function dismissCurrent(): void {
   if (!activeAlarm.value) return
-  const updated = new Set([...acknowledgedAlarmIds.value, activeAlarm.value.alarmId])
+  const updated = new Set([...acknowledgedAlarmIds.value, activeAlarm.value.key])
   acknowledgedAlarmIds.value = updated
   persistAcknowledgedIds(updated)
   if (selectedIndex.value >= pendingAlarms.value.length) {
@@ -99,7 +185,7 @@ function dismissCurrent(): void {
 function dismissAll(): void {
   const updated = new Set([
     ...acknowledgedAlarmIds.value,
-    ...pendingAlarms.value.map((a) => a.alarmId),
+    ...pendingAlarms.value.map((a) => a.key),
   ])
   acknowledgedAlarmIds.value = updated
   persistAcknowledgedIds(updated)
@@ -107,6 +193,103 @@ function dismissAll(): void {
 
 function formatAlarmTime(value: string | null | undefined): string {
   return value ? value.replace('T', ' ').slice(0, 19) : '-'
+}
+
+function sensorAlarmToPopup(alarm: AlarmResponse): GlobalAlarmPopup {
+  return {
+    key: `sensor:${alarm.alarmId}`,
+    source: 'sensor',
+    id: alarm.alarmId,
+    equipmentCode: alarm.equipmentCode,
+    alarmType: alarm.alarmType || '설비 알람',
+    severity: alarm.severity,
+    status: alarm.status,
+    alarmMessage: alarm.alarmMessage || '확인이 필요한 설비 알람이 발생했습니다.',
+    occurredAt: alarm.occurredAt,
+  }
+}
+
+function equipmentOffToPopup(equipmentCode: string): GlobalAlarmPopup {
+  const occurredAt = localDateTime()
+  return {
+    key: `equipment-off:${equipmentCode}:${occurredAt}`,
+    source: 'equipment',
+    id: Date.now(),
+    equipmentCode,
+    alarmType: '설비 가동 정지',
+    severity: 'DANGER',
+    status: 'OPEN',
+    alarmMessage: `[${equipmentCode}] PLC 전원/가동 상태가 OFF로 전환되었습니다.`,
+    occurredAt,
+  }
+}
+
+function shouldShowSensorAlarm(alarm: AlarmResponse): boolean {
+  if (alarm.status?.toUpperCase() !== 'OPEN') return false
+
+  const sev = alarm.severity?.toUpperCase()
+  if (sev !== 'DANGER' && sev !== 'CRITICAL') return false
+
+  return isRecentTimestamp(alarm.occurredAt, SENSOR_ALARM_RECENT_MS)
+}
+
+function aiAlarmToPopup(alarm: AlarmHistoryResponse): GlobalAlarmPopup {
+  const prediction = formatPrediction(alarm.prediction)
+  const level = alarm.alarmLevel?.toUpperCase() || 'DANGER'
+  return {
+    key: `ai:${alarm.id}`,
+    source: 'ai',
+    id: alarm.id,
+    equipmentCode: alarm.equipmentCode,
+    alarmType: `AI 고장 예측: ${prediction}`,
+    severity: level === 'DANGER' ? 'DANGER' : 'WARNING',
+    status: alarm.status,
+    alarmMessage: `[${alarm.equipmentCode}] AI가 ${prediction} 이상 패턴을 감지했습니다.`,
+    occurredAt: alarm.occurredAt,
+  }
+}
+
+function shouldShowAiAlarm(alarm: AlarmHistoryResponse): boolean {
+  const level = alarm.alarmLevel?.toLowerCase()
+  if (level !== 'warning' && level !== 'danger') return false
+
+  const prediction = alarm.prediction?.trim().toLowerCase()
+  if (!prediction || prediction === 'normal') return false
+
+  return isRecentTimestamp(alarm.occurredAt, AI_ALARM_RECENT_MS)
+}
+
+function formatPrediction(value: string | null): string {
+  switch (value?.trim().toLowerCase()) {
+    case 'bearing':
+      return '베어링 손상'
+    case 'looseness':
+      return '느슨함'
+    case 'misalignment':
+      return '축 정렬 불량'
+    case 'unbalance':
+      return '불균형'
+    default:
+      return value || '이상'
+  }
+}
+
+function isRecentTimestamp(value: string | null | undefined, windowMs: number): boolean {
+  if (!value) return false
+
+  const candidates = [Date.parse(value)]
+  if (!/[zZ]|[+-]\d{2}:?\d{2}$/.test(value)) {
+    candidates.push(Date.parse(`${value}Z`))
+  }
+
+  const now = Date.now()
+  return candidates.some((timestamp) => Number.isFinite(timestamp) && Math.abs(now - timestamp) <= windowMs)
+}
+
+function localDateTime(): string {
+  const d = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
 }
 </script>
 
@@ -119,7 +302,7 @@ function formatAlarmTime(value: string | null | undefined): string {
         <div class="global-alarm-tabs" role="tablist" aria-label="미확인 알람 목록">
           <button
             v-for="(alarm, i) in pendingAlarms"
-            :key="alarm.alarmId"
+            :key="alarm.key"
             type="button"
             role="tab"
             :aria-selected="i === selectedIndex"
@@ -137,7 +320,7 @@ function formatAlarmTime(value: string | null | undefined): string {
               <AlertTriangle :size="32" />
             </span>
             <div>
-              <p>Real-time Alarm · {{ selectedIndex + 1 }} / {{ pendingAlarms.length }}</p>
+              <p>{{ activeAlarm.source === 'ai' ? 'AI Alarm' : activeAlarm.source === 'equipment' ? 'Equipment Alarm' : 'Real-time Alarm' }} · {{ selectedIndex + 1 }} / {{ pendingAlarms.length }}</p>
               <h2>{{ toKoreanEquipName(activeAlarm.equipmentCode) }}</h2>
             </div>
             <button type="button" class="global-alarm-btn-all" @click="dismissAll">

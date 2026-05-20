@@ -14,6 +14,8 @@ public class VibrationWindowMessage {
     private Integer windowSize;
     private Integer windowIndex;
     private List<Double> values;
+    private String healthState;
+    private Double providedRms;
 
     public VibrationWindowMessage() {
     }
@@ -94,5 +96,21 @@ public class VibrationWindowMessage {
 
     public int valuesLength() {
         return values == null ? 0 : values.size();
+    }
+
+    public String getHealthState() {
+        return healthState;
+    }
+
+    public void setHealthState(String healthState) {
+        this.healthState = healthState;
+    }
+
+    public Double getProvidedRms() {
+        return providedRms;
+    }
+
+    public void setProvidedRms(Double providedRms) {
+        this.providedRms = providedRms;
     }
 }

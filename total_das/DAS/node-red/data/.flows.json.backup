@@ -46,6 +46,7 @@
     "protocolVersion": "4",
     "keepalive": "60",
     "cleansession": true,
+    "autoUnsubscribe": true,
     "birthTopic": "",
     "birthQos": "0",
     "birthPayload": "",
@@ -75,10 +76,11 @@
     "rh": 0,
     "inputs": 0,
     "x": 150,
-    "y": 120,
+    "y": 400,
     "wires": [
       [
-        "das_json_parse"
+        "das_json_parse",
+        "5cb0639c8d3a7b22"
       ]
     ]
   },
@@ -91,7 +93,7 @@
     "action": "",
     "pretty": false,
     "x": 350,
-    "y": 120,
+    "y": 400,
     "wires": [
       [
         "das_switch_instance"
@@ -245,8 +247,8 @@
     "checkall": "true",
     "repair": false,
     "outputs": 27,
-    "x": 580,
-    "y": 120,
+    "x": 590,
+    "y": 400,
     "wires": [
       [
         "das_link_line_01_cast_01_out"
@@ -683,6 +685,22 @@
     "wires": []
   },
   {
+    "id": "5cb0639c8d3a7b22",
+    "type": "debug",
+    "z": "das_tab_router",
+    "name": "debug 1",
+    "active": true,
+    "tosidebar": true,
+    "console": false,
+    "tostatus": false,
+    "complete": "false",
+    "statusVal": "",
+    "statusType": "auto",
+    "x": 240,
+    "y": 560,
+    "wires": []
+  },
+  {
     "id": "das_link_line_01_cast_01_in",
     "type": "link in",
     "z": "das_tab_line_01",
@@ -735,7 +753,7 @@
     "expiry": "",
     "broker": "das_mqtt_broker",
     "x": 590,
-    "y": 60,
+    "y": 40,
     "wires": []
   },
   {
@@ -771,8 +789,8 @@
     "targetType": "msg",
     "statusVal": "",
     "statusType": "auto",
-    "x": 825,
-    "y": 100,
+    "x": 850,
+    "y": 80,
     "wires": []
   },
   {
@@ -3862,6 +3880,79 @@
     "statusType": "auto",
     "x": 1520,
     "y": 160,
+    "wires": []
+  },
+  {
+    "id": "das_fault_inject_10s",
+    "type": "inject",
+    "z": "das_tab_router",
+    "name": "Inject configured vibration fault",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "payload": "",
+    "payloadType": "date",
+    "x": 160,
+    "y": 160,
+    "wires": [
+      [
+        "das_fault_command_10s"
+      ]
+    ]
+  },
+  {
+    "id": "das_fault_command_10s",
+    "type": "function",
+    "z": "das_tab_router",
+    "name": "build configured fault command",
+    "func": "// Edit these values in Node-RED to choose the target equipment and fault window.\nconst TARGET_EQUIPMENT = 'LINE-01-CAST-01';\nconst FAULT_KIND = 'bearing'; // bearing | looseness | misalignment | unbalance\nconst DURATION_SEC = 10;\n\nconst command = {\n    command: 'inject_fault',\n    duration_sec: DURATION_SEC,\n    fault_kind: FAULT_KIND,\n    equipment_id: TARGET_EQUIPMENT,\n    requested_at: new Date().toISOString()\n};\n\nmsg.topic = 'das/simulator/control/fault';\nmsg.payload = JSON.stringify(command);\nnode.status({\n    fill: 'red',\n    shape: 'dot',\n    text: command.equipment_id + ' ' + command.fault_kind + ' ' + command.duration_sec + 's'\n});\nreturn msg;",
+    "outputs": 1,
+    "timeout": 0,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 420,
+    "y": 160,
+    "wires": [
+      [
+        "das_fault_mqtt_out_10s"
+      ]
+    ]
+  },
+  {
+    "id": "das_fault_mqtt_out_10s",
+    "type": "mqtt out",
+    "z": "das_tab_router",
+    "name": "send fault command to simulator",
+    "topic": "das/simulator/control/fault",
+    "qos": "0",
+    "retain": "false",
+    "respTopic": "",
+    "contentType": "",
+    "userProps": "",
+    "correl": "",
+    "expiry": "",
+    "broker": "das_mqtt_broker",
+    "x": 720,
+    "y": 160,
+    "wires": []
+  },
+  {
+    "id": "das_fault_inject_note",
+    "type": "comment",
+    "z": "das_tab_router",
+    "name": "Simulator fault button: configured 10s then auto-normal",
+    "info": "Edit TARGET_EQUIPMENT and FAULT_KIND in the function node, then click the inject button to send that configured 10 second vibration fault window to the simulator.",
+    "x": 250,
+    "y": 120,
     "wires": []
   }
 ]

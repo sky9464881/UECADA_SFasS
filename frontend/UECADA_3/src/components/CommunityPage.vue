@@ -136,7 +136,7 @@ const messagesQuery = useQuery({
 
 const alarmsQuery = useQuery({
   queryKey: ['community', 'alarm-list'],
-  queryFn: fetchAlarmList,
+  queryFn: () => fetchAlarmList(),
   staleTime: 2_000,
   refetchInterval: 5_000,
   refetchIntervalInBackground: true,

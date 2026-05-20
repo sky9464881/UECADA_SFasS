@@ -27,9 +27,9 @@ public final class EquipmentThresholdConfig {
                 Map.entry("sensor_voltage",     SensorThreshold.band(200.0, 342.0, 418.0, Double.NaN)), // WARNING <342 or >418V, DANGER <200V
                 Map.entry("sensor_temperature", SensorThreshold.highOnly(40.0, 45.0)),   // WARNING >40℃, DANGER >45℃
                 // 공정 센서
-                Map.entry("injection_pressure", SensorThreshold.highOnly(138.0, 150.0)), // WARNING >138MPa (120*1.15), DANGER >150MPa (120*1.25)
-                Map.entry("mold_temperature",   SensorThreshold.band(150.0, 170.0, 260.0, 280.0)), // WARNING <170 or >260℃, DANGER <150 or >280℃
-                Map.entry("cooling_flow",       SensorThreshold.lowOnly(16.0, 12.0))     // WARNING <16 L/min (-20%), DANGER <12 L/min (-40%)
+                Map.entry("injection_pressure", SensorThreshold.highOnly(138.0, 180.0)), // DANGER only on a large jump beyond normal casting pressure
+                Map.entry("mold_temperature",   SensorThreshold.band(120.0, 170.0, 260.0, 320.0)),
+                Map.entry("cooling_flow",       SensorThreshold.lowOnly(16.0, 5.0))
         );
     }
 
@@ -42,8 +42,8 @@ public final class EquipmentThresholdConfig {
                 Map.entry("sensor_voltage",     SensorThreshold.band(200.0, 342.0, 418.0, Double.NaN)),
                 Map.entry("sensor_temperature", SensorThreshold.highOnly(35.0, 40.0)),   // WARNING >35℃, DANGER >40℃
                 // 공정 센서
-                Map.entry("tool_usage",         SensorThreshold.highOnly(80.0, 100.0)),  // WARNING 80~100%, DANGER >100%
-                Map.entry("coolant_flow",       SensorThreshold.lowOnly(8.0, 6.0))       // WARNING <8 L/min (-20%), DANGER <6 L/min (-40%)
+                Map.entry("tool_usage",         SensorThreshold.highOnly(80.0, 115.0)),
+                Map.entry("coolant_flow",       SensorThreshold.lowOnly(8.0, 2.0))
         );
     }
 
@@ -56,9 +56,9 @@ public final class EquipmentThresholdConfig {
                 Map.entry("sensor_voltage",         SensorThreshold.band(200.0, 342.0, 418.0, Double.NaN)),
                 Map.entry("sensor_temperature",     SensorThreshold.highOnly(38.0, 42.0)),  // WARNING >38℃, DANGER >42℃
                 // 공정 센서
-                Map.entry("cleaning_concentration", SensorThreshold.band(1.0, 1.5, 7.0, 10.0)), // WARNING <1.5 or >7%, DANGER <1 or >10%
-                Map.entry("cleaning_temperature",   SensorThreshold.band(40.0, 45.0, 80.0, 85.0)), // WARNING <45 or >80℃, DANGER <40 or >85℃
-                Map.entry("cleaning_pressure",      SensorThreshold.lowOnly(1.6, 1.2))     // WARNING <1.6 bar (-20%), DANGER <1.2 bar (-40%)
+                Map.entry("cleaning_concentration", SensorThreshold.band(0.5, 1.5, 7.0, 12.0)),
+                Map.entry("cleaning_temperature",   SensorThreshold.band(30.0, 45.0, 80.0, 95.0)),
+                Map.entry("cleaning_pressure",      SensorThreshold.lowOnly(1.6, 0.5))
         );
     }
 
@@ -71,8 +71,8 @@ public final class EquipmentThresholdConfig {
                 Map.entry("sensor_voltage",     SensorThreshold.band(200.0, 342.0, 418.0, Double.NaN)),
                 Map.entry("sensor_temperature", SensorThreshold.highOnly(35.0, 40.0)),
                 // 공정 센서 (설정값 기준 ±10% WARNING, ±20% DANGER)
-                Map.entry("tightening_torque",  SensorThreshold.band(24.0, 27.0, 55.0, 60.0)), // 30Nm*0.9~50Nm*1.1 기준
-                Map.entry("press_force",        SensorThreshold.band(350.0, 425.0, 3450.0, 3900.0)) // 500N*0.85~3000N*1.15 기준
+                Map.entry("tightening_torque",  SensorThreshold.band(15.0, 27.0, 55.0, 70.0)),
+                Map.entry("press_force",        SensorThreshold.band(100.0, 425.0, 3450.0, 4500.0))
         );
     }
 
@@ -85,8 +85,8 @@ public final class EquipmentThresholdConfig {
                 Map.entry("sensor_voltage",     SensorThreshold.band(100.0, 198.0, 242.0, Double.NaN)), // 220V 기준: WARNING <198 or >242V, DANGER <100V
                 Map.entry("sensor_temperature", SensorThreshold.highOnly(35.0, 40.0)),
                 // 공정 센서 (치수 공차)
-                Map.entry("bore_dimension",     SensorThreshold.band(39.980, 39.982, 40.018, 40.020)), // 40.000±0.020mm, 90% 접근 시 WARNING (±0.018), 이탈 시 DANGER (±0.020)
-                Map.entry("hole_dimension",     SensorThreshold.band(10.150, 10.155, 10.245, 10.250))  // 10.200±0.050mm, 90% 접근 시 WARNING (±0.045), 이탈 시 DANGER (±0.050)
+                Map.entry("bore_dimension",     SensorThreshold.band(39.950, 39.982, 40.018, 40.050)),
+                Map.entry("hole_dimension",     SensorThreshold.band(10.100, 10.155, 10.245, 10.300))
         );
     }
 

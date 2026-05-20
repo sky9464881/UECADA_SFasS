@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import random
+import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
@@ -18,6 +19,7 @@ from .vibration import VibrationGenerator
 
 
 STATE_KEYS = {"OFF", "STANDBY", "NORMAL", "WARNING", "DANGER"}
+AMBIENT_TEMPERATURE_RANGE_C = (27.0, 29.0)
 VIBRATION_MODEL_INPUT = {
     "model_version": "spectrogram-pca-rf-v2",
     "runtime_input": "raw vibration window only",
@@ -69,6 +71,8 @@ def utc_now_iso() -> str:
 
 
 class SensorWindowSimulator:
+    FAULT_KINDS = ("bearing", "looseness", "misalignment", "unbalance")
+
     def __init__(
         self,
         vibration: VibrationGenerator,
@@ -89,14 +93,48 @@ class SensorWindowSimulator:
         self.include_waveform = include_waveform
         self.rng = random.Random(seed)
         self._state: dict[str, RuntimeState] = {}
+        self._fault_injection_equipment_id: str | None = None
+        self._fault_injection_kind: str | None = None
+        self._fault_injection_until_monotonic = 0.0
+        self._fault_injection_until_iso: str | None = None
+
+    def trigger_fault(
+        self,
+        equipment_id: str,
+        fault_kind: str,
+        duration_sec: float = 10.0,
+    ) -> dict[str, Any]:
+        normalized_kind = fault_kind.lower()
+        if normalized_kind not in self.FAULT_KINDS:
+            normalized_kind = self.rng.choice(self.FAULT_KINDS)
+
+        duration = max(1.0, float(duration_sec))
+        self._fault_injection_equipment_id = equipment_id.upper()
+        self._fault_injection_kind = normalized_kind
+        self._fault_injection_until_monotonic = time.monotonic() + duration
+        self._fault_injection_until_iso = datetime.fromtimestamp(
+            time.time() + duration,
+            timezone.utc,
+        ).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+        return {
+            "equipment_id": self._fault_injection_equipment_id,
+            "fault_kind": self._fault_injection_kind,
+            "duration_sec": duration,
+            "ends_at": self._fault_injection_until_iso,
+        }
 
     def next_payload(self, equipment: EquipmentInstance) -> dict[str, Any]:
         state = self._state.setdefault(equipment.instance_id, RuntimeState())
         op_state = self._resolve_operating_state(state)
         health_state = self._resolve_health_state(state, op_state)
         status_key = self._status_key(op_state, health_state)
+        vibration_status_key = status_key
+        fault_kind = self._active_fault_kind(equipment)
+        if fault_kind and op_state != "OFF":
+            health_state = "DANGER"
+            vibration_status_key = "DANGER"
 
-        common = self._generate_common_values(equipment, state, op_state, status_key)
+        common = self._generate_common_values(equipment, state, op_state, status_key, vibration_status_key)
         cycle_elapsed = state.seq % equipment.cycle_time_sec
         timestamp = utc_now_iso()
 
@@ -105,6 +143,7 @@ class SensorWindowSimulator:
             operating_state=op_state,
             health_state=health_state,
             target_rms_mm_s=common["vibration_rms_mm_s"],
+            fault_kind=fault_kind,
         )
 
         tags = {
@@ -137,6 +176,11 @@ class SensorWindowSimulator:
             "operation": {
                 "state": op_state,
                 "health": health_state,
+                "fault_injection": {
+                    "active": fault_kind is not None,
+                    "fault_kind": fault_kind,
+                    "ends_at": self._fault_injection_until_iso if fault_kind else None,
+                },
                 "cycle_time_sec": equipment.cycle_time_sec,
                 "cycle_elapsed_sec": cycle_elapsed,
                 "cycle_index": state.seq // equipment.cycle_time_sec,
@@ -151,6 +195,25 @@ class SensorWindowSimulator:
         }
         state.seq += 1
         return payload
+
+    def _active_fault_kind(self, equipment: EquipmentInstance) -> str | None:
+        if not self._fault_injection_kind or not self._fault_injection_equipment_id:
+            return None
+        if time.monotonic() >= self._fault_injection_until_monotonic:
+            self._fault_injection_equipment_id = None
+            self._fault_injection_kind = None
+            self._fault_injection_until_monotonic = 0.0
+            self._fault_injection_until_iso = None
+            return None
+
+        aliases = {
+            equipment.instance_id.upper(),
+            equipment.equipment_id.upper(),
+            f"{equipment.line_id}_{equipment.equipment_id}".upper(),
+        }
+        if self._fault_injection_equipment_id in aliases:
+            return self._fault_injection_kind
+        return None
 
     def _resolve_operating_state(self, state: RuntimeState) -> str:
         if self.operating_state != "AUTO":
@@ -193,18 +256,19 @@ class SensorWindowSimulator:
         state: RuntimeState,
         operating_state: str,
         status_key: str,
+        vibration_status_key: str | None = None,
     ) -> dict[str, float]:
         ranges = COMMON_RANGES[equipment.equipment_type]
         current = self._range_value(state, "current_a", ranges["current_a"][status_key])
         equipment_temp = self._range_value(
             state,
             "equipment_temperature_c",
-            ranges["equipment_temperature_c"][status_key],
+            AMBIENT_TEMPERATURE_RANGE_C,
         )
         vibration_rms = self._range_value(
             state,
             "vibration_rms_mm_s",
-            ranges["vibration_rms_mm_s"][status_key],
+            ranges["vibration_rms_mm_s"][vibration_status_key or status_key],
         )
         voltage_values = self._voltage_values(equipment.equipment_type, state, operating_state, status_key)
 
@@ -281,7 +345,10 @@ class SensorWindowSimulator:
                 **SENSOR_CATALOG["TEMP-01"],
                 "sensor_id": "TEMP-01",
                 "sample": scalar_sample,
-                "values": {"equipment_temperature": common["equipment_temperature_c"]},
+                "values": {
+                    "equipment_temperature": common["equipment_temperature_c"],
+                    "ambient_temperature": common["equipment_temperature_c"],
+                },
                 "unit": "degC",
             },
             {

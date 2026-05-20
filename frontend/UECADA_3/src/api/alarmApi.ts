@@ -14,6 +14,23 @@ export interface AlarmResponse {
   comment: string | null
 }
 
+export interface AlarmHistoryResponse {
+  id: number
+  equipmentCode: string
+  analysisResultId: number
+  alarmLevel: string
+  status: string
+  message: string
+  occurredAt: string
+  endedAt: string | null
+  durationSeconds: number | null
+  anomalyScore: number | null
+  rms: number | null
+  peakToPeak: number | null
+  kurtosis: number | null
+  prediction: string | null
+}
+
 export interface AlarmStatItem {
   date: string
   alarmType: string
@@ -119,6 +136,14 @@ export async function fetchAlarmsRaw(status?: string | null, from?: string, to?:
   if (from) params.from = from
   if (to) params.to = to
   const { data } = await api.get<AlarmResponse[]>('/api/alarms', { params })
+  return data
+}
+
+export async function fetchAlarmHistoriesRaw(limit = 50): Promise<AlarmHistoryResponse[]> {
+  if (useMockAlarms()) return []
+  const { data } = await api.get<AlarmHistoryResponse[]>('/api/alarm-histories', {
+    params: { limit: String(limit) },
+  })
   return data
 }
 

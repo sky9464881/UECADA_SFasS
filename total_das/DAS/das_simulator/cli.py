@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import argparse
+import json
+import random
 import time
 from pathlib import Path
 
@@ -57,6 +59,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--mqtt-password", default=None, help="MQTT password.")
     parser.add_argument("--mqtt-client-id", default="das-sensor-simulator", help="MQTT client ID.")
     parser.add_argument("--topic-prefix", default="das/simulator", help="MQTT topic prefix.")
+    parser.add_argument(
+        "--control-topic",
+        default="das/simulator/control/fault",
+        help="MQTT topic that triggers a temporary vibration fault injection.",
+    )
     parser.add_argument("--qos", type=int, choices=[0, 1, 2], default=0, help="MQTT QoS.")
     parser.add_argument("--retain", action="store_true", help="Publish MQTT messages with retain flag.")
     return parser
@@ -77,6 +84,7 @@ def main(argv: list[str] | None = None) -> int:
         stride_samples=args.stride_samples,
     )
     vibration = VibrationGenerator(bearing_source, seed=args.seed)
+    rng = random.Random(args.seed)
     simulator = SensorWindowSimulator(
         vibration=vibration,
         operating_state=args.operating_state,
@@ -103,6 +111,34 @@ def main(argv: list[str] | None = None) -> int:
             )
         )
         publisher.connect()
+
+        def handle_control_message(topic: str, payload: str) -> None:
+            try:
+                command = json.loads(payload or "{}")
+            except json.JSONDecodeError:
+                print(f"[simulator] ignored invalid control payload on {topic}: {payload!r}", flush=True)
+                return
+
+            command_name = str(command.get("command", "inject_fault")).lower()
+            if command_name not in {"inject_fault", "fault", "anomaly"}:
+                return
+
+            fault_kind = str(command.get("fault_kind") or command.get("fault") or "random").lower()
+            if fault_kind == "random":
+                fault_kind = rng.choice(SensorWindowSimulator.FAULT_KINDS)
+
+            requested_equipment = command.get("equipment_id") or command.get("equipmentId") or "random"
+            requested_equipment = str(requested_equipment).upper()
+            if requested_equipment == "RANDOM":
+                target = rng.choice(equipment).instance_id
+            else:
+                target = requested_equipment
+
+            duration = command.get("duration_sec", command.get("durationSec", 10))
+            result = simulator.trigger_fault(target, fault_kind, duration)
+            print(f"[simulator] vibration fault injection: {result}", flush=True)
+
+        publisher.subscribe(args.control_topic, handle_control_message)
 
     tick = 0
     try:
