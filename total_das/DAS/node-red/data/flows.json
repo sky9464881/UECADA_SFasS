@@ -730,7 +730,7 @@
         "type": "function",
         "z": "das_tab_router",
         "name": "build configured fault command",
-        "func": "// Edit these values in Node-RED to choose the target equipment and fault window.\nconst TARGET_EQUIPMENT = 'LINE-01-CAST-01';\nconst FAULT_KIND = 'bearing'; // bearing | looseness | misalignment | unbalance\nconst DURATION_SEC = 10;\n\nconst command = {\n    command: 'inject_fault',\n    duration_sec: DURATION_SEC,\n    fault_kind: FAULT_KIND,\n    equipment_id: TARGET_EQUIPMENT,\n    requested_at: new Date().toISOString()\n};\n\nmsg.topic = 'das/simulator/control/fault';\nmsg.payload = JSON.stringify(command);\nnode.status({\n    fill: 'red',\n    shape: 'dot',\n    text: command.equipment_id + ' ' + command.fault_kind + ' ' + command.duration_sec + 's'\n});\nreturn msg;",
+        "func": "// Edit these values in Node-RED to choose the target equipment and fault window.\nconst TARGET_EQUIPMENT = 'LINE-01-CAST-01';\nconst FAULT_KIND = 'misalignment'; // bearing | looseness | misalignment | unbalance\nconst DURATION_SEC = 5;\n\nconst command = {\n    command: 'inject_fault',\n    duration_sec: DURATION_SEC,\n    fault_kind: FAULT_KIND,\n    equipment_id: TARGET_EQUIPMENT,\n    requested_at: new Date().toISOString()\n};\n\nmsg.topic = 'das/simulator/control/fault';\nmsg.payload = JSON.stringify(command);\nnode.status({\n    fill: 'red',\n    shape: 'dot',\n    text: command.equipment_id + ' ' + command.fault_kind + ' ' + command.duration_sec + 's'\n});\nreturn msg;",
         "outputs": 1,
         "timeout": 0,
         "noerr": 0,
