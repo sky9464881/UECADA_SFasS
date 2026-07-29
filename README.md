@@ -33,9 +33,6 @@ https://github.com/user-attachments/assets/947b5121-ca4c-4678-a107-c56b628c4043
 
 
 
-[📊 PPT 발표 자료 열기](./docs/presentation/디지털 트윈 프로젝트.pdf)
-
-
 
 
 ![UECADA Cover](assets/cover.png)
@@ -64,6 +61,14 @@ https://github.com/user-attachments/assets/947b5121-ca4c-4678-a107-c56b628c4043
 18. [한계 및 개선 방향](#한계-및-개선-방향)
 
 ---
+
+
+
+
+
+[📊 PPT 발표 자료 열기](./docs/presentation/디지털 트윈 프로젝트.pdf)
+
+
 
 ## 프로젝트 소개
 
