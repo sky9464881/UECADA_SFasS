@@ -11,7 +11,7 @@
 다양한 산업용 통신 프로토콜로부터 설비·센서 데이터를 수집하고,  
 OPC UA 기반으로 표준화하여 실시간 관제·예지보전(PHM)·알람·KPI 분석을 제공하는 스마트팩토리 SCADA 프로젝트
 
-[📊 PPT 발표 자료 열기](./docs/presentation/디지털 트윈 프로젝트.pdf)
+
 
 
 
@@ -30,6 +30,13 @@ https://github.com/user-attachments/assets/947b5121-ca4c-4678-a107-c56b628c4043
 ![Status](https://img.shields.io/badge/Status-Prototype-F9A825)
 
 </div>
+
+
+
+[📊 PPT 발표 자료 열기](./docs/presentation/디지털 트윈 프로젝트.pdf)
+
+
+
 
 ![UECADA Cover](assets/cover.png)
 
