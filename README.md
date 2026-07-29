@@ -35,7 +35,8 @@ https://github.com/user-attachments/assets/947b5121-ca4c-4678-a107-c56b628c4043
 
 
 
-![UECADA Cover](assets/cover.png)
+
+[Uploading 통합설비관제시스템_compressed.pdf…]()
 
 ---
 
