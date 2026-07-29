@@ -34,9 +34,8 @@ https://github.com/user-attachments/assets/947b5121-ca4c-4678-a107-c56b628c4043
 
 
 
+[통합설비관제시스템_compressed.pdf](https://github.com/user-attachments/files/30491651/_compressed.pdf)
 
-
-[Uploading 통합설비관제시스템_compressed.pdf…]()
 
 ---
 
